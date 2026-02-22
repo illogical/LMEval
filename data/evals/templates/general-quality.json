@@ -1,0 +1,69 @@
+{
+  "id": "general-quality",
+  "name": "General Quality",
+  "description": "Evaluates responses across accuracy, completeness, instruction following, and conciseness.",
+  "isBuiltIn": true,
+  "deterministicChecks": {
+    "formatCompliance": false,
+    "jsonSchemaValidation": false,
+    "toolCallValidation": false
+  },
+  "judgeConfig": {
+    "enabled": true,
+    "model": "",
+    "perspectives": [
+      {
+        "id": "accuracy",
+        "name": "Accuracy",
+        "description": "Is the information correct and factually accurate?",
+        "weight": 0.3,
+        "systemPrompt": "You are an expert evaluator assessing the accuracy of AI responses. Evaluate whether the response contains correct, factual information without errors or hallucinations.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Highly inaccurate", "2": "Several errors", "3": "Mostly accurate", "4": "Very accurate", "5": "Perfectly accurate" }
+        }
+      },
+      {
+        "id": "completeness",
+        "name": "Completeness",
+        "description": "Does the response fully address all aspects of the request?",
+        "weight": 0.25,
+        "systemPrompt": "You are an expert evaluator assessing the completeness of AI responses. Evaluate whether the response thoroughly addresses all parts of the user's request without significant omissions.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Very incomplete", "2": "Misses key parts", "3": "Mostly complete", "4": "Very complete", "5": "Fully comprehensive" }
+        }
+      },
+      {
+        "id": "instruction-following",
+        "name": "Instruction Following",
+        "description": "Does the response follow the instructions given in the prompt?",
+        "weight": 0.25,
+        "systemPrompt": "You are an expert evaluator assessing how well an AI follows instructions. Evaluate whether the response adheres to all explicit and implicit instructions in the system prompt and user message.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Ignores instructions", "2": "Follows some instructions", "3": "Mostly follows instructions", "4": "Follows instructions well", "5": "Perfectly follows all instructions" }
+        }
+      },
+      {
+        "id": "conciseness",
+        "name": "Conciseness",
+        "description": "Is the response appropriately concise without unnecessary verbosity?",
+        "weight": 0.2,
+        "systemPrompt": "You are an expert evaluator assessing the conciseness of AI responses. Evaluate whether the response is appropriately brief without sacrificing important information.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Extremely verbose", "2": "Too wordy", "3": "Acceptable length", "4": "Well-concise", "5": "Perfectly concise" }
+        }
+      }
+    ],
+    "pairwiseComparison": false,
+    "runsPerCombination": 1
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

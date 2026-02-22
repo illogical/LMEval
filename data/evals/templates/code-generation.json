@@ -1,0 +1,69 @@
+{
+  "id": "code-generation",
+  "name": "Code Generation",
+  "description": "Evaluates generated code for correctness, quality, completeness, and efficiency.",
+  "isBuiltIn": true,
+  "deterministicChecks": {
+    "formatCompliance": false,
+    "jsonSchemaValidation": false,
+    "toolCallValidation": false
+  },
+  "judgeConfig": {
+    "enabled": true,
+    "model": "",
+    "perspectives": [
+      {
+        "id": "correctness",
+        "name": "Correctness",
+        "description": "Is the generated code functionally correct?",
+        "weight": 0.35,
+        "systemPrompt": "You are an expert software engineer evaluating the correctness of AI-generated code. Assess whether the code would work correctly for the given task, including edge cases.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Completely broken", "2": "Major bugs", "3": "Works with minor issues", "4": "Mostly correct", "5": "Perfectly correct" }
+        }
+      },
+      {
+        "id": "code-quality",
+        "name": "Code Quality",
+        "description": "Is the code well-written, readable, and following best practices?",
+        "weight": 0.25,
+        "systemPrompt": "You are an expert software engineer evaluating the quality of AI-generated code. Assess readability, naming conventions, structure, and adherence to best practices.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Very poor quality", "2": "Below average", "3": "Acceptable quality", "4": "Good quality", "5": "Excellent quality" }
+        }
+      },
+      {
+        "id": "completeness",
+        "name": "Completeness",
+        "description": "Does the code fully address all requirements?",
+        "weight": 0.2,
+        "systemPrompt": "You are an expert software engineer evaluating the completeness of AI-generated code. Assess whether all requirements are implemented and nothing critical is missing.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Very incomplete", "2": "Missing major parts", "3": "Mostly complete", "4": "Very complete", "5": "Fully complete" }
+        }
+      },
+      {
+        "id": "efficiency",
+        "name": "Efficiency",
+        "description": "Is the code efficient in terms of time and space complexity?",
+        "weight": 0.2,
+        "systemPrompt": "You are an expert software engineer evaluating the efficiency of AI-generated code. Assess algorithmic complexity, resource usage, and potential performance bottlenecks.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Very inefficient", "2": "Below average efficiency", "3": "Acceptable efficiency", "4": "Good efficiency", "5": "Highly optimized" }
+        }
+      }
+    ],
+    "pairwiseComparison": false,
+    "runsPerCombination": 1
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}
