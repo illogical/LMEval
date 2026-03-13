@@ -50,7 +50,7 @@ export const PromptService = {
       slug,
       name: data.name,
       description: data.description,
-      versions: [{ version: 1, createdAt: now, tokensEstimate: Math.ceil(data.content.split(/\s+/).length * 1.33) }],
+      versions: [{ version: 1, createdAt: now, tokensEstimate: this.estimateTokens(data.content) }],
       createdAt: now,
       updatedAt: now,
     };
@@ -70,7 +70,7 @@ export const PromptService = {
       version: nextVersion,
       createdAt: now,
       description,
-      tokensEstimate: Math.ceil(content.split(/\s+/).length * 1.33),
+      tokensEstimate: this.estimateTokens(content),
     };
 
     manifest.versions.push(meta);
@@ -101,6 +101,8 @@ export const PromptService = {
   },
 
   estimateTokens(content: string): number {
-    return Math.ceil(content.split(/\s+/).length * 1.33);
+    // Rough approximation: average English word encodes to ~1.33 tokens
+    const TOKENS_PER_WORD = 1.33;
+    return Math.ceil(content.split(/\s+/).length * TOKENS_PER_WORD);
   },
 };

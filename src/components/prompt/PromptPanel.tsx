@@ -45,7 +45,6 @@ export function PromptPanel({
           content={response}
           status={status}
           error={error}
-          durationMs={durationMs}
         />
       )}
     </div>

@@ -14,7 +14,6 @@ interface ResponseViewProps {
   content: string | null;
   status: 'idle' | 'loading' | 'done' | 'error';
   error?: string;
-  durationMs?: number;
 }
 
 export function ResponseView({ content, status, error }: ResponseViewProps) {
