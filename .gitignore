@@ -1,3 +1,13 @@
+# Runtime data (created automatically)
+data/evals/prompts/
+data/evals/evaluations/
+data/evals/baselines/
+data/evals/test-suites/
+data/evals/templates/custom/
+
+# Environment
+.env
+
 # Logs
 logs
 *.log

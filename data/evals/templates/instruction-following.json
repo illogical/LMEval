@@ -1,0 +1,69 @@
+{
+  "id": "instruction-following",
+  "name": "Instruction Following",
+  "description": "Evaluates strict adherence to explicit instructions, format compliance, constraints, and factuality.",
+  "isBuiltIn": true,
+  "deterministicChecks": {
+    "formatCompliance": true,
+    "jsonSchemaValidation": false,
+    "toolCallValidation": false
+  },
+  "judgeConfig": {
+    "enabled": true,
+    "model": "",
+    "perspectives": [
+      {
+        "id": "explicit-instructions",
+        "name": "Explicit Instructions",
+        "description": "Did the model follow all explicitly stated instructions?",
+        "weight": 0.4,
+        "systemPrompt": "You are an expert evaluator assessing instruction following. Evaluate whether the AI response precisely follows every explicit instruction given in the system prompt and user message.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Ignores instructions", "2": "Follows few instructions", "3": "Follows most instructions", "4": "Follows all major instructions", "5": "Perfect instruction adherence" }
+        }
+      },
+      {
+        "id": "format-compliance",
+        "name": "Format Compliance",
+        "description": "Does the response match the requested output format?",
+        "weight": 0.3,
+        "systemPrompt": "You are an expert evaluator assessing format compliance. Evaluate whether the AI response is formatted exactly as requested (e.g., JSON, markdown, numbered lists, specific structure).",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Wrong format entirely", "2": "Partially formatted", "3": "Mostly correct format", "4": "Good format compliance", "5": "Perfect format" }
+        }
+      },
+      {
+        "id": "constraint-adherence",
+        "name": "Constraint Adherence",
+        "description": "Does the model respect all constraints (length, topics, style)?",
+        "weight": 0.2,
+        "systemPrompt": "You are an expert evaluator assessing constraint adherence. Evaluate whether the AI response respects all stated constraints such as word limits, topic restrictions, or stylistic requirements.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Violates all constraints", "2": "Violates major constraints", "3": "Mostly compliant", "4": "Good constraint adherence", "5": "All constraints satisfied" }
+        }
+      },
+      {
+        "id": "no-hallucination",
+        "name": "No Hallucination",
+        "description": "Does the model avoid fabricating information?",
+        "weight": 0.1,
+        "systemPrompt": "You are an expert evaluator assessing factual accuracy and hallucination avoidance. Evaluate whether the AI avoids making up facts, citing non-existent sources, or fabricating information.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Heavy hallucination", "2": "Several hallucinations", "3": "Minor hallucinations", "4": "Mostly factual", "5": "No hallucinations" }
+        }
+      }
+    ],
+    "pairwiseComparison": false,
+    "runsPerCombination": 1
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

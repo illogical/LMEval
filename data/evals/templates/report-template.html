@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{EVAL_NAME}} — Evaluation Report</title>
+<style>
+  :root {
+    --bg: #09090b;
+    --surface: #18181b;
+    --surface-2: #27272a;
+    --border: #3f3f46;
+    --text: #f4f4f5;
+    --text-muted: #a1a1aa;
+    --teal: #14b8a6;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --blue: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.5; }
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+  h3 { font-size: 14px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .meta { color: var(--text-muted); font-size: 13px; margin-bottom: 24px; }
+  .tabs { display: flex; gap: 2px; margin-bottom: 24px; background: var(--surface); padding: 4px; border-radius: 8px; width: fit-content; }
+  .tab { padding: 8px 16px; border-radius: 6px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.15s; }
+  .tab.active { background: var(--surface-2); color: var(--text); }
+  .tab:hover:not(.active) { color: var(--text); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; user-select: none; }
+  th:hover { color: var(--text); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface-2); }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+  .badge-teal { background: rgba(20,184,166,0.15); color: var(--teal); }
+  .badge-amber { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .badge-rose { background: rgba(244,63,94,0.15); color: var(--rose); }
+  .score-cell { font-weight: 600; font-size: 16px; text-align: center; border-radius: 6px; min-width: 48px; padding: 6px; }
+  .heatmap-grid { display: grid; gap: 4px; overflow-x: auto; }
+  .heatmap-cell { padding: 8px; border-radius: 6px; text-align: center; font-size: 12px; font-weight: 600; min-width: 64px; }
+  .heatmap-header { padding: 8px; font-size: 11px; font-weight: 500; color: var(--text-muted); text-align: center; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .rank-card { background: var(--surface-2); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+  .rank-num { font-size: 20px; font-weight: 700; color: var(--text-muted); min-width: 28px; }
+  .rank-num.gold { color: var(--amber); }
+  .rank-num.silver { color: #a8a8b3; }
+  .rank-num.bronze { color: #cd7f32; }
+  .rank-info { flex: 1; }
+  .rank-name { font-weight: 600; }
+  .rank-score { font-size: 20px; font-weight: 700; color: var(--teal); }
+  .rank-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .metric-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .metric-row:last-child { border-bottom: none; }
+  .metric-label { color: var(--text-muted); }
+  .metric-value { font-weight: 500; }
+  .regression-banner { border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .regression-improved { background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.3); }
+  .regression-regressed { background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.3); }
+  details { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+  summary { padding: 12px 16px; cursor: pointer; background: var(--surface-2); font-weight: 500; }
+  summary:hover { background: var(--border); }
+  details[open] summary { border-bottom: 1px solid var(--border); }
+  .detail-content { padding: 16px; }
+  pre { background: var(--surface-2); border-radius: 6px; padding: 12px; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow-y: auto; }
+  .sort-asc::after { content: ' ↑'; }
+  .sort-desc::after { content: ' ↓'; }
+  @media print {
+    body { background: white; color: black; }
+    .tabs { display: none; }
+    .panel { display: block !important; break-before: page; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📊 {{EVAL_NAME}}</h1>
+  <div class="meta" id="eval-meta"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-panel="scoreboard">Scoreboard</button>
+    <button class="tab" data-panel="heatmap">Heatmap</button>
+    <button class="tab" data-panel="details">Details</button>
+    <button class="tab" data-panel="metrics">Metrics</button>
+  </div>
+
+  <div id="scoreboard" class="panel active"></div>
+  <div id="heatmap" class="panel"></div>
+  <div id="details" class="panel"></div>
+  <div id="metrics" class="panel"></div>
+</div>
+
+<script>
+const DATA = {{DATA}};
+
+function scoreColor(score, min=1, max=5) {
+  if (!score || score <= 0) return 'rgba(100,100,100,0.3)';
+  const t = (score - min) / (max - min);
+  if (t > 0.7) return `rgba(20,184,166,${0.2 + t * 0.3})`;
+  if (t > 0.4) return `rgba(245,158,11,${0.2 + t * 0.3})`;
+  return `rgba(244,63,94,${0.2 + (1-t) * 0.3})`;
+}
+
+function fmt(n, decimals=2) { return n != null ? Number(n).toFixed(decimals) : '—'; }
+function fmtMs(ms) { return ms > 1000 ? `${(ms/1000).toFixed(1)}s` : `${Math.round(ms)}ms`; }
+function pct(v) { return v != null ? `${(v*100).toFixed(1)}%` : '—'; }
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.panel).classList.add('active');
+  });
+});
+
+const summary = DATA.summary;
+const results = DATA.results;
+
+// Meta
+document.getElementById('eval-meta').innerHTML =
+  `Generated: ${new Date(summary.generatedAt).toLocaleString()} &nbsp;|&nbsp; Eval ID: ${summary.evalId}`;
+
+// Scoreboard
+function renderScoreboard() {
+  const el = document.getElementById('scoreboard');
+  let html = '';
+
+  // Regression banner
+  if (summary.regression) {
+    const r = summary.regression;
+    if (r.improved.length > 0) {
+      html += `<div class="regression-banner regression-improved">✅ <strong>Improved:</strong> ${r.improved.join(', ')}</div>`;
+    }
+    if (r.regressed.length > 0) {
+      html += `<div class="regression-banner regression-regressed">❌ <strong>Regressed:</strong> ${r.regressed.join(', ')}</div>`;
+    }
+  }
+
+  html += '<div class="grid-2">';
+
+  // Model rankings
+  html += '<div class="card"><h2>Model Rankings</h2>';
+  (summary.modelRankings || []).forEach((m, i) => {
+    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    html += `<div class="rank-card">
+      <div class="rank-num ${rankClass}">#${i+1}</div>
+      <div class="rank-info">
+        <div class="rank-name">${m.modelId}</div>
+        <div class="rank-meta">Pass: ${pct(m.deterministicPassRate)} | ${fmtMs(m.avgLatencyMs)} | ${fmt(m.avgTokensPerSecond,1)} tok/s</div>
+      </div>
+      <div class="rank-score" style="color:${m.compositeScore>0?'var(--teal)':'var(--text-muted)'}">${fmt(m.compositeScore,2)}</div>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Prompt rankings
+  html += '<div class="card"><h2>Prompt Rankings</h2>';
+  (summary.promptRankings || []).forEach((p, i) => {
+    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    html += `<div class="rank-card">
+      <div class="rank-num ${rankClass}">#${i+1}</div>
+      <div class="rank-info">
+        <div class="rank-name">${p.promptId}</div>
+        <div class="rank-meta">Version: v${p.version}</div>
+      </div>
+      <div class="rank-score" style="color:${p.compositeScore>0?'var(--teal)':'var(--text-muted)'}">${fmt(p.compositeScore,2)}</div>
+    </div>`;
+  });
+  html += '</div></div>';
+
+  // Full model table
+  html += '<div class="card"><h2>Full Model Statistics</h2><table id="model-table"><thead><tr>';
+  ['Model','Composite Score','Deterministic Pass','Avg Latency','Tokens/sec'].forEach((h,i) => {
+    html += `<th onclick="sortTable('model-table',${i})">${h}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+  (summary.modelRankings || []).forEach(m => {
+    html += `<tr>
+      <td>${m.modelId}</td>
+      <td><span class="badge badge-teal">${fmt(m.compositeScore,2)}</span></td>
+      <td>${pct(m.deterministicPassRate)}</td>
+      <td>${fmtMs(m.avgLatencyMs)}</td>
+      <td>${fmt(m.avgTokensPerSecond,1)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+
+  el.innerHTML = html;
+}
+
+// Heatmap
+function renderHeatmap() {
+  const el = document.getElementById('heatmap');
+  if (!results || !results.matrix || results.matrix.length === 0) {
+    el.innerHTML = '<div class="card"><p style="color:var(--text-muted)">No results data available.</p></div>';
+    return;
+  }
+
+  const models = [...new Set(results.matrix.map(c => c.modelId))];
+  const testCases = [...new Set(results.matrix.map(c => c.testCaseId))];
+
+  // Build score lookup
+  const judgeMap = new Map();
+  for (const jr of (results.judgeResults || [])) {
+    const key = jr.cellId;
+    if (!judgeMap.has(key)) judgeMap.set(key, []);
+    judgeMap.get(key).push(jr);
+  }
+  const cellMap = new Map(results.matrix.map(c => [c.id, c]));
+
+  const cols = models.length + 1;
+  let html = `<div class="card"><h2>Score Heatmap</h2>
+    <div class="heatmap-grid" style="grid-template-columns:repeat(${cols},1fr)">`;
+
+  html += '<div class="heatmap-header">Test Case</div>';
+  models.forEach(m => { html += `<div class="heatmap-header" title="${m}">${m.split(':')[0].substring(0,12)}</div>`; });
+
+  testCases.forEach(tcId => {
+    html += `<div class="heatmap-header" style="text-align:left;font-size:11px">${tcId.substring(0,16)}</div>`;
+    models.forEach(modelId => {
+      const cell = results.matrix.find(c => c.modelId === modelId && c.testCaseId === tcId);
+      if (!cell) { html += '<div class="heatmap-cell">—</div>'; return; }
+      const jrs = judgeMap.get(cell.id) || [];
+      const score = jrs.length > 0
+        ? jrs.reduce((s, j) => s + j.score, 0) / jrs.length
+        : 0;
+      const passRate = (() => {
+        const checks = [cell.metrics.formatCompliant, cell.metrics.jsonSchemaValid, cell.metrics.toolCallsValid].filter(v => v !== null && v !== undefined);
+        if (checks.length === 0) return null;
+        return checks.filter(Boolean).length / checks.length;
+      })();
+      const display = score > 0 ? fmt(score,1) : (passRate !== null ? pct(passRate) : '—');
+      const color = score > 0 ? scoreColor(score) : (passRate !== null ? scoreColor(passRate*5) : 'var(--surface-2)');
+      html += `<div class="heatmap-cell" style="background:${color}" title="${modelId} | ${tcId}&#10;Score: ${display}&#10;Latency: ${fmtMs(cell.metrics.durationMs)}">${display}</div>`;
+    });
+  });
+
+  html += '</div></div>';
+  el.innerHTML = html;
+}
+
+// Details
+function renderDetails() {
+  const el = document.getElementById('details');
+  if (!results || !results.matrix || results.matrix.length === 0) {
+    el.innerHTML = '<div class="card"><p style="color:var(--text-muted)">No results data available.</p></div>';
+    return;
+  }
+
+  let html = '<div class="card"><h2>Cell Details</h2>';
+  results.matrix.forEach(cell => {
+    const statusColor = cell.status === 'completed' ? 'teal' : cell.status === 'failed' ? 'rose' : 'amber';
+    html += `<details><summary>
+      <span class="badge badge-${statusColor}">${cell.status}</span>
+      &nbsp;<strong>${cell.modelId}</strong> × ${cell.testCaseId} (Run ${cell.runNumber})
+      &nbsp;<span style="color:var(--text-muted);font-size:12px">${fmtMs(cell.metrics.durationMs)} | ${cell.metrics.outputTokens} tokens</span>
+    </summary><div class="detail-content">`;
+
+    html += `<div class="metric-row"><span class="metric-label">Latency</span><span class="metric-value">${fmtMs(cell.metrics.durationMs)}</span></div>`;
+    html += `<div class="metric-row"><span class="metric-label">Input Tokens</span><span class="metric-value">${cell.metrics.inputTokens}</span></div>`;
+    html += `<div class="metric-row"><span class="metric-label">Output Tokens</span><span class="metric-value">${cell.metrics.outputTokens}</span></div>`;
+    html += `<div class="metric-row"><span class="metric-label">Server</span><span class="metric-value">${cell.metrics.serverName || '—'}</span></div>`;
+    if (cell.metrics.formatCompliant !== null) html += `<div class="metric-row"><span class="metric-label">Format Compliant</span><span class="metric-value">${cell.metrics.formatCompliant ? '✅' : '❌'}</span></div>`;
+    if (cell.metrics.jsonSchemaValid !== null) html += `<div class="metric-row"><span class="metric-label">JSON Schema Valid</span><span class="metric-value">${cell.metrics.jsonSchemaValid ? '✅' : '❌'}</span></div>`;
+    if (cell.metrics.toolCallsValid !== null) html += `<div class="metric-row"><span class="metric-label">Tool Calls Valid</span><span class="metric-value">${cell.metrics.toolCallsValid ? '✅' : '❌'}</span></div>`;
+
+    if (cell.response.content) {
+      html += `<br><strong>Response:</strong><pre>${escapeHtml(cell.response.content.substring(0, 1000) + (cell.response.content.length > 1000 ? '\n...[truncated]' : ''))}</pre>`;
+    }
+    if (cell.errorMessage) {
+      html += `<br><strong style="color:var(--rose)">Error:</strong><pre>${escapeHtml(cell.errorMessage)}</pre>`;
+    }
+
+    // Judge results for this cell
+    const cellJudgments = (results.judgeResults || []).filter(j => j.cellId === cell.id);
+    if (cellJudgments.length > 0) {
+      html += '<br><strong>Judge Scores:</strong>';
+      cellJudgments.forEach(j => {
+        html += `<div class="metric-row"><span class="metric-label">${j.perspectiveId}</span><span class="metric-value">${fmt(j.score,1)}/5 — ${j.justification.substring(0,100)}</span></div>`;
+      });
+    }
+
+    html += '</div></details>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// Metrics
+function renderMetrics() {
+  const el = document.getElementById('metrics');
+  if (!results || !results.matrix) {
+    el.innerHTML = '<div class="card"><p style="color:var(--text-muted)">No results data available.</p></div>';
+    return;
+  }
+
+  const models = [...new Set(results.matrix.map(c => c.modelId))];
+  const completedCells = results.matrix.filter(c => c.status === 'completed');
+
+  let html = '<div class="card"><h2>Performance Metrics</h2><table><thead><tr>';
+  ['Model','Avg Latency','Avg TPS','Total Input Tokens','Total Output Tokens','Cells'].forEach((h,i) => {
+    html += `<th onclick="sortTable('metrics-table',${i})">${h}</th>`;
+  });
+  html += '</tr></thead><tbody id="metrics-table">';
+
+  models.forEach(modelId => {
+    const cells = completedCells.filter(c => c.modelId === modelId);
+    if (cells.length === 0) return;
+    const avgLatency = cells.reduce((s,c) => s + c.metrics.durationMs, 0) / cells.length;
+    const avgTPS = cells.reduce((s,c) => s + c.metrics.tokensPerSecond, 0) / cells.length;
+    const totalIn = cells.reduce((s,c) => s + c.metrics.inputTokens, 0);
+    const totalOut = cells.reduce((s,c) => s + c.metrics.outputTokens, 0);
+    html += `<tr><td>${modelId}</td><td>${fmtMs(avgLatency)}</td><td>${fmt(avgTPS,1)}</td><td>${totalIn}</td><td>${totalOut}</td><td>${cells.length}</td></tr>`;
+  });
+  html += '</tbody></table></div>';
+
+  // Deterministic checks table
+  html += '<div class="card"><h2>Deterministic Checks</h2><table><thead><tr><th>Model</th><th>Test Case</th><th>Format</th><th>JSON Schema</th><th>Tool Calls</th></tr></thead><tbody>';
+  results.matrix.forEach(cell => {
+    const fmtCheck = (v) => v === null || v === undefined ? '<span style="color:var(--text-muted)">N/A</span>' : v ? '✅' : '❌';
+    html += `<tr>
+      <td>${cell.modelId.split(':')[0]}</td>
+      <td>${cell.testCaseId.substring(0,16)}</td>
+      <td>${fmtCheck(cell.metrics.formatCompliant)}</td>
+      <td>${fmtCheck(cell.metrics.jsonSchemaValid)}</td>
+      <td>${fmtCheck(cell.metrics.toolCallsValid)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+
+  el.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Table sorting
+let sortState = {};
+function sortTable(tableId, colIdx) {
+  const key = tableId + ':' + colIdx;
+  sortState[key] = sortState[key] === 'asc' ? 'desc' : 'asc';
+  const asc = sortState[key] === 'asc';
+
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const tbody = table.tagName === 'TBODY' ? table : table.querySelector('tbody');
+  if (!tbody) return;
+
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  rows.sort((a, b) => {
+    const aVal = a.cells[colIdx]?.textContent?.trim() ?? '';
+    const bVal = b.cells[colIdx]?.textContent?.trim() ?? '';
+    const aNum = parseFloat(aVal.replace(/[^0-9.-]/g, ''));
+    const bNum = parseFloat(bVal.replace(/[^0-9.-]/g, ''));
+    if (!isNaN(aNum) && !isNaN(bNum)) return asc ? aNum - bNum : bNum - aNum;
+    return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+  });
+  rows.forEach(r => tbody.appendChild(r));
+
+  // Update header indicators
+  const ths = (table.tagName === 'TABLE' ? table : table.closest('table'))?.querySelectorAll('th') ?? [];
+  ths.forEach((th, i) => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (i === colIdx) th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+  });
+}
+
+// Render all panels
+renderScoreboard();
+renderHeatmap();
+renderDetails();
+renderMetrics();
+</script>
+</body>
+</html>

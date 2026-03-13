@@ -4,17 +4,30 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev:server": "bun run server/index.ts",
+    "dev:client": "vite",
+    "dev": "concurrently \"bun run dev:server\" \"bun run dev:client\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:api": "bun run scripts/test-api.ts"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.9",
+    "@tailwindcss/vite": "^4.2.0",
+    "ajv": "^8.18.0",
+    "concurrently": "^9.2.1",
+    "diff": "^8.0.3",
+    "hono": "^4.12.1",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "socket.io-client": "^4.8.3",
+    "tailwindcss": "^4.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/bun": "^1.3.9",
+    "@types/diff": "^7.0.2",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

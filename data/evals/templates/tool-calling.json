@@ -1,0 +1,69 @@
+{
+  "id": "tool-calling",
+  "name": "Tool Calling",
+  "description": "Evaluates tool/function calling quality: selection, argument quality, reasoning, and error handling.",
+  "isBuiltIn": true,
+  "deterministicChecks": {
+    "formatCompliance": false,
+    "jsonSchemaValidation": false,
+    "toolCallValidation": true
+  },
+  "judgeConfig": {
+    "enabled": true,
+    "model": "",
+    "perspectives": [
+      {
+        "id": "tool-selection",
+        "name": "Tool Selection",
+        "description": "Did the model select the appropriate tool(s) for the task?",
+        "weight": 0.35,
+        "systemPrompt": "You are an expert evaluator assessing whether an AI correctly selected the appropriate tools for a given task. Evaluate whether the chosen tools are the right ones for the request.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Wrong tools selected", "2": "Partially correct tools", "3": "Mostly correct", "4": "Good tool selection", "5": "Perfect tool selection" }
+        }
+      },
+      {
+        "id": "argument-quality",
+        "name": "Argument Quality",
+        "description": "Are the tool arguments correct and well-formed?",
+        "weight": 0.3,
+        "systemPrompt": "You are an expert evaluator assessing the quality of tool call arguments. Evaluate whether the arguments passed to tools are correct, complete, and properly formatted.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Invalid arguments", "2": "Many argument errors", "3": "Mostly correct", "4": "Good arguments", "5": "Perfect arguments" }
+        }
+      },
+      {
+        "id": "reasoning",
+        "name": "Reasoning",
+        "description": "Does the model show good reasoning about when and how to use tools?",
+        "weight": 0.2,
+        "systemPrompt": "You are an expert evaluator assessing the reasoning behind tool usage. Evaluate whether the model demonstrates clear logical reasoning about which tools to use and in what sequence.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "Poor reasoning", "2": "Weak reasoning", "3": "Adequate reasoning", "4": "Good reasoning", "5": "Excellent reasoning" }
+        }
+      },
+      {
+        "id": "error-handling",
+        "name": "Error Handling",
+        "description": "Does the model handle edge cases and potential errors gracefully?",
+        "weight": 0.15,
+        "systemPrompt": "You are an expert evaluator assessing how well an AI handles error conditions and edge cases when using tools. Evaluate whether the model anticipates and handles potential errors appropriately.",
+        "scoringScale": {
+          "min": 1,
+          "max": 5,
+          "labels": { "1": "No error handling", "2": "Minimal error awareness", "3": "Some error handling", "4": "Good error handling", "5": "Excellent error handling" }
+        }
+      }
+    ],
+    "pairwiseComparison": false,
+    "runsPerCombination": 1
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}
