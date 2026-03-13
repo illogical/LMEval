@@ -1,25 +1,54 @@
 # Prompt & Model Evaluation System — Task List
 
-> Implementation plan: [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md)
+> MVP plan: [`../features/prompt-eval-system/MVP_PROMPT_COMPARISON.md`](../features/prompt-eval-system/MVP_PROMPT_COMPARISON.md)
+> Full implementation plan: [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md)
 > Original design spec: [`prompt-eval-system-plan.md`](prompt-eval-system-plan.md)
 > LMApi API reference: [`LMAPI_API_REFERENCE.md`](LMAPI_API_REFERENCE.md)
 
 This project is a standalone Bun + Vite + React + TypeScript application that consumes the LMApi service for all LLM model interactions.
 
+**Implementation order**: Complete Phase 0 (MVP) first to establish the UI foundation, then proceed to Phase 1 (backend) and beyond.
+
 ---
 
-## Phase 1 — Project Setup & Foundation
+## Phase 0 — MVP: Prompt Comparison UI
 
-- [ ] Scaffold project with `bun create vite prompt-eval --template react-ts`
-- [ ] Install dependencies: `tailwindcss`, `@tailwindcss/vite`, `socket.io-client`, `diff`, `@types/diff`, `hono`, `ajv`, `@types/bun`
-- [ ] Configure Tailwind CSS with eval color palette as CSS custom properties (zinc/amber/teal/rose — see Section 7.3 of IMPLEMENTATION_PLAN.md)
-- [ ] Configure `vite.config.ts` with dev proxy to eval backend (`/api/eval` → `:3200`) and WebSocket proxy (`/ws/eval`)
-- [ ] Create `.env` with `PORT=3200` and `LMAPI_BASE_URL=http://localhost:3111`
+> Spec: [`../features/prompt-eval-system/MVP_PROMPT_COMPARISON.md`](../features/prompt-eval-system/MVP_PROMPT_COMPARISON.md)
+>
+> Goal: Working side-by-side prompt comparison UI that calls LMApi directly from the browser. No backend server required.
+
+- [x] Scaffold project with `bun create vite prompt-eval --template react-ts`
+- [ ] Install MVP dependency: `bun add highlight.js`
+- [ ] Update `vite.config.ts` — add `/lmapi` proxy to `http://localhost:3111`
+- [ ] Update `index.html` — title → "LMEval", add Inter + JetBrains Mono Google Fonts `<link>` tags
+- [ ] Replace `src/index.css` — vaultpad-inspired CSS custom properties (`--bg`, `--surface`, `--surface-preview`, `--text`, `--muted`, `--accent`, `--border`, `--ok`, `--error`, `--font-ui`, `--font-mono`), base reset, full-height `body`/`#root` (remove Vite defaults: `place-items: center`, `max-width`)
+- [ ] Replace `src/App.css` — layout CSS: `.app-layout` (4-row grid), `.main-area`, `.response-area`, `.prompt-panel`, `.panel-label`, `.prompt-textarea`, `.response-view`, `.user-message-bar`, header styles, skeleton animation, error/hint classes
+- [ ] Create `src/types/lmapi.ts` — `LmapiServerStatus`, `LmapiChatCompletionRequest`, `LmapiChatCompletionResponse` (see MVP spec for full shapes)
+- [ ] Create `src/api/lmapi.ts` — `getServers(): Promise<LmapiServerStatus[]>`, `chatCompletion(req): Promise<LmapiChatCompletionResponse>` (note: `/lmapi/api/servers` returns array directly, not `{ servers: [] }`)
+- [ ] Create `src/hooks/useModels.ts` — calls `getServers()` on mount, filters `isOnline`, flattens to `ModelOption[]` grouped by `config.name`; returns `{ models, loading, error }`
+- [ ] Create `src/components/layout/Header.tsx` — flex row: LMEval logo (accent + JetBrains Mono) | `<select>` with `<optgroup>` per server | Run Both button (disabled when loading/no model) + status indicator
+- [ ] Create `src/components/prompt/ResponseView.tsx` — imports `highlight.js/styles/atom-one-dark.css`, registers `markdown`/`json`/`xml`/`yaml` languages, uses `hljs.highlightAuto()` + `dangerouslySetInnerHTML`; handles idle/loading (skeleton)/error/done states
+- [ ] Create `src/components/prompt/PromptPanel.tsx` — `label` + `<textarea>` (editor mode) or `<ResponseView>` (response mode); flex column filling grid cell
+- [ ] Replace `src/App.tsx` — `PromptState` tuple, `userMessage`, `selectedModel` state; `handleRun` with `Promise.allSettled`; auto-select first model on load; 4-section layout JSX
+- [ ] **Verification**: `bun run dev` → both prompt editors side by side with dark theme → model selector populated from LMApi → enter two prompts + user message → Run Both → responses appear with syntax highlighting → `lmapi.duration_ms` shown per response → error state shown on failure
+
+---
+
+## Phase 1 — Backend: Services & CRUD API
+
+> Prerequisite: Phase 0 complete. At this point `src/types/lmapi.ts` already exists — reuse it.
+>
+> The backend introduces the Hono server, file-based storage, and eval data management. The frontend Tailwind migration also happens here.
+
+- [ ] Install backend dependencies: `bun add hono ajv diff socket.io-client @tailwindcss/vite tailwindcss` and `bun add -d @types/diff @types/bun`
+- [ ] Configure `vite.config.ts` — add Tailwind plugin; add `/api/eval` proxy to `:3200` and `/ws/eval` WebSocket proxy alongside existing `/lmapi` proxy
+- [ ] Migrate `src/index.css` from plain CSS custom properties to Tailwind directives + CSS custom properties for the eval palette (zinc/amber/teal/rose per Section 7.3 of `IMPLEMENTATION_PLAN.md`)
+- [ ] Create `.example.env` with `PORT=3200` and `LMAPI_BASE_URL=http://localhost:3111`
 - [ ] Create `server/index.ts` — Bun HTTP server with Hono app on port 3200
 - [ ] Create shared TypeScript types:
   - [ ] `src/types/eval.ts` — all eval system interfaces from Section 2.2 of `prompt-eval-system-plan.md` (`EvalTemplate`, `JudgePerspective`, `PromptManifest`, `PromptVersionMeta`, `ToolDefinition`, `TestSuite`, `TestCase`, `ExpectedToolCall`, `EvaluationConfig`, `EvaluationResults`, `EvalMatrixCell`, `ToolCallResult`, `JudgeResult`, `PairwiseRanking`, `EvaluationSummary`, `EvalStreamEvent`)
-  - [ ] `src/types/lmapi.ts` — LMApi response types from Section 11 of `LMAPI_API_REFERENCE.md` (`LmapiChatCompletionRequest`, `LmapiChatCompletionResponse`, `LmapiServerStatus`, `LmapiBatchResponse`, `ToolCall`, `ToolDefinition`)
-  - [ ] `server/types/eval.ts` — re-export or symlink shared types for backend use
+  - [ ] Expand `src/types/lmapi.ts` — add `LmapiBatchResponse`, `ToolCall`, `ToolDefinition` (extends Phase 0 types)
+  - [ ] `server/types/eval.ts` — re-export shared types for backend use
 - [ ] Create `server/services/FileService.ts` — JSON/Markdown I/O, slug generation, directory helpers, `ensureDir`, `generateId` (see Section 4.2)
 - [ ] Create `data/evals/` directory structure: `templates/`, `templates/custom/`, `prompts/`, `test-suites/`, `evaluations/`, `baselines/`
 - [ ] Create built-in template JSON files in `data/evals/templates/`:
