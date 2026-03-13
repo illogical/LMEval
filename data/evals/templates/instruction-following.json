@@ -1,0 +1,42 @@
+{
+  "id": "instruction-following",
+  "name": "Instruction Following",
+  "description": "Evaluates strict adherence to explicit instructions, format compliance, constraint adherence, and accuracy.",
+  "builtIn": true,
+  "perspectives": [
+    {
+      "id": "explicit-instructions",
+      "name": "Explicit Instructions",
+      "description": "All stated instructions are followed",
+      "weight": 0.4,
+      "criteria": "Does the response follow all explicit instructions stated in the system and user prompts?",
+      "scoringGuide": "1=Ignores instructions, 2=Follows few, 3=Follows most, 4=Follows all, 5=Perfectly follows with nuance"
+    },
+    {
+      "id": "format-compliance",
+      "name": "Format Compliance",
+      "description": "Requested format is used correctly",
+      "weight": 0.3,
+      "criteria": "Does the response use the requested format (JSON, markdown, list, etc.)?",
+      "scoringGuide": "1=Wrong format, 2=Partial format, 3=Mostly correct format, 4=Correct format, 5=Perfect format with all details"
+    },
+    {
+      "id": "constraint-adherence",
+      "name": "Constraint Adherence",
+      "description": "Length, tone, and scope constraints respected",
+      "weight": 0.2,
+      "criteria": "Does the response respect length, tone, and scope constraints?",
+      "scoringGuide": "1=Ignores constraints, 2=Violates many, 3=Mostly adheres, 4=Adheres well, 5=Perfect constraint adherence"
+    },
+    {
+      "id": "no-hallucination",
+      "name": "No Hallucination",
+      "description": "No invented facts or instructions",
+      "weight": 0.1,
+      "criteria": "Does the response avoid inventing facts, requirements, or instructions not present in the prompt?",
+      "scoringGuide": "1=Heavy hallucination, 2=Some hallucination, 3=Mostly grounded, 4=Grounded, 5=Perfectly grounded"
+    }
+  ],
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

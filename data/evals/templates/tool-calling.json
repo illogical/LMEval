@@ -1,0 +1,42 @@
+{
+  "id": "tool-calling",
+  "name": "Tool Calling",
+  "description": "Evaluates function/tool calling quality: selection, argument quality, reasoning, and error handling.",
+  "builtIn": true,
+  "perspectives": [
+    {
+      "id": "tool-selection",
+      "name": "Tool Selection",
+      "description": "Correct tool chosen for the task",
+      "weight": 0.35,
+      "criteria": "Did the model select the appropriate tool(s) for the given task?",
+      "scoringGuide": "1=Wrong tool, 2=Suboptimal tool, 3=Acceptable tool, 4=Good tool choice, 5=Perfect tool selection"
+    },
+    {
+      "id": "argument-quality",
+      "name": "Argument Quality",
+      "description": "Arguments passed to tools are correct and well-formed",
+      "weight": 0.3,
+      "criteria": "Are the arguments passed to the tool correct, complete, and properly formatted?",
+      "scoringGuide": "1=Wrong/missing args, 2=Some incorrect args, 3=Mostly correct, 4=Good args, 5=Perfect arguments"
+    },
+    {
+      "id": "reasoning",
+      "name": "Reasoning",
+      "description": "Model explains its tool use rationale",
+      "weight": 0.2,
+      "criteria": "Does the model provide clear reasoning for its tool usage?",
+      "scoringGuide": "1=No reasoning, 2=Vague reasoning, 3=Basic reasoning, 4=Clear reasoning, 5=Excellent reasoning"
+    },
+    {
+      "id": "error-handling",
+      "name": "Error Handling",
+      "description": "Graceful handling of tool errors or missing tools",
+      "weight": 0.15,
+      "criteria": "Does the model handle tool errors or unavailability gracefully?",
+      "scoringGuide": "1=Crashes/ignores errors, 2=Poor handling, 3=Basic handling, 4=Good handling, 5=Excellent error handling"
+    }
+  ],
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

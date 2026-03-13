@@ -1,0 +1,42 @@
+{
+  "id": "code-generation",
+  "name": "Code Generation",
+  "description": "Evaluates generated code on correctness, quality, completeness, and efficiency.",
+  "builtIn": true,
+  "perspectives": [
+    {
+      "id": "correctness",
+      "name": "Correctness",
+      "description": "Code is syntactically and logically correct",
+      "weight": 0.35,
+      "criteria": "Is the generated code syntactically valid and logically correct for the task?",
+      "scoringGuide": "1=Broken code, 2=Major bugs, 3=Minor bugs, 4=Correct, 5=Perfectly correct and robust"
+    },
+    {
+      "id": "code-quality",
+      "name": "Code Quality",
+      "description": "Clean, readable, idiomatic code",
+      "weight": 0.25,
+      "criteria": "Is the code well-structured, readable, and following language idioms?",
+      "scoringGuide": "1=Poor quality, 2=Below average, 3=Acceptable, 4=Good quality, 5=Excellent quality"
+    },
+    {
+      "id": "completeness",
+      "name": "Completeness",
+      "description": "All requirements are implemented",
+      "weight": 0.2,
+      "criteria": "Does the code implement all the requested functionality?",
+      "scoringGuide": "1=Very incomplete, 2=Missing major parts, 3=Mostly complete, 4=Complete, 5=Complete with edge cases"
+    },
+    {
+      "id": "efficiency",
+      "name": "Efficiency",
+      "description": "Appropriate algorithmic efficiency",
+      "weight": 0.2,
+      "criteria": "Is the code reasonably efficient in time and space complexity?",
+      "scoringGuide": "1=Very inefficient, 2=Could be improved, 3=Acceptable, 4=Efficient, 5=Highly optimized"
+    }
+  ],
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

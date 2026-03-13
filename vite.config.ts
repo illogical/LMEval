@@ -9,6 +9,14 @@ export default defineConfig({
         target: 'http://localhost:3111',
         changeOrigin: true,
       },
+      '/api/eval': {
+        target: 'http://localhost:3200',
+        changeOrigin: true,
+      },
+      '/ws/eval': {
+        target: 'ws://localhost:3200',
+        ws: true,
+      },
     },
   },
   test: {

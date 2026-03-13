@@ -39,3 +39,15 @@ export interface LmapiChatCompletionResponse {
     group_id?: string;
   };
 }
+
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
+export interface LmapiBatchResponse {
+  results: LmapiChatCompletionResponse[];
+  groupId: string;
+  duration_ms: number;
+}
