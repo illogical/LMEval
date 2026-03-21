@@ -1,4 +1,31 @@
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 import type { JudgePerspective, JudgeResult, PairwiseRanking, EvalTemplate } from '../../src/types/eval';
+
+const JUDGE_PROMPTS_DIR = join(process.cwd(), 'data', 'prompts', 'judge');
+
+function loadJudgePrompt(filename: string): string {
+  const filePath = join(JUDGE_PROMPTS_DIR, filename);
+  if (!existsSync(filePath)) {
+    throw new Error(`Judge prompt file not found: ${filePath}. Ensure data/prompts/judge/ exists.`);
+  }
+  return readFileSync(filePath, 'utf-8').trim();
+}
+
+// Load prompt templates once at module init (cached for performance)
+let _rubricSystemTemplate: string | null = null;
+let _pairwiseSystem: string | null = null;
+let _templateGeneratorSystem: string | null = null;
+
+function rubricSystemTemplate(): string {
+  return (_rubricSystemTemplate ??= loadJudgePrompt('rubric-system.md'));
+}
+function pairwiseSystem(): string {
+  return (_pairwiseSystem ??= loadJudgePrompt('pairwise-system.md'));
+}
+function templateGeneratorSystem(): string {
+  return (_templateGeneratorSystem ??= loadJudgePrompt('template-generator-system.md'));
+}
 
 export const JudgeService = {
   buildRubricPrompt(
@@ -7,18 +34,10 @@ export const JudgeService = {
     userMessage: string,
     response: string
   ): { systemMessage: string; userMessage: string } {
-    const systemMessage = `You are an expert evaluator scoring AI assistant responses.
-You will score a response on one specific dimension: "${perspective.name}".
-
-Scoring guide (1-5 scale):
-${perspective.scoringGuide}
-
-Criteria: ${perspective.criteria}
-
-Respond ONLY with valid JSON in exactly this format:
-{"score": <number 1-5>, "justification": "<one sentence explaining the score>"}
-
-Do not include markdown fences, explanation, or any text outside the JSON object.`;
+    const systemMessage = rubricSystemTemplate()
+      .replace('{{PERSPECTIVE_NAME}}', perspective.name)
+      .replace('{{SCORING_GUIDE}}', perspective.scoringGuide)
+      .replace('{{CRITERIA}}', perspective.criteria);
 
     const userMsg = `## System Prompt Used
 ${systemPrompt}
@@ -44,11 +63,7 @@ Score this response on "${perspective.name}" (1-5):`;
     const [first, second] = swapped ? [responseB, responseA] : [responseA, responseB];
     const [labelFirst, labelSecond] = swapped ? ['B', 'A'] : ['A', 'B'];
 
-    const systemMessage = `You are an expert evaluator comparing two AI responses.
-Your task: determine which response better answers the user's request.
-Respond ONLY with valid JSON: {"winner": "A" or "B" or "tie", "justification": "<one sentence>"}
-Use the original label names A and B regardless of display order.
-Do not include markdown fences or any text outside the JSON.`;
+    const systemMessage = pairwiseSystem();
 
     const systemPromptSection = testCase.systemPrompt
       ? `## System Prompt\n${testCase.systemPrompt}\n\n## `
@@ -154,38 +169,7 @@ Which response (A or B) is better?`;
       ? `\n\nAvailable tools:\n${tools.map(t => `- ${t.function.name}: ${t.function.description}`).join('\n')}`
       : '';
 
-    const systemMessage = `You are an expert at designing LLM evaluation frameworks.
-Analyze the given system prompt and propose a structured evaluation template.
-
-Respond ONLY with valid JSON matching this exact schema:
-{
-  "name": "string (short template name)",
-  "description": "string",
-  "perspectives": [
-    {
-      "id": "string (kebab-case, unique)",
-      "name": "string",
-      "description": "string",
-      "weight": number (0.0-1.0, all weights must sum to 1.0),
-      "criteria": "string (what to evaluate)",
-      "scoringGuide": "string (1=terrible, 3=acceptable, 5=excellent)"
-    }
-  ],
-  "deterministicChecks": {
-    "requiredKeywords": ["optional", "keywords"],
-    "forbiddenKeywords": ["optional", "keywords"]
-  },
-  "suggestedTestCases": [
-    { "userMessage": "string", "description": "string" }
-  ]
-}
-
-Requirements:
-- 4-6 scoring perspectives
-- Weights must sum exactly to 1.0
-- 3-5 test cases
-- Perspectives should be specific to the prompt's domain and goals
-Do not include markdown fences or any text outside the JSON.`;
+    const systemMessage = templateGeneratorSystem();
 
     const userMessage = `Analyze this system prompt and create an evaluation template:${toolsSection}
 

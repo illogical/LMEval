@@ -56,6 +56,8 @@ Whether you're tightening instructions, adjusting tone, restructuring context, o
 
 ### Git Integration for Prompt Versioning (Phase 2.5)
 
+> **Not automatic** — LMEval never commits without your confirmation. Git integration is opt-in and human-confirmed.
+
 - **Git-tracked data** — initialize a git repo in `data/` to version-control prompt changes and eval results
 - **Commit API** — commit changes with enforced message format (`feat|fix|chore(prompt): ...`)
 - **Revert support** — revert to any previous commit via the API
@@ -223,6 +225,11 @@ LMEval/
 │   │   ├── test-suites/        # Test case collections
 │   │   ├── evaluations/        # Eval run results
 │   │   └── baselines/          # Baseline snapshots for regression
+│   ├── prompts/
+│   │   └── judge/              # Judge system prompt files (editable markdown)
+│   │       ├── rubric-system.md        # Rubric scoring prompt (uses {{PERSPECTIVE_NAME}} etc.)
+│   │       ├── pairwise-system.md      # Pairwise A/B comparison prompt
+│   │       └── template-generator-system.md  # Eval template auto-generation prompt
 │   └── sessions/               # Session manifests and version history
 ├── scripts/
 │   ├── seed-templates.ts       # Seed built-in eval templates
@@ -250,6 +257,88 @@ LMEval/
 | `npm run test:api` | Run API integration tests (requires server running) |
 | `npm run test:sessions` | Run session API integration tests |
 | `npm run test:execution` | Run execution pipeline integration tests (requires server + LMApi) |
+
+---
+
+## Git Integration Workflow
+
+The `data/` directory — which holds all prompts, sessions, and evaluation results — can be tracked as its own git repository, separate from the main LMEval source code. This lets you version-control your prompt evolution and evaluation history without mixing it with application code.
+
+> **Human-confirmed commits only.** LMEval never commits automatically. Every commit is triggered by an explicit API call.
+
+### Setup
+
+```bash
+# Initialize a git repo inside data/ (one-time setup)
+curl -X POST http://localhost:3200/api/eval/git/init
+```
+
+This creates `data/.git/` and a `data/.gitignore` that excludes temporary files. The root `.gitignore` already excludes `data/.git/` so the nested repo is invisible to git operations on the LMEval source itself.
+
+### How Sessions and Git Work Together
+
+Each **session** represents one prompt-comparison project over time. Sessions contain **versions** (snapshots of the A/B prompt pair) and **eval runs** (individual evaluation executions). Git provides the low-level change history that cuts across all of these:
+
+```
+Session: "Customer Support Bot"
+│
+├── Version 1 — Prompt A (original) vs Prompt B (revision 1)
+│   ├── Eval Run 1  →  B scores +0.4 over A  ✓
+│   └── git commit: feat(prompt): improve tone, v1 baseline (+0.4 score)
+│                   └─ captures: data/evals/prompts/, data/sessions/
+│
+├── Version 2 — Prompt A (was B) vs Prompt B (revision 2)
+│   │   [click "Use as Prompt A →" in UI to advance]
+│   ├── Eval Run 2  →  B scores +0.2 over A  ✓
+│   └── git commit: fix(prompt): remove hallucination trigger (+0.2 score)
+│
+└── Version 3 — continue iterating...
+    └── git revert if new B performs worse than expected
+```
+
+### Commit Message Convention
+
+All commit messages are validated and **must** match the pattern:
+
+```
+(feat|fix|chore)(prompt): <description>
+```
+
+| Prefix | Use when |
+|---|---|
+| `feat(prompt):` | A new or improved prompt version that clearly outperforms the previous |
+| `fix(prompt):` | Fixing a specific failure, hallucination, or format issue |
+| `chore(prompt):` | Saving a baseline, reorganizing, or non-score-improving changes |
+
+### Typical Iterative Workflow
+
+1. **Write Prompt A and Prompt B** — drag `.md` files into the comparison UI or type directly
+2. **Run an evaluation** — `POST /api/eval/evaluations` with prompt IDs, model IDs, and test suite
+3. **Review results** — check scores, read the HTML report, compare responses
+4. **Commit the improvement** — `POST /api/eval/git/commit` with a descriptive message
+5. **Advance B → A** — click "Use as Prompt A →" in the UI to start the next iteration
+6. **Repeat or revert** — continue refining, or `POST /api/eval/git/revert` to undo if a change regresses
+
+### Useful Endpoints for Git Workflow
+
+```bash
+# Check repo status and view recent commits
+GET  /api/eval/git/status
+
+# Commit all pending data/ changes
+POST /api/eval/git/commit
+Body: { "message": "feat(prompt): improve brevity after eval run 3" }
+
+# View full commit history
+GET  /api/eval/git/log?limit=20
+
+# Revert a specific commit
+POST /api/eval/git/revert
+Body: { "hash": "abc1234" }
+
+# View a prompt's evaluation history over time
+GET  /api/eval/prompts/:id/history
+```
 
 ---
 
