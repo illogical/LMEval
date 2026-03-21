@@ -23,11 +23,7 @@ gitRouter.post('/init', async c => {
 });
 
 gitRouter.post('/commit', async c => {
-  const body = await c.req.json().catch(() => ({})) as {
-    message?: string;
-    sessionId?: string;
-    runId?: string;
-  };
+  const body = await c.req.json().catch(() => ({})) as { message?: string };
 
   if (!body.message) {
     return c.json({ error: 'message is required' }, 400);
