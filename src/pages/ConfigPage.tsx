@@ -1,0 +1,131 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Play } from 'lucide-react';
+import { TemplateSelector } from '../components/config/TemplateSelector';
+import { TestCaseEditor } from '../components/config/TestCaseEditor';
+import { JudgeConfig } from '../components/config/JudgeConfig';
+import { ExecutionPreview } from '../components/config/ExecutionPreview';
+import { PresetSelector } from '../components/config/PresetSelector';
+import { useEvalWizard } from '../contexts/EvalWizardContext';
+import { createEvaluation } from '../api/eval';
+import './ConfigPage.css';
+
+export function ConfigPage() {
+  const navigate = useNavigate();
+  const { state, dispatch } = useEvalWizard();
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const promptCount = [state.promptA, state.promptB].filter(p => p.content.trim()).length;
+  const modelCount = state.selectedModels.length;
+  const testCaseCount = state.testSuiteId ? 1 : Math.max(state.inlineTestCases.length, state.userMessage ? 1 : 0, 1);
+
+  async function handleRun() {
+    if (running) return;
+    setRunning(true);
+    setError(null);
+
+    try {
+      const promptIds = [
+        state.promptA.id,
+        state.promptB.id,
+      ].filter((id): id is string => id != null);
+
+      const modelIds = state.selectedModels.map(m => `${m.serverName}::${m.modelName}`);
+
+      const result = await createEvaluation({
+        name: `Eval ${new Date().toLocaleString()}`,
+        promptIds,
+        modelIds,
+        templateId: state.templateId ?? undefined,
+        testSuiteId: state.testSuiteId ?? undefined,
+        userMessage: state.userMessage || undefined,
+        judgeModelId: state.judgeModelId ?? undefined,
+        enablePairwise: state.enablePairwise,
+        runsPerCell: state.runsPerCell,
+      });
+
+      dispatch({ type: 'START_EVAL', payload: { evalId: result.id } });
+      navigate(`/eval/run/${result.id}`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="config-page">
+      <div className="cp-content">
+        <div className="cp-col">
+          <div className="cp-section">
+            <h3 className="cp-section-title">Evaluation Template</h3>
+            <TemplateSelector
+              value={state.templateId}
+              onChange={id => dispatch({ type: 'SET_CONFIG', payload: { templateId: id } })}
+              promptContent={state.promptA.content}
+            />
+          </div>
+
+          <div className="cp-section">
+            <h3 className="cp-section-title">Test Cases</h3>
+            <TestCaseEditor
+              userMessage={state.userMessage}
+              onUserMessageChange={msg => dispatch({ type: 'SET_CONFIG', payload: { userMessage: msg } })}
+              testSuiteId={state.testSuiteId}
+              onTestSuiteChange={id => dispatch({ type: 'SET_CONFIG', payload: { testSuiteId: id } })}
+              inlineTestCases={state.inlineTestCases}
+              onInlineTestCasesChange={cases => dispatch({ type: 'SET_CONFIG', payload: { inlineTestCases: cases } })}
+            />
+          </div>
+
+          <div className="cp-section">
+            <h3 className="cp-section-title">Judge Configuration</h3>
+            <JudgeConfig
+              judgeModelId={state.judgeModelId}
+              onJudgeModelChange={id => dispatch({ type: 'SET_CONFIG', payload: { judgeModelId: id } })}
+              enablePairwise={state.enablePairwise}
+              onPairwiseChange={v => dispatch({ type: 'SET_CONFIG', payload: { enablePairwise: v } })}
+              runsPerCell={state.runsPerCell}
+              onRunsPerCellChange={n => dispatch({ type: 'SET_CONFIG', payload: { runsPerCell: n } })}
+            />
+          </div>
+        </div>
+
+        <div className="cp-sidebar">
+          <div className="cp-section">
+            <h3 className="cp-section-title">Execution Preview</h3>
+            <ExecutionPreview
+              promptCount={promptCount}
+              modelCount={modelCount || 1}
+              testCaseCount={testCaseCount}
+              runsPerCell={state.runsPerCell}
+            />
+          </div>
+
+          <div className="cp-section">
+            <h3 className="cp-section-title">Presets</h3>
+            <PresetSelector
+              currentState={{
+                templateId: state.templateId,
+                testSuiteId: state.testSuiteId,
+                judgeModelId: state.judgeModelId,
+                enablePairwise: state.enablePairwise,
+                runsPerCell: state.runsPerCell,
+                modelIds: state.selectedModels.map(m => `${m.serverName}::${m.modelName}`),
+              }}
+              onLoad={preset => dispatch({ type: 'LOAD_PRESET', payload: preset })}
+            />
+          </div>
+
+          {error && <p className="cp-error">{error}</p>}
+
+          <button className="cp-run-btn" onClick={handleRun} disabled={running || modelCount === 0}>
+            <Play size={16} />
+            {running ? 'Starting…' : 'Run Evaluation'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
