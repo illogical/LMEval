@@ -6,7 +6,6 @@ import { ProgressOverview } from '../components/dashboard/ProgressOverview';
 import { ModelProgressGrid } from '../components/dashboard/ModelProgressGrid';
 import { LiveFeed } from '../components/dashboard/LiveFeed';
 import { useEvalSocket } from '../hooks/useEvalSocket';
-import { getEvaluationSummary } from '../api/eval';
 import type { EvalMatrixCell } from '../types/eval';
 import './DashboardPage.css';
 

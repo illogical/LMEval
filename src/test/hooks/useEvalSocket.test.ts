@@ -12,7 +12,9 @@ class MockWebSocket {
   onerror: (() => void) | null = null;
   close = vi.fn();
 
-  constructor(public url: string) {
+  url: string;
+  constructor(url: string) {
+    this.url = url;
     setTimeout(() => this.onopen?.(), 0);
   }
 

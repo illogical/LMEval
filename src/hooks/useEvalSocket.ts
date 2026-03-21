@@ -64,7 +64,7 @@ export function useEvalSocket(evalId: string | null): EvalSocketState {
 
             return { ...s, events, progress, isCompleted };
           });
-        } catch { /* ignore */ }
+        } catch (e) { console.debug('[useEvalSocket] Failed to parse WS message', e); }
       };
 
       ws.onclose = () => {

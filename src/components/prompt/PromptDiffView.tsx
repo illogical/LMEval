@@ -76,18 +76,18 @@ function buildDiffRows(changes: ReturnType<typeof diffLines>) {
                 <div className="diff-cell diff-removed">
                   <span className="diff-ln">{lineA++}</span>
                   <span className="diff-text">{wordDiff.map((w, k) =>
-                    w.removed ? <mark key={k} className="diff-word-removed">{w.value}</mark> :
+                    w.removed ? <mark key={`r-${k}-${w.value.slice(0,8)}`} className="diff-word-removed">{w.value}</mark> :
                     w.added ? null :
-                    <span key={k}>{w.value}</span>
+                    <span key={`n-${k}-${w.value.slice(0,8)}`}>{w.value}</span>
                   )}</span>
                 </div>
                 <div className="diff-gutter-cell">↔</div>
                 <div className="diff-cell diff-added">
                   <span className="diff-ln">{lineB++}</span>
                   <span className="diff-text">{wordDiff.map((w, k) =>
-                    w.added ? <mark key={k} className="diff-word-added">{w.value}</mark> :
+                    w.added ? <mark key={`a-${k}-${w.value.slice(0,8)}`} className="diff-word-added">{w.value}</mark> :
                     w.removed ? null :
-                    <span key={k}>{w.value}</span>
+                    <span key={`n-${k}-${w.value.slice(0,8)}`}>{w.value}</span>
                   )}</span>
                 </div>
               </div>
