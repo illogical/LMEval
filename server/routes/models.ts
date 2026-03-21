@@ -5,11 +5,8 @@ export const modelsRouter = new Hono();
 
 modelsRouter.get('/', async c => {
   try {
-    const servers = await LmapiClient.getServers();
-    const grouped = servers
-      .filter(s => s.isOnline)
-      .map(s => ({ serverName: s.config.name, models: s.models }));
-    return c.json(grouped);
+    const models = await LmapiClient.getLoadedModels();
+    return c.json({ models });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 502);
   }

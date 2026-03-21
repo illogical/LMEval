@@ -1,10 +1,10 @@
 import type {
-  LmapiServerStatus,
   LmapiChatCompletionRequest,
   LmapiChatCompletionResponse,
+  LmapiLoadedModelsResponse,
 } from '../../src/types/lmapi';
+import { config } from '../config';
 
-const LMAPI_BASE = process.env.LMAPI_BASE_URL ?? 'http://localhost:3111';
 const DEFAULT_TIMEOUT = 120_000; // 2 minutes
 
 async function fetchWithTimeout(
@@ -22,24 +22,18 @@ async function fetchWithTimeout(
 }
 
 export const LmapiClient = {
-  async getServers(): Promise<LmapiServerStatus[]> {
-    const res = await fetchWithTimeout(`${LMAPI_BASE}/api/servers`);
-    if (!res.ok) throw new Error(`LMApi servers fetch failed: ${res.statusText}`);
-    return res.json() as Promise<LmapiServerStatus[]>;
-  },
-
-  async getModels(): Promise<Array<{ serverName: string; models: string[] }>> {
-    const servers = await this.getServers();
-    return servers
-      .filter(s => s.isOnline)
-      .map(s => ({ serverName: s.config.name, models: s.models }));
+  async getLoadedModels(): Promise<string[]> {
+    const res = await fetchWithTimeout(`${config.lmapiBaseUrl}/api/models/loaded`);
+    if (!res.ok) throw new Error(`LMApi models fetch failed: ${res.statusText}`);
+    const data = await res.json() as LmapiLoadedModelsResponse;
+    return data.models;
   },
 
   async chatCompletion(
     req: LmapiChatCompletionRequest
   ): Promise<LmapiChatCompletionResponse> {
     const res = await fetchWithTimeout(
-      `${LMAPI_BASE}/api/chat/completions/any`,
+      `${config.lmapiBaseUrl}/api/chat/completions/any`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

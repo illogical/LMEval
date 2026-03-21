@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
         '/lmapi': {
           target: lmapiBaseUrl,
           changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/lmapi/, ''),
         },
         // Proxy to the local eval backend
         '/api/eval': {
