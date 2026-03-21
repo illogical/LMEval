@@ -44,6 +44,7 @@
   letter-spacing: 0.08em;
   color: var(--muted);
   padding: 6px 12px;
+  background: var(--surface-preview);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -72,11 +73,42 @@
   margin-left: 6px;
 }
 
-.prompt-textarea {
+.prompt-editor-wrapper {
+  position: relative;
   flex: 1;
-  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.prompt-highlight-overlay {
+  position: absolute;
+  inset: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 12px;
+  overflow: hidden;
+  pointer-events: none;
   background: var(--surface);
   color: var(--text);
+}
+
+.prompt-highlight-overlay pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.prompt-textarea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.6;
@@ -84,13 +116,22 @@
   border: 0;
   outline: none;
   resize: none;
-  min-height: 0;
+  z-index: 1;
+}
+
+.prompt-textarea::placeholder {
+  color: var(--muted);
+}
+
+.prompt-textarea::selection {
+  background: rgba(79, 193, 255, 0.25);
+  color: var(--text);
 }
 
 .response-view {
   flex: 1;
   overflow-y: auto;
-  background: var(--surface-preview);
+  background: var(--surface);
   padding: 12px;
   font-family: var(--font-mono);
   font-size: 13px;

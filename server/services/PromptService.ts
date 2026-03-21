@@ -42,6 +42,7 @@ export const PromptService = {
     ensureDir(PROMPTS_DIR);
     const now = new Date().toISOString();
     const slug = slugify(data.name);
+    if (!slug) throw new Error(`Could not generate a valid slug from name: "${data.name}"`);
     const promptDir = join(PROMPTS_DIR, slug);
     ensureDir(promptDir);
 

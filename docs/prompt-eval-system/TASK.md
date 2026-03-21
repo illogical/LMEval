@@ -385,3 +385,43 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 - [ ] `RefinementService.buildEvalImprovementPrompt()` and `parseEvalSuggestions()` — analyze failures to propose new test cases, adjusted perspective weights, refined criteria
 - [ ] `POST /api/eval/sessions/:id/suggest-eval-improvements` route
 - [ ] Frontend — separate "Improve Evals" suggestion flow, reviewed before applying to template
+
+---
+
+## Phase 9 — Eval Wizard Step 5: Summary & AI-Powered Suggestions
+
+> Prerequisite: Phases 5–7 complete (eval wizard flow, results analysis, and polish all working well).
+>
+> Spec: [`../../features/eval-wizard/EVAL_WIZARD.md`](../../features/eval-wizard/EVAL_WIZARD.md) (Step 5 section)
+>
+> This is the final step of the eval wizard (`/eval/summary/:id`). After the user has reviewed the raw eval results in Step 4, this page provides AI-generated analysis, model recommendations, and prompt improvement suggestions.
+
+**Summary Page UI:**
+- [ ] Create `SummaryPage.tsx` at `/eval/summary/:id` — replaces the placeholder skeleton from Phase 5A
+- [ ] Create `SummaryOverview.tsx` — natural language executive summary of the evaluation: which prompt performed better, by how much, on which dimensions, and with which models
+- [ ] Create `ModelRecommendation.tsx` — ranked model cards with reasoning for each: composite score, latency, consistency, and suitability for this prompt's use case. Highlight the best overall model and best value model (if latency/cost tradeoffs exist)
+- [ ] Create `PerModelAnalysis.tsx` — for each model that scored below average, display analysis of what aspects of the prompt caused issues (e.g., "Model X struggles with the JSON output format — consider providing an explicit example"). Group by failure pattern (format issues, hallucination, instruction non-compliance, etc.)
+- [ ] Create `ImprovementSuggestions.tsx` — concrete prompt revision suggestions based on judge feedback, low-scoring perspectives, and deterministic check failures. Each suggestion card shows: rationale, the specific text change proposed, estimated impact (high/medium/low), and a diff preview using the existing `PromptDiffView` component
+- [ ] Add "Apply Suggestion" button per suggestion card — creates a new prompt version and session version via `POST /api/eval/sessions/:id/apply-suggestion`, then offers to re-run the evaluation from Step 3
+- [ ] Add "Apply & Re-run" shortcut — applies suggestion and immediately starts a new evaluation run, navigating to the Dashboard (Step 3)
+- [ ] Wire "View Summary & Suggestions →" button on `ResultsPage.tsx` to navigate to `/eval/summary/:id`
+
+**Backend — Summary Generation Endpoint:**
+- [ ] Create `POST /api/eval/evaluations/:id/summary-analysis` — accepts `{ refinementModel?: string }`, constructs a comprehensive analysis prompt and dispatches to LMApi
+- [ ] The analysis prompt must include:
+  - Full text of both prompts (A and B)
+  - The eval template (perspectives, weights, scoring rubrics)
+  - The evaluation summary (model rankings, prompt rankings, per-perspective scores)
+  - The top N lowest-scoring cells with: raw model response, judge scores + justifications, deterministic check failures, retry attempts
+  - The test cases used (user messages, expected outputs)
+  - Model metadata (parameter count, server name) for model-specific advice
+- [ ] Parse response into structured sections: executive summary, model recommendation, per-model analysis, prompt improvement suggestions
+- [ ] Return structured JSON with typed sections (reuse `ImprovementSuggestion` type from Phase 8a, add `ModelRecommendation` and `SummaryAnalysis` types)
+- [ ] Cache generated summary to avoid redundant LLM calls — store in `data/evals/evaluations/{id}/analysis.json`
+
+**Integration with Phase 8a:**
+- [ ] Reuse `RefinementService.buildImprovementPrompt()` and `parseSuggestions()` for the prompt improvement portion
+- [ ] Extend `RefinementService` with `buildModelRecommendationPrompt()` and `parseModelRecommendation()`
+- [ ] Uses `REFINEMENT_MODEL` env var — if not configured, the Summary page shows the raw results summary without AI-generated suggestions (graceful degradation)
+
+- [ ] **Verification**: Complete an eval → navigate to Step 4 (Results) → click "View Summary" → Step 5 loads with AI-generated executive summary, model recommendation with reasoning, per-model analysis for underperforming models, and 1–3 prompt improvement suggestions with diff previews; "Apply Suggestion" creates new prompt version + session version; "Apply & Re-run" starts new eval and navigates to Dashboard; `REFINEMENT_MODEL` not set → page shows manual summary only without AI suggestions; cached analysis loads instantly on revisit

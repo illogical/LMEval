@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { ResponseView } from './ResponseView';
+import hljs from '../../lib/highlight';
 
 interface PromptPanelProps {
   label: string;
@@ -34,6 +35,7 @@ export function PromptPanel({
 }: PromptPanelProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   function handleFile(file: File) {
     if (!file.name.match(/\.(md|txt)$/i)) {
@@ -71,6 +73,16 @@ export function PromptPanel({
     e.target.value = '';
   }
 
+  function handleScroll(e: React.UIEvent<HTMLTextAreaElement>) {
+    if (overlayRef.current) {
+      overlayRef.current.scrollTop = e.currentTarget.scrollTop;
+    }
+  }
+
+  const highlighted = isEditor && content
+    ? hljs.highlight(content, { language: 'markdown' }).value
+    : '';
+
   const panelClass = ['prompt-panel', isDragOver ? 'prompt-panel--dragging' : ''].filter(Boolean).join(' ');
 
   return (
@@ -100,14 +112,25 @@ export function PromptPanel({
       </div>
       {isEditor ? (
         <>
-          <textarea
-            className="prompt-textarea"
-            value={content}
-            onChange={e => onChange?.(e.target.value)}
-            placeholder={`Enter system prompt ${label}…`}
-            spellCheck={false}
-            aria-label={`System prompt ${label}`}
-          />
+          <div className="prompt-editor-wrapper">
+            <div className="prompt-highlight-overlay" ref={overlayRef} aria-hidden="true">
+              <pre>
+                <code
+                  className="hljs"
+                  dangerouslySetInnerHTML={{ __html: highlighted }}
+                />
+              </pre>
+            </div>
+            <textarea
+              className="prompt-textarea"
+              value={content}
+              onChange={e => onChange?.(e.target.value)}
+              onScroll={handleScroll}
+              placeholder={`Enter system prompt ${label}…`}
+              spellCheck={false}
+              aria-label={`System prompt ${label}`}
+            />
+          </div>
           <div className="upload-hint">
             Drop a .md or .txt file here, or{' '}
             <button

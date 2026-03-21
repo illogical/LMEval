@@ -26,15 +26,15 @@ promptsRouter.get('/:id/content', c => {
 });
 
 promptsRouter.post('/', async c => {
-  const body = await c.req.json();
-  if (!body.name || !body.content) {
-    return c.json({ error: 'name and content are required' }, 400);
-  }
   try {
+    const body = await c.req.json();
+    if (!body.name || !body.content) {
+      return c.json({ error: 'name and content are required' }, 400);
+    }
     const prompt = PromptService.create(body);
     return c.json(prompt, 201);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    return c.json({ error: (err as Error).message || 'Failed to create prompt' }, 500);
   }
 });
 

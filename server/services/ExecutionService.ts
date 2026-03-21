@@ -37,6 +37,8 @@ class Semaphore {
 }
 
 const CONCURRENCY_LIMIT = Math.max(1, parseInt(process.env.EVAL_CONCURRENCY ?? '8', 10) || 8);
+
+type BroadcastFn = (event: {
   type: string;
   evalId: string;
   data: Record<string, unknown>;

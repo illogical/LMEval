@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:server": "node server/index.ts",
+    "dev": "bun server/index.ts & vite",
+    "dev:server": "bun server/index.ts",
     "dev:client": "npx vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
@@ -13,9 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:api": "node scripts/test-api.ts",
-    "test:sessions": "node scripts/test-sessions.ts",
-    "test:execution": "node scripts/test-execution.ts"
+    "test:api": "bun scripts/test-api.ts",
+    "test:sessions": "bun scripts/test-sessions.ts",
+    "test:execution": "bun scripts/test-execution.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",

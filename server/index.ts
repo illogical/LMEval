@@ -47,5 +47,3 @@ const httpServer = serve({ fetch: app.fetch, port: config.port }, () => {
 });
 
 setupWebSocket(httpServer);
-
-export default app;
