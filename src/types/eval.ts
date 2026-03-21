@@ -168,6 +168,7 @@ export interface EvalModelSummary {
   avgTokensPerSecond: number;
   successRate: number;
   rank?: number;
+  perspectiveScores?: Record<string, number>;
 }
 
 export interface EvalPromptSummary {

@@ -5,12 +5,15 @@ import type {
   EvalPromptSummary,
   RegressionResult,
   MetricRegression,
+  PairwiseRanking,
 } from '../../src/types/eval';
 
 // Minimum relative change required before a metric is considered regressed or improved
 const SCORE_REGRESSION_THRESHOLD = 0.02; // 2% change in composite score
 const LATENCY_REGRESSION_THRESHOLD = 0.05; // 5% change in latency
-  computeSummary(evalId: string, cells: EvalMatrixCell[]): EvaluationSummary {
+
+export const SummaryService = {
+  computeSummary(evalId: string, cells: EvalMatrixCell[], pairwiseRankings?: PairwiseRanking[]): EvaluationSummary {
     const completed = cells.filter(c => c.status === 'completed');
     const failed = cells.filter(c => c.status === 'failed');
 
@@ -36,6 +39,19 @@ const LATENCY_REGRESSION_THRESHOLD = 0.05; // 5% change in latency
         ? modelCells.reduce((s, c) => s + (c.compositeScore ?? 0), 0) / n
         : undefined;
 
+      const perspectiveScores: Record<string, number> = {};
+      const perspectiveCounts: Record<string, number> = {};
+      for (const cell of modelCells) {
+        for (const jr of cell.judgeResults ?? []) {
+          perspectiveScores[jr.perspectiveId] = (perspectiveScores[jr.perspectiveId] ?? 0) + jr.score;
+          perspectiveCounts[jr.perspectiveId] = (perspectiveCounts[jr.perspectiveId] ?? 0) + 1;
+        }
+      }
+      const avgPerspectiveScores: Record<string, number> = {};
+      for (const [id, total] of Object.entries(perspectiveScores)) {
+        avgPerspectiveScores[id] = total / perspectiveCounts[id];
+      }
+
       modelSummaries.push({
         modelId,
         avgCompositeScore,
@@ -44,6 +60,7 @@ const LATENCY_REGRESSION_THRESHOLD = 0.05; // 5% change in latency
         avgOutputTokens,
         avgTokensPerSecond,
         successRate,
+        perspectiveScores: Object.keys(avgPerspectiveScores).length > 0 ? avgPerspectiveScores : undefined,
       });
     }
 
@@ -94,6 +111,7 @@ const LATENCY_REGRESSION_THRESHOLD = 0.05; // 5% change in latency
       failedCells: failed.length,
       modelSummaries,
       promptSummaries,
+      pairwiseRankings: pairwiseRankings && pairwiseRankings.length > 0 ? pairwiseRankings : undefined,
       completedAt: new Date().toISOString(),
     };
   },

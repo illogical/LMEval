@@ -9,6 +9,7 @@ import { PromptService } from './PromptService';
 import { TestSuiteService } from './TestSuiteService';
 import type {
   EvaluationConfig, EvalMatrixCell, EvaluationSummary, TestCase, ToolCallResult,
+  EvalTemplate, PairwiseRanking,
 } from '../../src/types/eval';
 
 class Semaphore {
@@ -263,11 +264,152 @@ export const ExecutionService = {
     return results;
   },
 
+  async runJudging(
+    evalId: string,
+    config: EvaluationConfig,
+    cells: EvalMatrixCell[],
+    template: EvalTemplate,
+    controller: AbortController
+  ): Promise<{ cells: EvalMatrixCell[]; pairwiseRankings: PairwiseRanking[] }> {
+    const { JudgeService } = await import('./JudgeService');
+
+    broadcast({ type: 'judge:started', evalId, data: {}, timestamp: Date.now() });
+
+    const completedCells = cells.filter(c => c.status === 'completed');
+    const results = [...cells];
+
+    const semaphore = new Semaphore(4);
+
+    // Rubric scoring: each perspective × each completed cell
+    const rubricTasks = completedCells.flatMap(cell =>
+      template.perspectives.map(async (perspective) => {
+        if (controller.signal.aborted) return;
+        await semaphore.acquire();
+
+        try {
+          const prompt = JudgeService.buildRubricPrompt(
+            perspective,
+            cell.request?.systemPrompt ?? '',
+            cell.request?.userMessage ?? '',
+            cell.response ?? ''
+          );
+
+          const response = await LmapiClient.chatCompletion({
+            model: config.judgeModelId!,
+            messages: [
+              { role: 'system', content: prompt.systemMessage },
+              { role: 'user', content: prompt.userMessage },
+            ],
+            stream: false,
+            groupId: `judge-${evalId}`,
+          });
+
+          const raw = response.choices[0]?.message.content ?? '';
+          const judgeResult = JudgeService.parseRubricResponse(raw);
+          if (judgeResult) {
+            judgeResult.perspectiveId = perspective.id;
+            const cellIdx = results.findIndex(c => c.id === cell.id);
+            if (cellIdx !== -1) {
+              results[cellIdx] = {
+                ...results[cellIdx],
+                judgeResults: [...(results[cellIdx].judgeResults ?? []), judgeResult],
+              };
+            }
+          }
+        } catch (err) {
+          console.warn(`[JudgeService] Rubric scoring failed for cell ${cell.id}:`, (err as Error).message);
+        } finally {
+          semaphore.release();
+        }
+      })
+    );
+
+    await Promise.allSettled(rubricTasks);
+
+    // Compute composite scores from judge results
+    for (let i = 0; i < results.length; i++) {
+      const cell = results[i];
+      if (!cell.judgeResults || cell.judgeResults.length === 0) continue;
+
+      let weightedSum = 0;
+      let totalWeight = 0;
+      for (const jr of cell.judgeResults) {
+        const perspective = template.perspectives.find(p => p.id === jr.perspectiveId);
+        if (!perspective) continue;
+        weightedSum += jr.score * perspective.weight;
+        totalWeight += perspective.weight;
+      }
+
+      if (totalWeight > 0) {
+        results[i] = { ...results[i], compositeScore: weightedSum / totalWeight };
+      }
+    }
+
+    // Pairwise ranking (if enabled)
+    const pairwiseRankings: PairwiseRanking[] = [];
+
+    if (config.enablePairwise && completedCells.length >= 2) {
+      const byCaseId = new Map<string, EvalMatrixCell[]>();
+      for (const cell of completedCells) {
+        const list = byCaseId.get(cell.testCaseId) ?? [];
+        list.push(cell);
+        byCaseId.set(cell.testCaseId, list);
+      }
+
+      const pairwiseTasks: Promise<void>[] = [];
+      for (const [, caseCells] of byCaseId) {
+        for (let i = 0; i < caseCells.length; i++) {
+          for (let j = i + 1; j < caseCells.length; j++) {
+            const cellA = caseCells[i];
+            const cellB = caseCells[j];
+            pairwiseTasks.push((async () => {
+              if (controller.signal.aborted) return;
+              await semaphore.acquire();
+              try {
+                const { systemMessage, userMessage, swapped } = JudgeService.buildPairwisePrompt(
+                  { userMessage: cellA.request?.userMessage ?? '' },
+                  cellA.response ?? '',
+                  cellB.response ?? ''
+                );
+
+                const response = await LmapiClient.chatCompletion({
+                  model: config.judgeModelId!,
+                  messages: [
+                    { role: 'system', content: systemMessage },
+                    { role: 'user', content: userMessage },
+                  ],
+                  stream: false,
+                  groupId: `pairwise-${evalId}`,
+                });
+
+                const raw = response.choices[0]?.message.content ?? '';
+                const ranking = JudgeService.parsePairwiseResponse(raw, swapped);
+                if (ranking) {
+                  pairwiseRankings.push({ ...ranking, cellIdA: cellA.id, cellIdB: cellB.id });
+                }
+              } catch (err) {
+                console.warn('[JudgeService] Pairwise failed:', (err as Error).message);
+              } finally {
+                semaphore.release();
+              }
+            })());
+          }
+        }
+      }
+
+      await Promise.allSettled(pairwiseTasks);
+    }
+
+    broadcast({ type: 'judge:completed', evalId, data: { judgedCells: completedCells.length }, timestamp: Date.now() });
+    return { cells: results, pairwiseRankings };
+  },
+
   async aggregate(
     evalId: string,
-    cells: EvalMatrixCell[]
+    cells: EvalMatrixCell[],
+    pairwiseRankings?: PairwiseRanking[]
   ): Promise<EvaluationSummary> {
-    const summary = SummaryService.computeSummary(evalId, cells);
+    const summary = SummaryService.computeSummary(evalId, cells, pairwiseRankings);
     const evalDir = join(EVALUATIONS_DIR, evalId);
     writeJson(join(evalDir, 'results.json'), cells);
     writeJson(join(evalDir, 'summary.json'), summary);
@@ -323,7 +465,27 @@ export const ExecutionService = {
         evalId, config, cells, testCasesMap, controller, startMs
       );
 
-      await this.aggregate(evalId, completedCells);
+      // Phase 3: Judge evaluation (if configured)
+      let finalCells = completedCells;
+      let pairwiseRankings: PairwiseRanking[] | undefined;
+      if (config.judgeModelId && config.templateId) {
+        try {
+          const { TemplateService } = await import('./TemplateService');
+          const template = TemplateService.get(config.templateId);
+          if (template) {
+            const judgeResult = await this.runJudging(evalId, config, completedCells, template, controller);
+            finalCells = judgeResult.cells;
+            pairwiseRankings = judgeResult.pairwiseRankings.length > 0
+              ? judgeResult.pairwiseRankings
+              : undefined;
+          }
+        } catch (err) {
+          console.error('[ExecutionService] Judge phase failed:', err);
+        }
+      }
+
+      // Phase 4: Aggregate
+      await this.aggregate(evalId, finalCells, pairwiseRankings);
 
       config.status = 'completed';
       config.updatedAt = new Date().toISOString();
