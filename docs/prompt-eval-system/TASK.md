@@ -26,11 +26,11 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 - [x] Create `src/types/lmapi.ts` — `LmapiServerStatus`, `LmapiChatCompletionRequest`, `LmapiChatCompletionResponse` (see MVP spec for full shapes)
 - [x] Create `src/api/lmapi.ts` — `getServers(): Promise<LmapiServerStatus[]>`, `chatCompletion(req): Promise<LmapiChatCompletionResponse>` (note: `/lmapi/api/servers` returns array directly, not `{ servers: [] }`)
 - [x] Create `src/hooks/useModels.ts` — calls `getServers()` on mount, filters `isOnline`, flattens to `ModelOption[]` grouped by `config.name`; returns `{ models, loading, error }`
-- [x] Create `src/components/layout/Header.tsx` — flex row: LMEval logo (accent + JetBrains Mono) | `<select>` with `<optgroup>` per server | Run Both button (disabled when loading/no model) + status indicator
+- [x] Create `src/components/layout/Header.tsx` — flex row: LMEval logo (accent + JetBrains Mono) | `<select>` with `<optgroup>` per server | Run button (disabled when loading/no model) + status indicator
 - [x] Create `src/components/prompt/ResponseView.tsx` — imports `highlight.js/styles/atom-one-dark.css`, registers `markdown`/`json`/`xml`/`yaml` languages, uses `hljs.highlightAuto()` + `dangerouslySetInnerHTML`; handles idle/loading (skeleton)/error/done states
 - [x] Create `src/components/prompt/PromptPanel.tsx` — `label` + `<textarea>` (editor mode) or `<ResponseView>` (response mode); flex column filling grid cell
 - [x] Replace `src/App.tsx` — `PromptState` tuple, `userMessage`, `selectedModel` state; `handleRun` with `Promise.allSettled`; auto-select first model on load; 4-section layout JSX
-- [x] **Verification**: `bun run dev` → both prompt editors side by side with dark theme → model selector populated from LMApi → enter two prompts + user message → Run Both → responses appear with syntax highlighting → `lmapi.duration_ms` shown per response → error state shown on failure
+- [x] **Verification**: `bun run dev` → both prompt editors side by side with dark theme → model selector populated from LMApi → enter two prompts + user message → Run → responses appear with syntax highlighting → `lmapi.duration_ms` shown per response → error state shown on failure
 
 ---
 
@@ -160,37 +160,7 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 
 ---
 
-## Phase 3 — LLM Judge System
-
-- [ ] Create `server/services/JudgeService.ts`:
-  - [ ] `buildRubricPrompt()` — construct judge prompt per perspective with system prompt, user input, response, reference criteria, and scoring instructions in JSON output format (see Section 4.7 for exact prompt template)
-  - [ ] `buildPairwisePrompt()` — construct comparison prompt showing both responses (randomize order to reduce position bias), requesting JSON with winner + justification
-  - [ ] `parseRubricResponse()` — 4-step fallback chain: direct JSON.parse → strip markdown fences → regex extract first `{...}` block → return null with logged raw text
-  - [ ] `parsePairwiseResponse()` — similar parsing, returns `PairwiseRanking` or null
-  - [ ] `buildTemplateGeneratorPrompt()` — construct prompt that analyzes a system prompt and proposes 4-6 scoring dimensions, deterministic checks, and 3-5 test cases (see Section 5 of original plan)
-  - [ ] `parseTemplateGeneratorResponse()` — parse generated template JSON, return `Partial<EvalTemplate>` or null
-- [ ] Update `ExecutionService` with Phase 3 (`runJudging()`):
-  - [ ] For each perspective × completed cell: build rubric prompt via `JudgeService.buildRubricPrompt()`, dispatch via `LmapiClient.chatCompletion()` with the judge model
-  - [ ] If pairwise enabled: generate all unique cell pairs per test case, build pairwise prompts, dispatch in parallel
-  - [ ] Parse all judge responses, accumulate `JudgeResult[]` and `PairwiseRanking[]`
-  - [ ] Use `Promise.allSettled()` for parallel judge dispatch; failed parses logged but don't abort
-  - [ ] Emit `judge:started` and `judge:completed` WebSocket events
-- [ ] Update `SummaryService.computeSummary()` to include:
-  - [ ] Composite score calculation (weighted average of perspective scores per cell)
-  - [ ] Per-model aggregate: average composite across all prompts × testCases × runs
-  - [ ] Per-prompt aggregate: average composite across all models × testCases × runs
-  - [ ] Judge result breakdown in `perspectiveScores` field
-- [ ] Implement `POST /api/eval/templates/generate` route:
-  - [ ] Accept `{ promptContent: string, tools?: ToolDefinition[] }`
-  - [ ] Build generator prompt via `JudgeService.buildTemplateGeneratorPrompt()`
-  - [ ] Dispatch to LMApi using the most capable available model (or a specified model)
-  - [ ] Parse response, return proposed `EvalTemplate`
-- [ ] Update `scripts/test-execution.ts` to include judge-enabled eval test case
-- [ ] **Verification**: Run eval with judge enabled → `JudgeResult` records in `results.json` with scores in 1-5 range; `summary.json` has perspectiveScores populated; pairwise rankings present and consistent (winner exists in cell pair); auto-generate template returns 4-6 perspectives with weights summing to 1.0; malformed judge responses (wrap in markdown, prepend text) handled gracefully without crash
-
----
-
-## Phase 4 — Export System, Baselines & History
+## Phase 3 — Export System, Baselines & History
 
 - [ ] Create `data/evals/templates/report-template.html`:
   - [ ] Dark theme CSS matching eval palette (inline `<style>` tag)
@@ -220,6 +190,36 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
   - [ ] `GET /api/eval/models/leaderboard` — scan all completed evaluations, aggregate composite scores per model across all evals, return ranked list
 - [ ] Update `scripts/test-api.ts` to cover: HTML export opens standalone (contains `<script>` data block); Markdown export has expected sections; save baseline then run second eval with `baselineId` set → regression data populated in `summary.json`; history endpoint returns timeline
 - [ ] **Verification**: HTML export opens in browser with no internet, all sections render with correct data; Markdown export has model rankings table, prompt rankings table, detailed results; baseline save creates file in `data/evals/baselines/`; regression delta correctly identifies improved/regressed metrics; history returns chronologically sorted evaluations for the prompt; leaderboard aggregates across evaluations
+
+---
+
+## Phase 4 — LLM Judge System
+
+- [ ] Create `server/services/JudgeService.ts`:
+  - [ ] `buildRubricPrompt()` — construct judge prompt per perspective with system prompt, user input, response, reference criteria, and scoring instructions in JSON output format (see Section 4.7 for exact prompt template)
+  - [ ] `buildPairwisePrompt()` — construct comparison prompt showing both responses (randomize order to reduce position bias), requesting JSON with winner + justification
+  - [ ] `parseRubricResponse()` — 4-step fallback chain: direct JSON.parse → strip markdown fences → regex extract first `{...}` block → return null with logged raw text
+  - [ ] `parsePairwiseResponse()` — similar parsing, returns `PairwiseRanking` or null
+  - [ ] `buildTemplateGeneratorPrompt()` — construct prompt that analyzes a system prompt and proposes 4-6 scoring dimensions, deterministic checks, and 3-5 test cases (see Section 5 of original plan)
+  - [ ] `parseTemplateGeneratorResponse()` — parse generated template JSON, return `Partial<EvalTemplate>` or null
+- [ ] Update `ExecutionService` with Phase 3 (`runJudging()`):
+  - [ ] For each perspective × completed cell: build rubric prompt via `JudgeService.buildRubricPrompt()`, dispatch via `LmapiClient.chatCompletion()` with the judge model
+  - [ ] If pairwise enabled: generate all unique cell pairs per test case, build pairwise prompts, dispatch in parallel
+  - [ ] Parse all judge responses, accumulate `JudgeResult[]` and `PairwiseRanking[]`
+  - [ ] Use `Promise.allSettled()` for parallel judge dispatch; failed parses logged but don't abort
+  - [ ] Emit `judge:started` and `judge:completed` WebSocket events
+- [ ] Update `SummaryService.computeSummary()` to include:
+  - [ ] Composite score calculation (weighted average of perspective scores per cell)
+  - [ ] Per-model aggregate: average composite across all prompts × testCases × runs
+  - [ ] Per-prompt aggregate: average composite across all models × testCases × runs
+  - [ ] Judge result breakdown in `perspectiveScores` field
+- [ ] Implement `POST /api/eval/templates/generate` route:
+  - [ ] Accept `{ promptContent: string, tools?: ToolDefinition[] }`
+  - [ ] Build generator prompt via `JudgeService.buildTemplateGeneratorPrompt()`
+  - [ ] Dispatch to LMApi using the most capable available model (or a specified model)
+  - [ ] Parse response, return proposed `EvalTemplate`
+- [ ] Update `scripts/test-execution.ts` to include judge-enabled eval test case
+- [ ] **Verification**: Run eval with judge enabled → `JudgeResult` records in `results.json` with scores in 1-5 range; `summary.json` has perspectiveScores populated; pairwise rankings present and consistent (winner exists in cell pair); auto-generate template returns 4-6 perspectives with weights summing to 1.0; malformed judge responses (wrap in markdown, prepend text) handled gracefully without crash
 
 ---
 
