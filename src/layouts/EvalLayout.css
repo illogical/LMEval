@@ -1,0 +1,58 @@
+.eval-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.eval-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 48px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.eval-logo {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.eval-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.eval-nav-link {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+
+.eval-nav-link:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.05);
+}
+
+.eval-nav-link.active {
+  color: var(--accent);
+  background: rgba(79, 193, 255, 0.08);
+}
+
+.eval-main {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}

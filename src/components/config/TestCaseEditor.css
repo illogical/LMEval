@@ -1,0 +1,141 @@
+.tce {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.tce-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.tce-tab {
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 5px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tce-tab.tce-tab-active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.tce-textarea {
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.tce-suite-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tce-suite-select {
+  flex: 1;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+
+.tce-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.tce-table th {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tce-table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.tce-num {
+  color: var(--muted);
+  text-align: center;
+  width: 32px;
+}
+
+.tce-input {
+  width: 100%;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  transition: border-color 0.15s;
+}
+
+.tce-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: rgba(79, 193, 255, 0.05);
+}
+
+.tce-remove {
+  background: none;
+  border: none;
+  color: var(--error);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.tce-remove:hover {
+  opacity: 1;
+}
+
+.tce-add-btn {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.15s;
+}
+
+.tce-add-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

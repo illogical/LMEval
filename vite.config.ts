@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
+      historyApiFallback: true,
       proxy: {
         // Proxy to LMApi (external model routing service — see LMAPI_BASE_URL in .env)
         '/lmapi': {

@@ -1,0 +1,108 @@
+.heatmap {
+  position: relative;
+  overflow: auto;
+}
+
+.hm-empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.hm-grid {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  min-width: max-content;
+}
+
+.hm-cell {
+  padding: 6px 10px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+}
+
+.hm-cell:last-child { border-right: 0; }
+
+.hm-header {
+  background: var(--surface-preview);
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.hm-corner { position: sticky; left: 0; z-index: 2; }
+
+.hm-model-header {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+.hm-tc-label {
+  position: sticky;
+  left: 0;
+  background: var(--surface-preview);
+  font-size: 11px;
+  color: var(--muted);
+  justify-content: flex-start;
+  font-family: var(--font-mono);
+  border-right: 2px solid var(--border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.hm-data-cell {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 13px;
+  color: #fff;
+  transition: filter 0.15s, transform 0.15s;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.hm-data-cell:hover {
+  filter: brightness(1.2);
+  transform: scale(1.05);
+  z-index: 1;
+}
+
+.hm-cell-empty {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.hm-tooltip {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 11px;
+  pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  min-width: 160px;
+}
+
+.hmt-model { font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.hmt-tc { color: var(--muted); margin-bottom: 6px; }
+.hmt-score { color: var(--accent); font-weight: 700; font-family: var(--font-mono); }
+.hmt-lat { color: var(--muted); font-family: var(--font-mono); }
+.hmt-perspective { color: var(--muted); margin-top: 2px; }

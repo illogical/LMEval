@@ -225,76 +225,78 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 
 ## Phase 5 — Frontend: Configuration & Execution
 
-- [ ] Set up `src/index.css` with Tailwind directives and CSS custom properties for eval palette
-- [ ] Set up `tailwind.config.ts` extending theme with eval colors (see Section 7.3)
-- [ ] Create `src/api/eval.ts` — fetch wrapper with typed API client for all `/api/eval/*` endpoints (see Section 7.6)
-- [ ] Create `src/api/lmapi.ts` — fetch wrapper for direct LMApi calls (`/api/servers`, `/api/models`)
-- [ ] Create React Context for eval state (`EvalContext.tsx` + `useReducer`) — see Section 7.1 for `EvalState` shape
-- [ ] Create `src/hooks/useEvalSocket.ts` — native WebSocket hook connecting to `/ws/eval`; filters by `evalId`; returns `{ progress, liveFeed, isCompleted, error }`
-- [ ] Create `src/hooks/useLmapiSocket.ts` — Socket.IO client hook connecting to LMApi; returns `{ serverStatuses }` (optional, for bonus metrics)
-- [ ] Create `src/hooks/useResizable.ts` — panel resize hook with mouse event handlers; returns `{ sizes, onDragStart }`
-- [ ] Create `src/components/layout/ResizablePanel.tsx` — generic three-panel CSS Grid container with drag handles
-- [ ] Create `src/components/layout/TopBar.tsx`:
-  - [ ] Inline-editable eval name (text input that toggles on click)
-  - [ ] Status indicator: animated dot (gray idle, pulsing amber running, teal completed, rose failed)
-  - [ ] Matrix badge: "2P × 3M × 4T × 1R = 24 completions" — updates live from config state
-  - [ ] Action buttons: "Run Evaluation" (amber primary), "Export" dropdown (HTML / Markdown), "Save as Baseline", "Load Previous"
-- [ ] Create `src/components/layout/BottomBar.tsx` — cost ticker (running token total), progress summary ("Phase 2/4 — 18/24 done"), quick stats post-completion (best model, best prompt)
-- [ ] Create Left Panel components:
-  - [ ] `PromptTabs.tsx` — horizontal tab bar with add/remove buttons; color dot per tab
-  - [ ] `PromptEditor.tsx` — monospace `<textarea>` with input mode toggle (Editor / File / Saved); saved mode fetches from `/api/eval/prompts` with version dropdown; metadata bar below (version notes input, token count estimate, "Save Version" button)
-  - [ ] `ToolDefinitionEditor.tsx` — collapsible section with JSON `<textarea>`; "Validate" button runs `JSON.parse` and shows errors inline
-  - [ ] `PromptDiff.tsx` — unified diff view; calls `GET /api/eval/prompts/:id/diff`; renders additions (teal bg) and deletions (rose bg)
-- [ ] Create Center Panel components (config mode):
-  - [ ] `ModelSelector.tsx` — fetch from `GET /api/eval/models`; grouped by server/provider with section headers; searchable text input filters; multi-select checkboxes; selected models as removable chips; "Select All Local" / "Clear" buttons
-  - [ ] `TestCaseEditor.tsx` — toggle between "Quick" mode (single textarea for one user message) and "Suite" mode (table of test cases: name, message, expected tool calls, reference answer; add/remove rows; load saved suite from dropdown)
-  - [ ] `TemplateSelector.tsx` — dropdown of templates from `GET /api/eval/templates`; "Auto-Generate from Prompt" button (calls `POST /api/eval/templates/generate`, shows editable preview); "Customize" button opens inline perspective editor (weights, enable/disable)
-  - [ ] `JudgeConfig.tsx` — judge model selector (single select); pairwise comparison toggle; runs-per-combination number input (1-10, default 1); perspective weight sliders (sum to 1.0 with auto-rebalance)
-  - [ ] `ExecutionPreview.tsx` — small grid showing prompt × model × testCase dimensions; estimated total completions, tokens, time; warning if matrix > 50 cells
-- [ ] Create Center Panel components (execution mode):
-  - [ ] `ProgressDashboard.tsx` — overall progress bar with percentage + ETA calculation; phase indicator (1-4)
-  - [ ] `ModelProgressRow.tsx` — per-model row: model name, progress bar (done/total), average latency, tokens/sec
-  - [ ] `LiveFeed.tsx` — scrolling list of completed cells as compact cards (model name, test case name, pass/fail indicator); CSS slide-in animation; click card to preview response in modal
-- [ ] Transition logic: when eval starts, center panel smoothly swaps config for execution view; when complete, right panel expands
-- [ ] Implement keyboard shortcuts (see Section 7.7): `Ctrl+Enter` (run), `Ctrl+E` (export), `Ctrl+1/2/3` (panel focus), `Ctrl+D` (diff), `Esc` (close modal), `Ctrl+S` (save prompt)
-- [ ] **Verification**: Full browser walkthrough — load `/` → three-panel layout renders → add two prompts → select models (grouped correctly) → add test cases → select template → configure judge → execution preview shows correct matrix dimensions → click "Run" → live progress updates via WebSocket → completion feed shows slide-in cards → keyboard shortcuts work → panel resize works via drag handles
+- [x] Set up `src/index.css` with CSS custom properties for eval palette (diff colors, heatmap gradient, step indicator, progress bar, card bg)
+- [x] Create `src/api/eval.ts` — fetch wrapper with typed API client for all `/api/eval/*` endpoints (prompts, templates, test suites, sessions, evaluations, presets, export, baseline)
+- [x] Create React Context for eval state (`EvalWizardContext.tsx` + `useReducer`) — wizard state with localStorage persistence; actions: `SET_PROMPT_A/B`, `SET_MODELS`, `SET_CONFIG`, `START_EVAL`, `LOAD_PRESET`, `RESET`, `SET_STEP`
+- [x] Create `WebSocketContext.tsx` — shared WS connection management with exponential backoff reconnect
+- [x] Create `src/hooks/useEvalSocket.ts` — native WebSocket hook connecting to `/ws/eval`; filters by `evalId`; returns `{ progress, events, isCompleted, status }`
+- [x] Create `src/layouts/EvalLayout.tsx` — shared layout: persistent header + `EvalStepIndicator` + `<Outlet />`; wraps children in `EvalWizardProvider`
+- [x] Create `src/components/layout/EvalStepIndicator.tsx` — horizontal 5-step bar; active/complete/pending states; click to navigate; "Coming Soon" badge on Step 5
+- [x] Move current `App.tsx` content to `ComparePage.tsx` at `/compare`
+- [x] Create `SessionHubPage.tsx` at `/` — grid of session cards, "New Evaluation" + "Quick Compare" buttons, empty state with hero message, feature highlight cards
+- [x] Create `PromptsPage.tsx` — Step 1: dual PromptPanel + PromptVersionSelector + collapsible PromptDiffView + ModelSelector + "Next" button
+- [x] Create `ConfigPage.tsx` — Step 2: TemplateSelector + TestCaseEditor + JudgeConfig + ExecutionPreview + PresetSelector + "Run Evaluation" button
+- [x] Create `DashboardPage.tsx` — Step 3: ElapsedTimer + ProgressOverview + ModelProgressGrid + LiveFeed + "View Results →" on completion
+- [x] Create `ResultsPage.tsx` — Step 4: 5-tab navigation (Scoreboard | Compare | Detail | Metrics | Timeline) + export/baseline buttons
+- [x] Create `SummaryPage.tsx` — Step 5 placeholder (deferred to Phase 9 per spec)
+- [x] Update `src/main.tsx` with BrowserRouter and full route tree
+- [x] Update `vite.config.ts` — add `historyApiFallback: true` for SPA routing
+- [x] Create Left Panel components:
+  - [x] `PromptVersionSelector.tsx` — version dropdown to load saved prompts from `/api/eval/prompts`
+  - [x] `PromptDiffView.tsx` — side-by-side JetBrains-style diff using `diffLines` + `diffWords`; gutter line numbers; word-level inline highlights; CSS classes `.diff-added`, `.diff-removed`, `.diff-word-added`, `.diff-word-removed`
+- [x] Create Center Panel components (config mode):
+  - [x] `ModelSelector.tsx` — (reused existing) searchable multi-select with server grouping
+  - [x] `TestCaseEditor.tsx` — toggle between "Quick" mode (single textarea) and "Suite" mode (table with add/remove rows; load from dropdown)
+  - [x] `TemplateSelector.tsx` — dropdown of templates; "Auto-Generate from Prompt" button; inline perspective editor
+  - [x] `JudgeConfig.tsx` — judge model selector; pairwise comparison toggle; runs-per-cell number input (1-10)
+  - [x] `ExecutionPreview.tsx` — matrix badge (`2P × 3M × 4T × 1R = 24 completions`); warning if matrix > 50 cells
+  - [x] `PresetSelector.tsx` — "Save as Preset" + "Load Preset" dropdown
+- [x] Create Center Panel components (execution mode):
+  - [x] `ElapsedTimer.tsx` — frontend-driven HH:MM:SS clock (updates every second)
+  - [x] `ProgressOverview.tsx` — overall progress bar with percentage + phase indicator
+  - [x] `ModelProgressGrid.tsx` — per-model progress cards grouped by server name
+  - [x] `LiveFeed.tsx` — scrolling list of completed cells with CSS slide-in animation; click to preview in modal
+- [x] Backend: Add `EvalPreset` type to `src/types/eval.ts`
+- [x] Backend: Create `data/evals/presets/` directory
+- [x] Backend: Create `server/services/PresetService.ts` — list/get/create/update/delete
+- [x] Backend: Create `server/routes/presets.ts` — CRUD at `/api/eval/presets`
+- [x] Backend: Wire presets router into `server/index.ts`
+- [x] Backend: Replace `server/ws.ts` stub with real WebSocket server (`ws` npm package)
+- [x] Install `react-router-dom`, `recharts`, `lucide-react` dependencies
+- [x] **Verification**: Full browser walkthrough — load `/` → Session Hub with hero + CTAs → "New Evaluation" → Step 1 loads with dual prompt editors + collapsible diff + model selector → Step 2 has template/test/judge/preview config → "Run" navigates to live dashboard → progress updates → "View Results" navigates to results with 5 tabs
 
 ---
 
 ## Phase 6 — Frontend: Results & Analysis
 
-- [ ] Create `src/lib/scoring.ts` — utility functions: `scoreToColor(score, min, max)` returns CSS color from heatmap gradient (teal → amber → rose); `formatScore(score)` rounds to 1 decimal; `formatLatency(ms)` to human-readable
-- [ ] Create `src/components/results/Scoreboard.tsx`:
-  - [ ] Default results tab view
-  - [ ] `HeatmapMatrix.tsx` sub-component: CSS Grid table; rows = prompts × test cases, columns = models; each cell shows composite score (1.0-5.0) with background color from `scoreToColor()`; hover tooltip shows per-perspective breakdown; click opens DetailView for that cell
-  - [ ] Model leaderboard: ranked cards with composite score, deterministic pass rate, avg latency, tokens/sec; top model gets teal border accent
-  - [ ] Prompt leaderboard: same format ranking prompts by composite score
-  - [ ] Regression banner (if baseline set): prominent alert showing improvements (teal up-arrows) and regressions (rose down-arrows) with delta values
-- [ ] Create `src/components/results/CompareView.tsx`:
-  - [ ] Two dropdown selectors to pick any two prompt × model × testCase cells
-  - [ ] Left and right columns showing full response text
-  - [ ] Tool calls rendered as structured cards (function name, arguments, valid/invalid badge)
-  - [ ] Pairwise verdict section below: winner indicator + judge justification
-  - [ ] Diff toggle button: highlights text differences between the two responses (teal additions, rose deletions)
-- [ ] Create `src/components/results/DetailView.tsx`:
-  - [ ] Full drill-down for a single matrix cell (selected from heatmap click or dropdown)
-  - [ ] Sections: raw response (monospace, scrollable), tool calls (collapsible cards with pass/fail per call and error details), deterministic metrics table (format compliant, JSON valid, keywords, token count), per-perspective judge scores with justifications (expandable), latency/token breakdown
-  - [ ] "Why Did This Fail?" button (visible if composite score < 2.5): calls `POST /api/eval/evaluations/:id/diagnose` with cell data, shows improvement suggestions in a modal
-- [ ] Create `src/components/results/MetricsView.tsx`:
-  - [ ] Bar charts via HTML5 Canvas: latency by model, tokens/second by model, token usage (input vs output) by model
-  - [ ] Deterministic compliance table: per-cell pass/fail for each enabled check (format, JSON schema, tool calls, keywords) with color coding
-  - [ ] Consistency chart (visible if runs > 1): box plot or variance chart showing score distribution per model
-- [ ] Create `src/components/results/TimelineView.tsx`:
-  - [ ] Line chart via HTML5 Canvas: x-axis = evaluation date, y-axis = composite score
-  - [ ] One line per model (color-coded)
-  - [ ] Hover to see evaluation details (tooltip with eval name, scores)
-  - [ ] Markers for prompt version changes along x-axis
-  - [ ] Fetches data from `GET /api/eval/prompts/:id/history`
-- [ ] Create results tab navigation: five tab buttons at top of right panel; content switches with crossfade transition; no layout shift
-- [ ] Wire export buttons in TopBar: "Export HTML" calls `GET /api/eval/evaluations/:id/export?format=html` and triggers download; "Export Markdown" similar
-- [ ] Wire "Save as Baseline" button: prompts for slug name, calls `POST /api/eval/evaluations/:id/baseline`
-- [ ] Wire "Load Previous" button: opens modal with list from `GET /api/eval/evaluations`, click loads results into right panel
-- [ ] **Verification**: Complete an evaluation → Scoreboard shows heatmap with correct colors and tooltips → model/prompt leaderboards ranked correctly → Compare view shows two responses side-by-side with working diff toggle → Details view shows all metrics sections → Metrics tab renders Canvas charts with correct data → Timeline tab shows history (run 2+ evals for same prompt) → Export downloads valid HTML/Markdown files → Baseline save + regression badges work
+- [x] Create `src/lib/scoring.ts` — utility functions: `scoreToColor(score, min, max)` returns CSS hex color interpolated from heatmap gradient (rose → amber → teal); `formatScore(score)` rounds to 1 decimal; `formatLatency(ms)` to human-readable
+- [x] Create `src/components/results/Scoreboard.tsx`:
+  - [x] Default results tab view — wraps HeatmapMatrix + model leaderboard + prompt leaderboard + RegressionBanner
+  - [x] `HeatmapMatrix.tsx` sub-component: CSS Grid table; rows = prompts × test cases, columns = models; each cell shows composite score (1.0-5.0) with background color from `scoreToColor()`; hover tooltip shows per-perspective breakdown; click opens DetailView for that cell
+  - [x] Model leaderboard: ranked cards with composite score, deterministic pass rate, avg latency, tokens/sec; top model gets teal border accent
+  - [x] Prompt leaderboard: same format ranking prompts by composite score
+  - [x] Regression banner (if baseline set): prominent alert showing improvements (teal up-arrows) and regressions (rose down-arrows) with delta values
+- [x] Create `src/components/results/CompareView.tsx`:
+  - [x] Two dropdown selectors to pick any two prompt × model × testCase cells
+  - [x] Left and right columns showing full response text
+  - [x] Pairwise verdict section below: winner indicator + judge justification
+  - [x] Diff toggle button: highlights text differences between the two responses
+- [x] Create `src/components/results/DetailView.tsx`:
+  - [x] Full drill-down for a single matrix cell (selected from heatmap click or dropdown)
+  - [x] Sections: raw response (monospace, scrollable), tool calls (collapsible cards with pass/fail), deterministic metrics table, per-perspective judge scores with justifications (expandable), latency/token breakdown
+- [x] Create `src/components/results/MetricsView.tsx`:
+  - [x] Recharts `BarChart`: latency by model, tokens/second by model, token usage (input vs output) by model
+  - [x] Deterministic compliance table: per-cell pass/fail for each enabled check
+- [x] Create `src/components/results/TimelineView.tsx`:
+  - [x] Recharts `LineChart`: x-axis = evaluation date, y-axis = composite score
+  - [x] One line per model (color-coded); hover tooltips
+  - [x] Fetches data from `GET /api/eval/prompts/:id/history`
+- [x] Create `src/components/results/RegressionBanner.tsx` — improvement/regression alerts with delta values
+- [x] Create results tab navigation in `ResultsPage.tsx`: five tab buttons (Scoreboard | Compare | Detail | Metrics | Timeline); content switches with active tab state
+- [x] Wire export buttons in `ResultsPage.tsx`: "Export HTML" calls `GET /api/eval/evaluations/:id/export?format=html` and triggers download; "Export Markdown" similar
+- [x] Wire "Save as Baseline" button: prompts for slug name, calls `POST /api/eval/evaluations/:id/baseline`
+- [x] Add "View Summary & Suggestions →" button on `ResultsPage.tsx` (navigates to placeholder `/eval/summary/:id` until Phase 9)
+- [x] **Verification**: Complete an evaluation → Scoreboard shows heatmap with correct colors and tooltips → model/prompt leaderboards ranked correctly → Compare view shows two responses side-by-side with working diff toggle → Details view shows all metrics sections → Metrics tab renders Recharts bar charts with correct data → Timeline tab shows history → Export downloads valid HTML/Markdown files → Baseline save works
 
 ---
 

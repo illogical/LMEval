@@ -1,0 +1,12 @@
+.timeline-view {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.tv-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
