@@ -131,7 +131,7 @@ export function PromptPanel({
               {uploadStatus === 'reading' && 'Reading file…'}
               {uploadStatus === 'saving' && 'Saving…'}
               {uploadStatus === 'saved' && '✓ Saved'}
-              {uploadStatus === 'error' && (uploadError ?? 'Error saving file')}
+              {uploadStatus === 'error' && `File loaded, but save failed: ${uploadError ?? 'Unknown error'}`}
             </div>
           )}
         </>

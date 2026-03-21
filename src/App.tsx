@@ -61,15 +61,6 @@ function App() {
 
   const { servers, loading: serversLoading } = useModelsByServer();
 
-  // Auto-select first available model
-  useEffect(() => {
-    if (servers.length > 0 && selectedModels.length === 0) {
-      const firstServer = servers[0];
-      const firstModel = firstServer?.models[0];
-      if (firstModel) setSelectedModels([{ serverName: firstServer.name, modelName: firstModel }]);
-    }
-  }, [servers]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Prune stale selections when server list refreshes
   useEffect(() => {
     if (serversLoading) return;

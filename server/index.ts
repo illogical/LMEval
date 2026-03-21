@@ -27,6 +27,11 @@ app.route('/api/eval/git', gitRouter);
 
 app.get('/api/eval/health', c => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+app.onError((err, c) => {
+  console.error('[server] Unhandled error:', err);
+  return c.json({ error: err.message }, 500);
+});
+
 // Seed built-in templates on startup
 TemplateService.seedBuiltIns();
 

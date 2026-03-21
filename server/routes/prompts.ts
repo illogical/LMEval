@@ -30,17 +30,25 @@ promptsRouter.post('/', async c => {
   if (!body.name || !body.content) {
     return c.json({ error: 'name and content are required' }, 400);
   }
-  const prompt = PromptService.create(body);
-  return c.json(prompt, 201);
+  try {
+    const prompt = PromptService.create(body);
+    return c.json(prompt, 201);
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
 });
 
 promptsRouter.post('/:id/versions', async c => {
   const { id } = c.req.param();
   const body = await c.req.json();
   if (!body.content) return c.json({ error: 'content is required' }, 400);
-  const updated = PromptService.addVersion(id, body.content, body.description);
-  if (!updated) return c.json({ error: 'Prompt not found' }, 404);
-  return c.json(updated, 201);
+  try {
+    const updated = PromptService.addVersion(id, body.content, body.description);
+    if (!updated) return c.json({ error: 'Prompt not found' }, 404);
+    return c.json(updated, 201);
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
 });
 
 promptsRouter.get('/:id/diff', c => {
