@@ -257,3 +257,78 @@ header.app-header {
   font-size: 13px;
   font-style: italic;
 }
+
+/* Drag & drop upload */
+.prompt-panel--dragging {
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.upload-hint {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 4px 12px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
+
+.upload-browse {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-ui);
+  text-decoration: underline;
+}
+
+.upload-browse:hover {
+  opacity: 0.8;
+}
+
+.upload-progress {
+  font-size: 11px;
+  padding: 3px 12px;
+  flex-shrink: 0;
+}
+
+.upload-progress--reading,
+.upload-progress--saving {
+  color: var(--accent);
+}
+
+.upload-progress--saved {
+  color: var(--ok);
+}
+
+.upload-progress--error {
+  color: var(--error);
+}
+
+.panel-label-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.advance-button {
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 10px;
+  font-family: var(--font-ui);
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+
+.advance-button:hover {
+  background: var(--accent);
+  color: var(--bg);
+}

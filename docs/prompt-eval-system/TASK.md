@@ -79,65 +79,65 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 > Specs: [`../features/session-management/SESSION_MANAGEMENT.md`](../features/session-management/SESSION_MANAGEMENT.md) | [`../features/prompt-upload/PROMPT_UPLOAD.md`](../features/prompt-upload/PROMPT_UPLOAD.md)
 
 **Session Backend:**
-- [ ] Create `src/types/session.ts` — `SessionSlot`, `SessionVersionMeta`, `SessionVersion`, `SessionManifest`, `EvalRun`, `ImprovementSuggestion` interfaces (see `SESSION_MANAGEMENT.md` for full type definitions)
-- [ ] Add `SESSIONS_DIR = join(process.cwd(), 'data', 'sessions')` constant to `server/services/FileService.ts`
-- [ ] Create `data/sessions/.gitkeep` to track the directory in git
-- [ ] Create `server/services/SessionService.ts` — `list`, `get`, `getBySlug`, `getVersion`, `getActiveVersion`, `create`, `createVersion`, `setLatestVersion`, `addEvalRun`, `getEvalRun`, `listEvalRuns`, `updateEvalRun`, `delete`
-- [ ] Create `server/routes/sessions.ts` — `GET` list, `GET` by id, `GET` active version, `GET` version by number, `POST` create, `POST` add version, `PUT` latest pointer, `GET` runs, `POST` add run, `PATCH` update run, `DELETE`
-- [ ] Wire `sessionsRouter` into `server/index.ts` at `/api/eval/sessions`
-- [ ] Create `scripts/test-sessions.ts` — integration test: create session with two valid prompt slots → add second version (swap B to A, new B) → list shows both versions → add eval run → update run status → delete session
-- [ ] Add `"test:sessions": "bun run scripts/test-sessions.ts"` to `package.json`
-- [ ] **Verification**: `bun run test:sessions` passes; `data/sessions/{slug}/manifest.json` created with correct shape; `v1.json` and `v2.json` present after version creation; run record written to `runs/{runId}.json`; `latestVersion` pointer updated correctly
+- [x] Create `src/types/session.ts` — `SessionSlot`, `SessionVersionMeta`, `SessionVersion`, `SessionManifest`, `EvalRun`, `ImprovementSuggestion` interfaces (see `SESSION_MANAGEMENT.md` for full type definitions)
+- [x] Add `SESSIONS_DIR = join(process.cwd(), 'data', 'sessions')` constant to `server/services/FileService.ts`
+- [x] Create `data/sessions/.gitkeep` to track the directory in git
+- [x] Create `server/services/SessionService.ts` — `list`, `get`, `getBySlug`, `getVersion`, `getActiveVersion`, `create`, `createVersion`, `setLatestVersion`, `addEvalRun`, `getEvalRun`, `listEvalRuns`, `updateEvalRun`, `delete`
+- [x] Create `server/routes/sessions.ts` — `GET` list, `GET` by id, `GET` active version, `GET` version by number, `POST` create, `POST` add version, `PUT` latest pointer, `GET` runs, `POST` add run, `PATCH` update run, `DELETE`
+- [x] Wire `sessionsRouter` into `server/index.ts` at `/api/eval/sessions`
+- [x] Create `scripts/test-sessions.ts` — integration test: create session with two valid prompt slots → add second version (swap B to A, new B) → list shows both versions → add eval run → update run status → delete session
+- [x] Add `"test:sessions": "bun run scripts/test-sessions.ts"` to `package.json`
+- [x] **Verification**: `bun run test:sessions` passes; `data/sessions/{slug}/manifest.json` created with correct shape; `v1.json` and `v2.json` present after version creation; run record written to `runs/{runId}.json`; `latestVersion` pointer updated correctly
 
 **Prompt Upload Frontend:**
-- [ ] Create `src/api/eval.ts` (pull forward from Phase 5) with `createPrompt(name, content)` and `addPromptVersion(id, content, description?)` fetch wrappers targeting `/api/eval/prompts`
-- [ ] Update `src/components/prompt/PromptPanel.tsx` — add `onFileUpload`, `uploadStatus`, `uploadError` props; add `isDragOver` state; add `onDragOver`/`onDragLeave`/`onDrop` handlers; add "Browse" button with hidden `<input type="file" accept=".txt,.md">`; add upload status strip below textarea; add drag highlight class when `isDragOver`
-- [ ] Add CSS classes to `src/App.css`: `.prompt-panel--dragging` (border + glow), `.upload-hint`, `.upload-browse`, `.upload-progress`, `.upload-progress--reading/saving/saved/error`
-- [ ] Update `src/App.tsx` — add `promptManifests: [PromptManifest | null, PromptManifest | null]` state; add `uploadStatus` state; add `activeSessionId` state (persisted in `localStorage`); implement `handleFileUpload(side, content, fileName)` calling `createPrompt` or `addPromptVersion`; pass `onFileUpload` to both editor PromptPanel instances
-- [ ] **Verification**: Drag a `.md` file onto Prompt A panel → textarea populates immediately → status shows "Saving…" then "Saved" → `POST /api/eval/prompts` fires → manifest stored; drag second file → `POST /api/eval/prompts/:id/versions` fires; Browse button opens picker with same behavior; unsupported type shows inline error
+- [x] Create `src/api/eval.ts` (pull forward from Phase 5) with `createPrompt(name, content)` and `addPromptVersion(id, content, description?)` fetch wrappers targeting `/api/eval/prompts`
+- [x] Update `src/components/prompt/PromptPanel.tsx` — add `onFileUpload`, `uploadStatus`, `uploadError` props; add `isDragOver` state; add `onDragOver`/`onDragLeave`/`onDrop` handlers; add "Browse" button with hidden `<input type="file" accept=".txt,.md">`; add upload status strip below textarea; add drag highlight class when `isDragOver`
+- [x] Add CSS classes to `src/App.css`: `.prompt-panel--dragging` (border + glow), `.upload-hint`, `.upload-browse`, `.upload-progress`, `.upload-progress--reading/saving/saved/error`
+- [x] Update `src/App.tsx` — add `promptManifests: [PromptManifest | null, PromptManifest | null]` state; add `uploadStatus` state; add `activeSessionId` state (persisted in `localStorage`); implement `handleFileUpload(side, content, fileName)` calling `createPrompt` or `addPromptVersion`; pass `onFileUpload` to both editor PromptPanel instances
+- [x] **Verification**: Drag a `.md` file onto Prompt A panel → textarea populates immediately → status shows "Saving…" then "Saved" → `POST /api/eval/prompts` fires → manifest stored; drag second file → `POST /api/eval/prompts/:id/versions` fires; Browse button opens picker with same behavior; unsupported type shows inline error
 
 **Prompt Version Advancement (B → A):**
-- [ ] Add `onAdvance` prop to `PromptPanel` — renders "Use as Prompt A →" button in the B panel header when panel has content; absent from A panel
-- [ ] Implement `handleAdvance()` in `App.tsx`: copy `prompts[1]` content → `prompts[0]`; clear `prompts[1]`; copy `promptManifests[1]` → `promptManifests[0]`; clear `promptManifests[1]`; if `activeSessionId` is set, call `POST /api/eval/sessions/:id/versions` with new slot data
-- [ ] **Verification**: Type into Prompt B → click "Use as Prompt A →" → content moves to A, B clears → session gains new version in `data/sessions/` → refreshing the page re-connects to active session via `localStorage`
+- [x] Add `onAdvance` prop to `PromptPanel` — renders "Use as Prompt A →" button in the B panel header when panel has content; absent from A panel
+- [x] Implement `handleAdvance()` in `App.tsx`: copy `prompts[1]` content → `prompts[0]`; clear `prompts[1]`; copy `promptManifests[1]` → `promptManifests[0]`; clear `promptManifests[1]`; if `activeSessionId` is set, call `POST /api/eval/sessions/:id/versions` with new slot data
+- [x] **Verification**: Type into Prompt B → click "Use as Prompt A →" → content moves to A, B clears → session gains new version in `data/sessions/` → refreshing the page re-connects to active session via `localStorage`
 
 ---
 
 ## Phase 2 — Evaluation Engine: Execution Pipeline (No Judge)
 
-- [ ] Create `server/services/MetricsService.ts` — `validateJsonSchema()` using ajv (singleton, `allErrors: true`); `validateToolCalls()` against definitions + expected calls; `checkKeywords()` for required/forbidden; `estimateTokenCount()` (see Section 4.6)
-- [ ] Create `server/services/SummaryService.ts` — `computeSummary()` with per-model and per-prompt aggregate rankings using deterministic metrics only; `computeConsistency()` for multi-run variance (see Section 4.9)
-- [ ] Create `server/services/ExecutionService.ts` — 3 of 4 phases:
-  - [ ] Phase 1: `buildMatrix()` — expand all prompt × model × testCase × run combinations into `EvalMatrixCell[]`; `estimateCost()` for token/time estimates
-  - [ ] Phase 2: `runCompletions()` — dispatch each cell via `LmapiClient.chatCompletion()` with `stream: false` and `groupId: evalId`; run deterministic checks via `MetricsService` on each completed cell; use `Promise.allSettled()` for parallel dispatch; implement `Semaphore` class for batching (default limit: 8 concurrent)
-  - [ ] Phase 4: `aggregate()` — call `SummaryService.computeSummary()`, write `results.json` + `summary.json`
-  - [ ] `AbortController` map for cancel support; `cancel(evalId)` method
-  - [ ] Write `config.json` with `status: 'pending' → 'running' → 'completed'/'failed'`
-- [ ] Create `server/ws.ts` — Bun native WebSocket server at `/ws/eval`; broadcast `EvalStreamEvent` messages to all connected clients; track connected clients
-- [ ] Emit WebSocket events during execution: `cell:started`, `cell:completed`, `cell:failed`, `eval:progress`, `eval:completed`, `eval:failed`
-- [ ] Create `server/routes/evaluations.ts`:
-  - [ ] `GET /api/eval/evaluations` — list evaluations with optional status/promptId/modelId filters
-  - [ ] `GET /api/eval/evaluations/:id` — read and return `config.json`
-  - [ ] `GET /api/eval/evaluations/:id/results` — read and return `results.json`
-  - [ ] `GET /api/eval/evaluations/:id/summary` — read and return `summary.json`
-  - [ ] `POST /api/eval/evaluations` — validate config, write `config.json`, call `ExecutionService.run(id)` async (do not await), return 202 with config
-  - [ ] `DELETE /api/eval/evaluations/:id` — call `ExecutionService.cancel(id)`, return success/failure
-- [ ] Add retry resilience to `server/services/LmapiClient.ts` (see [`../../features/retry-resilience/RETRY_RESILIENCE.md`](../../features/retry-resilience/RETRY_RESILIENCE.md)):
-  - [ ] Read `LMAPI_RETRY_COUNT` (default 3) and `LMAPI_RETRY_DELAY_MS` (default 2000) from environment
-  - [ ] Wrap `chatCompletion()` with `withRetry()` helper — linear backoff (attempt × delay); retry on 429/502/503/504 and network errors; throw immediately on 4xx client errors
-  - [ ] Add `retryAttempts?: { attemptNumber, error, timestamp }[]` and `errorType?` fields to `EvalMatrixCell` in `src/types/eval.ts`
-  - [ ] `ExecutionService` populates `retryAttempts` on each failed attempt before final failure
-  - [ ] Add `LMAPI_RETRY_COUNT` and `LMAPI_RETRY_DELAY_MS` to `.example.env`
-- [ ] Add session linking to evaluation runs (see [`../../features/session-management/SESSION_MANAGEMENT.md`](../../features/session-management/SESSION_MANAGEMENT.md)):
-  - [ ] `POST /api/eval/evaluations` accepts optional `{ sessionId, sessionVersion }` in request body
-  - [ ] If `sessionId` provided: call `SessionService.addEvalRun(sessionId, sessionVersion, evalId)` after writing `config.json`; return `evalRunId` in the 202 response
-  - [ ] `ExecutionService.aggregate()`: after writing `summary.json`, call `SessionService.updateEvalRun()` with `{ status: 'completed', completedAt, scoreSummary }` (extract `promptAScore`/`promptBScore` from `EvaluationSummary.promptSummaries`)
-  - [ ] On eval failure: call `SessionService.updateEvalRun()` with `{ status: 'failed' }`
-- [ ] Add eval re-run endpoint:
-  - [ ] `POST /api/eval/evaluations/:id/retry` — read original `config.json`; if `failedCellsOnly: true`, filter to failed cells; write new eval ID; call `ExecutionService.run(newEvalId)` async; if `sessionId` provided, link new run to session; return 202 `{ evalId, evalRunId? }`
-- [ ] Create `scripts/test-execution.ts` — end-to-end test: connect WebSocket, create minimal eval (1 prompt × 1 model × 1 test case, no judge), listen for `eval:completed`, verify `results.json` structure (cells have response content + deterministic metrics), verify `summary.json` (model rankings populated)
-- [ ] Add `"test:execution": "bun run scripts/test-execution.ts"` to `package.json`
-- [ ] **Verification**: `bun run test:execution` — eval completes; `config.json` status transitions to `completed`; all matrix cells present in `results.json` with populated metrics (inputTokens, outputTokens, durationMs, tokensPerSecond, serverName); `summary.json` has model rankings; WebSocket events arrive in correct sequence (cell:started → cell:completed → eval:progress → eval:completed); cancel mid-run stops execution cleanly; eval with `sessionId` creates `EvalRun` record and populates `scoreSummary` after completion; simulate 503 response → retry fires and cell eventually completes
+- [x] Create `server/services/MetricsService.ts` — `validateJsonSchema()` using ajv (singleton, `allErrors: true`); `validateToolCalls()` against definitions + expected calls; `checkKeywords()` for required/forbidden; `estimateTokenCount()` (see Section 4.6)
+- [x] Create `server/services/SummaryService.ts` — `computeSummary()` with per-model and per-prompt aggregate rankings using deterministic metrics only; `computeConsistency()` for multi-run variance (see Section 4.9)
+- [x] Create `server/services/ExecutionService.ts` — 3 of 4 phases:
+  - [x] Phase 1: `buildMatrix()` — expand all prompt × model × testCase × run combinations into `EvalMatrixCell[]`; `estimateCost()` for token/time estimates
+  - [x] Phase 2: `runCompletions()` — dispatch each cell via `LmapiClient.chatCompletion()` with `stream: false` and `groupId: evalId`; run deterministic checks via `MetricsService` on each completed cell; use `Promise.allSettled()` for parallel dispatch; implement `Semaphore` class for batching (default limit: 8 concurrent)
+  - [x] Phase 4: `aggregate()` — call `SummaryService.computeSummary()`, write `results.json` + `summary.json`
+  - [x] `AbortController` map for cancel support; `cancel(evalId)` method
+  - [x] Write `config.json` with `status: 'pending' → 'running' → 'completed'/'failed'`
+- [x] Create `server/ws.ts` — Bun native WebSocket server at `/ws/eval`; broadcast `EvalStreamEvent` messages to all connected clients; track connected clients
+- [x] Emit WebSocket events during execution: `cell:started`, `cell:completed`, `cell:failed`, `eval:progress`, `eval:completed`, `eval:failed`
+- [x] Create `server/routes/evaluations.ts`:
+  - [x] `GET /api/eval/evaluations` — list evaluations with optional status/promptId/modelId filters
+  - [x] `GET /api/eval/evaluations/:id` — read and return `config.json`
+  - [x] `GET /api/eval/evaluations/:id/results` — read and return `results.json`
+  - [x] `GET /api/eval/evaluations/:id/summary` — read and return `summary.json`
+  - [x] `POST /api/eval/evaluations` — validate config, write `config.json`, call `ExecutionService.run(id)` async (do not await), return 202 with config
+  - [x] `DELETE /api/eval/evaluations/:id` — call `ExecutionService.cancel(id)`, return success/failure
+- [x] Add retry resilience to `server/services/LmapiClient.ts` (see [`../../features/retry-resilience/RETRY_RESILIENCE.md`](../../features/retry-resilience/RETRY_RESILIENCE.md)):
+  - [x] Read `LMAPI_RETRY_COUNT` (default 3) and `LMAPI_RETRY_DELAY_MS` (default 2000) from environment
+  - [x] Wrap `chatCompletion()` with `withRetry()` helper — linear backoff (attempt × delay); retry on 429/502/503/504 and network errors; throw immediately on 4xx client errors
+  - [x] Add `retryAttempts?: { attemptNumber, error, timestamp }[]` and `errorType?` fields to `EvalMatrixCell` in `src/types/eval.ts`
+  - [x] `ExecutionService` populates `retryAttempts` on each failed attempt before final failure
+  - [x] Add `LMAPI_RETRY_COUNT` and `LMAPI_RETRY_DELAY_MS` to `.example.env`
+- [x] Add session linking to evaluation runs (see [`../../features/session-management/SESSION_MANAGEMENT.md`](../../features/session-management/SESSION_MANAGEMENT.md)):
+  - [x] `POST /api/eval/evaluations` accepts optional `{ sessionId, sessionVersion }` in request body
+  - [x] If `sessionId` provided: call `SessionService.addEvalRun(sessionId, sessionVersion, evalId)` after writing `config.json`; return `evalRunId` in the 202 response
+  - [x] `ExecutionService.aggregate()`: after writing `summary.json`, call `SessionService.updateEvalRun()` with `{ status: 'completed', completedAt, scoreSummary }` (extract `promptAScore`/`promptBScore` from `EvaluationSummary.promptSummaries`)
+  - [x] On eval failure: call `SessionService.updateEvalRun()` with `{ status: 'failed' }`
+- [x] Add eval re-run endpoint:
+  - [x] `POST /api/eval/evaluations/:id/retry` — read original `config.json`; if `failedCellsOnly: true`, filter to failed cells; write new eval ID; call `ExecutionService.run(newEvalId)` async; if `sessionId` provided, link new run to session; return 202 `{ evalId, evalRunId? }`
+- [x] Create `scripts/test-execution.ts` — end-to-end test: connect WebSocket, create minimal eval (1 prompt × 1 model × 1 test case, no judge), listen for `eval:completed`, verify `results.json` structure (cells have response content + deterministic metrics), verify `summary.json` (model rankings populated)
+- [x] Add `"test:execution": "bun run scripts/test-execution.ts"` to `package.json`
+- [x] **Verification**: `bun run test:execution` — eval completes; `config.json` status transitions to `completed`; all matrix cells present in `results.json` with populated metrics (inputTokens, outputTokens, durationMs, tokensPerSecond, serverName); `summary.json` has model rankings; WebSocket events arrive in correct sequence (cell:started → cell:completed → eval:progress → eval:completed); cancel mid-run stops execution cleanly; eval with `sessionId` creates `EvalRun` record and populates `scoreSummary` after completion; simulate 503 response → retry fires and cell eventually completes
 
 ---
 
@@ -149,11 +149,11 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 >
 > Scope: Human-confirmed git commits on the `data/` directory. Automated commits come later in Phase 8.
 
-- [ ] Create `server/services/GitService.ts` — `isInitialized()`, `init()`, `status()`, `commit(message)`, `log(limit?)`, `revert(hash)`; all git calls use `child_process.execFile` (not `exec`) with args as string array to prevent shell injection; `DATA_ROOT = join(process.cwd(), 'data')`
-- [ ] Create `server/routes/git.ts` — `GET /status` (initialized + status + last 10 log entries), `POST /init` (idempotent), `POST /commit` (validates message matches `/^(feat|fix|chore)\(prompt\):/`; links to session run if `sessionId`+`runId` provided), `POST /revert` (validates hash is alphanumeric only), `GET /log?limit=N`
-- [ ] Wire `gitRouter` into `server/index.ts` at `/api/eval/git`; log warning on startup if `data/` is not a git repo
-- [ ] On `POST /api/eval/git/init`, also write `data/.gitignore` with `*.tmp` exclusion
-- [ ] Add `.gitignore` note to root `.gitignore`: add `data/.git/` to prevent nested repo detection
+- [x] Create `server/services/GitService.ts` — `isInitialized()`, `init()`, `status()`, `commit(message)`, `log(limit?)`, `revert(hash)`; all git calls use `child_process.execFile` (not `exec`) with args as string array to prevent shell injection; `DATA_ROOT = join(process.cwd(), 'data')`
+- [x] Create `server/routes/git.ts` — `GET /status` (initialized + status + last 10 log entries), `POST /init` (idempotent), `POST /commit` (validates message matches `/^(feat|fix|chore)\(prompt\):/`; links to session run if `sessionId`+`runId` provided), `POST /revert` (validates hash is alphanumeric only), `GET /log?limit=N`
+- [x] Wire `gitRouter` into `server/index.ts` at `/api/eval/git`; log warning on startup if `data/` is not a git repo
+- [x] On `POST /api/eval/git/init`, also write `data/.gitignore` with `*.tmp` exclusion
+- [x] Add `.gitignore` note to root `.gitignore`: add `data/.git/` to prevent nested repo detection
 - [ ] Frontend — add "Commit Improvement" button in results area (visible after eval completes with positive `scoreDelta`): pre-fills `feat(prompt): improve {session.name} (+{delta} score)`; editable before submit; shows commit hash on success; button becomes disabled "Committed ✓" after commit
 - [ ] Frontend — add "Revert to Previous" button (visible when log has ≥ 1 commit): shows last commit subject + date; confirmation dialog before calling `POST /api/eval/git/revert`; toast on success
 - [ ] **Verification**: `POST /api/eval/git/init` → `data/.git/` created; create prompt + session + eval → commit → `GET /api/eval/git/log` returns entry with correct hash/subject/date; `POST /commit` with invalid message → 400; `POST /revert` → changes undone; UI buttons pre-fill correct message and show hash
@@ -162,64 +162,64 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 
 ## Phase 3 — Export System, Baselines & History
 
-- [ ] Create `data/evals/templates/report-template.html`:
-  - [ ] Dark theme CSS matching eval palette (inline `<style>` tag)
-  - [ ] `{{EVAL_NAME}}` and `{{DATA}}` template placeholders
-  - [ ] Vanilla JS that renders: interactive sortable tables, heatmap matrix (CSS grid + background gradient), expandable detail sections, basic tab navigation (Scoreboard / Details / Metrics)
-  - [ ] No external dependencies (no CDN links); works offline
-  - [ ] Printable via `@media print` CSS
-  - [ ] Target: under 500KB for a typical evaluation
-- [ ] Create `server/services/ReportService.ts`:
-  - [ ] `generateMarkdown(evalId)` — read `summary.json` + `results.json`, render Markdown report using template from Section 7.1 of original plan (model rankings table, prompt rankings table, regression analysis, detailed per-cell results)
-  - [ ] `generateHtml(evalId)` — read report template, replace `{{DATA}}` with `JSON.stringify(summary + results)` and `{{EVAL_NAME}}` with eval name, return self-contained HTML string
-  - [ ] `writeReports(evalId)` — write both `report.md` and `report.html` to the evaluation directory
-- [ ] Add export endpoints to `server/routes/evaluations.ts`:
-  - [ ] `GET /api/eval/evaluations/:id/export?format=html` — call `ReportService.generateHtml()`, return as `text/html` with `Content-Disposition: attachment` header
-  - [ ] `GET /api/eval/evaluations/:id/export?format=md` — call `ReportService.generateMarkdown()`, return as `text/markdown` with attachment header
-- [ ] Add baseline endpoint to `server/routes/evaluations.ts`:
-  - [ ] `POST /api/eval/evaluations/:id/baseline` — accept `{ slug: string }`, copy `summary.json` to `data/evals/baselines/{slug}.json` with evalId reference
-- [ ] Update `SummaryService` with `computeRegression()`:
-  - [ ] Accept current `EvaluationSummary` + baseline `EvaluationSummary`
-  - [ ] Compute delta for every metric (compositeScore, perspectiveScores, deterministicPassRate, avgLatencyMs, avgTokensPerSecond)
-  - [ ] Classify each metric as `improved`, `regressed`, or `unchanged` (threshold: ±2% for scores, ±5% for latency)
-  - [ ] Populate `summary.regression` field
-- [ ] When `baselineId` is set on `EvaluationConfig`, load baseline in `ExecutionService.aggregate()` and call `computeRegression()`
-- [ ] Add history endpoint to `server/routes/prompts.ts`:
-  - [ ] `GET /api/eval/prompts/:id/history` — scan `data/evals/evaluations/` directories, read each `config.json`, filter to evals that included this promptId, read corresponding `summary.json` for scores, return sorted timeline array `[{ evalId, date, modelScores, promptScore }]`
-- [ ] Add leaderboard endpoint to `server/routes/models.ts`:
-  - [ ] `GET /api/eval/models/leaderboard` — scan all completed evaluations, aggregate composite scores per model across all evals, return ranked list
-- [ ] Update `scripts/test-api.ts` to cover: HTML export opens standalone (contains `<script>` data block); Markdown export has expected sections; save baseline then run second eval with `baselineId` set → regression data populated in `summary.json`; history endpoint returns timeline
-- [ ] **Verification**: HTML export opens in browser with no internet, all sections render with correct data; Markdown export has model rankings table, prompt rankings table, detailed results; baseline save creates file in `data/evals/baselines/`; regression delta correctly identifies improved/regressed metrics; history returns chronologically sorted evaluations for the prompt; leaderboard aggregates across evaluations
+- [x] Create `data/evals/templates/report-template.html`:
+  - [x] Dark theme CSS matching eval palette (inline `<style>` tag)
+  - [x] `{{EVAL_NAME}}` and `{{DATA}}` template placeholders
+  - [x] Vanilla JS that renders: interactive sortable tables, heatmap matrix (CSS grid + background gradient), expandable detail sections, basic tab navigation (Scoreboard / Details / Metrics)
+  - [x] No external dependencies (no CDN links); works offline
+  - [x] Printable via `@media print` CSS
+  - [x] Target: under 500KB for a typical evaluation
+- [x] Create `server/services/ReportService.ts`:
+  - [x] `generateMarkdown(evalId)` — read `summary.json` + `results.json`, render Markdown report using template from Section 7.1 of original plan (model rankings table, prompt rankings table, regression analysis, detailed per-cell results)
+  - [x] `generateHtml(evalId)` — read report template, replace `{{DATA}}` with `JSON.stringify(summary + results)` and `{{EVAL_NAME}}` with eval name, return self-contained HTML string
+  - [x] `writeReports(evalId)` — write both `report.md` and `report.html` to the evaluation directory
+- [x] Add export endpoints to `server/routes/evaluations.ts`:
+  - [x] `GET /api/eval/evaluations/:id/export?format=html` — call `ReportService.generateHtml()`, return as `text/html` with `Content-Disposition: attachment` header
+  - [x] `GET /api/eval/evaluations/:id/export?format=md` — call `ReportService.generateMarkdown()`, return as `text/markdown` with attachment header
+- [x] Add baseline endpoint to `server/routes/evaluations.ts`:
+  - [x] `POST /api/eval/evaluations/:id/baseline` — accept `{ slug: string }`, copy `summary.json` to `data/evals/baselines/{slug}.json` with evalId reference
+- [x] Update `SummaryService` with `computeRegression()`:
+  - [x] Accept current `EvaluationSummary` + baseline `EvaluationSummary`
+  - [x] Compute delta for every metric (compositeScore, perspectiveScores, deterministicPassRate, avgLatencyMs, avgTokensPerSecond)
+  - [x] Classify each metric as `improved`, `regressed`, or `unchanged` (threshold: ±2% for scores, ±5% for latency)
+  - [x] Populate `summary.regression` field
+- [x] When `baselineId` is set on `EvaluationConfig`, load baseline in `ExecutionService.aggregate()` and call `computeRegression()`
+- [x] Add history endpoint to `server/routes/prompts.ts`:
+  - [x] `GET /api/eval/prompts/:id/history` — scan `data/evals/evaluations/` directories, read each `config.json`, filter to evals that included this promptId, read corresponding `summary.json` for scores, return sorted timeline array `[{ evalId, date, modelScores, promptScore }]`
+- [x] Add leaderboard endpoint to `server/routes/models.ts`:
+  - [x] `GET /api/eval/models/leaderboard` — scan all completed evaluations, aggregate composite scores per model across all evals, return ranked list
+- [x] Update `scripts/test-api.ts` to cover: HTML export opens standalone (contains `<script>` data block); Markdown export has expected sections; save baseline then run second eval with `baselineId` set → regression data populated in `summary.json`; history endpoint returns timeline
+- [x] **Verification**: HTML export opens in browser with no internet, all sections render with correct data; Markdown export has model rankings table, prompt rankings table, detailed results; baseline save creates file in `data/evals/baselines/`; regression delta correctly identifies improved/regressed metrics; history returns chronologically sorted evaluations for the prompt; leaderboard aggregates across evaluations
 
 ---
 
 ## Phase 4 — LLM Judge System
 
-- [ ] Create `server/services/JudgeService.ts`:
-  - [ ] `buildRubricPrompt()` — construct judge prompt per perspective with system prompt, user input, response, reference criteria, and scoring instructions in JSON output format (see Section 4.7 for exact prompt template)
-  - [ ] `buildPairwisePrompt()` — construct comparison prompt showing both responses (randomize order to reduce position bias), requesting JSON with winner + justification
-  - [ ] `parseRubricResponse()` — 4-step fallback chain: direct JSON.parse → strip markdown fences → regex extract first `{...}` block → return null with logged raw text
-  - [ ] `parsePairwiseResponse()` — similar parsing, returns `PairwiseRanking` or null
-  - [ ] `buildTemplateGeneratorPrompt()` — construct prompt that analyzes a system prompt and proposes 4-6 scoring dimensions, deterministic checks, and 3-5 test cases (see Section 5 of original plan)
-  - [ ] `parseTemplateGeneratorResponse()` — parse generated template JSON, return `Partial<EvalTemplate>` or null
-- [ ] Update `ExecutionService` with Phase 3 (`runJudging()`):
-  - [ ] For each perspective × completed cell: build rubric prompt via `JudgeService.buildRubricPrompt()`, dispatch via `LmapiClient.chatCompletion()` with the judge model
-  - [ ] If pairwise enabled: generate all unique cell pairs per test case, build pairwise prompts, dispatch in parallel
-  - [ ] Parse all judge responses, accumulate `JudgeResult[]` and `PairwiseRanking[]`
-  - [ ] Use `Promise.allSettled()` for parallel judge dispatch; failed parses logged but don't abort
-  - [ ] Emit `judge:started` and `judge:completed` WebSocket events
-- [ ] Update `SummaryService.computeSummary()` to include:
-  - [ ] Composite score calculation (weighted average of perspective scores per cell)
-  - [ ] Per-model aggregate: average composite across all prompts × testCases × runs
-  - [ ] Per-prompt aggregate: average composite across all models × testCases × runs
-  - [ ] Judge result breakdown in `perspectiveScores` field
-- [ ] Implement `POST /api/eval/templates/generate` route:
-  - [ ] Accept `{ promptContent: string, tools?: ToolDefinition[] }`
-  - [ ] Build generator prompt via `JudgeService.buildTemplateGeneratorPrompt()`
-  - [ ] Dispatch to LMApi using the most capable available model (or a specified model)
-  - [ ] Parse response, return proposed `EvalTemplate`
-- [ ] Update `scripts/test-execution.ts` to include judge-enabled eval test case
-- [ ] **Verification**: Run eval with judge enabled → `JudgeResult` records in `results.json` with scores in 1-5 range; `summary.json` has perspectiveScores populated; pairwise rankings present and consistent (winner exists in cell pair); auto-generate template returns 4-6 perspectives with weights summing to 1.0; malformed judge responses (wrap in markdown, prepend text) handled gracefully without crash
+- [x] Create `server/services/JudgeService.ts`:
+  - [x] `buildRubricPrompt()` — construct judge prompt per perspective with system prompt, user input, response, reference criteria, and scoring instructions in JSON output format (see Section 4.7 for exact prompt template)
+  - [x] `buildPairwisePrompt()` — construct comparison prompt showing both responses (randomize order to reduce position bias), requesting JSON with winner + justification
+  - [x] `parseRubricResponse()` — 4-step fallback chain: direct JSON.parse → strip markdown fences → regex extract first `{...}` block → return null with logged raw text
+  - [x] `parsePairwiseResponse()` — similar parsing, returns `PairwiseRanking` or null
+  - [x] `buildTemplateGeneratorPrompt()` — construct prompt that analyzes a system prompt and proposes 4-6 scoring dimensions, deterministic checks, and 3-5 test cases (see Section 5 of original plan)
+  - [x] `parseTemplateGeneratorResponse()` — parse generated template JSON, return `Partial<EvalTemplate>` or null
+- [x] Update `ExecutionService` with Phase 3 (`runJudging()`):
+  - [x] For each perspective × completed cell: build rubric prompt via `JudgeService.buildRubricPrompt()`, dispatch via `LmapiClient.chatCompletion()` with the judge model
+  - [x] If pairwise enabled: generate all unique cell pairs per test case, build pairwise prompts, dispatch in parallel
+  - [x] Parse all judge responses, accumulate `JudgeResult[]` and `PairwiseRanking[]`
+  - [x] Use `Promise.allSettled()` for parallel judge dispatch; failed parses logged but don't abort
+  - [x] Emit `judge:started` and `judge:completed` WebSocket events
+- [x] Update `SummaryService.computeSummary()` to include:
+  - [x] Composite score calculation (weighted average of perspective scores per cell)
+  - [x] Per-model aggregate: average composite across all prompts × testCases × runs
+  - [x] Per-prompt aggregate: average composite across all models × testCases × runs
+  - [x] Judge result breakdown in `perspectiveScores` field
+- [x] Implement `POST /api/eval/templates/generate` route:
+  - [x] Accept `{ promptContent: string, tools?: ToolDefinition[] }`
+  - [x] Build generator prompt via `JudgeService.buildTemplateGeneratorPrompt()`
+  - [x] Dispatch to LMApi using the most capable available model (or a specified model)
+  - [x] Parse response, return proposed `EvalTemplate`
+- [x] Update `scripts/test-execution.ts` to include judge-enabled eval test case
+- [x] **Verification**: Run eval with judge enabled → `JudgeResult` records in `results.json` with scores in 1-5 range; `summary.json` has perspectiveScores populated; pairwise rankings present and consistent (winner exists in cell pair); auto-generate template returns 4-6 perspectives with weights summing to 1.0; malformed judge responses (wrap in markdown, prepend text) handled gracefully without crash
 
 ---
 

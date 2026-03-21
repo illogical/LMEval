@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{EVAL_NAME}} — LMEval Report</title>
+<style>
+:root {
+  --bg: #0d0f12;
+  --surface: #161a21;
+  --surface2: #1e232c;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --accent: #2dd4bf;
+  --ok: #22c55e;
+  --error: #f43f5e;
+  --warn: #f59e0b;
+  --border: #2a3140;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 22px; color: var(--accent); margin: 0 0 4px; }
+.subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+.tabs { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+.tab { padding: 8px 16px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; border-bottom: 2px solid transparent; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.panel { display: none; }
+.panel.active { display: block; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 8px 12px; background: var(--surface2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: var(--surface); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge-ok { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.badge-err { background: color-mix(in srgb, var(--error) 15%, transparent); color: var(--error); }
+.score { font-weight: 600; }
+.score-high { color: var(--ok); }
+.score-mid { color: var(--warn); }
+.score-low { color: var(--error); }
+.stat { display: flex; flex-direction: column; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 24px 0 12px; }
+pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 12px; white-space: pre-wrap; word-break: break-word; overflow-y: auto; max-height: 200px; }
+@media print {
+  body { background: white; color: black; }
+  .tabs { display: none; }
+  .panel { display: block !important; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>{{EVAL_NAME}}</h1>
+  <p class="subtitle" id="subtitle"></p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('scoreboard')">Scoreboard</button>
+    <button class="tab" onclick="showTab('details')">Details</button>
+    <button class="tab" onclick="showTab('metrics')">Metrics</button>
+  </div>
+
+  <div id="scoreboard" class="panel active"></div>
+  <div id="details" class="panel"></div>
+  <div id="metrics" class="panel"></div>
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const panels = ['scoreboard','details','metrics'];
+    t.classList.toggle('active', panels[i] === id);
+  });
+  document.querySelectorAll('.panel').forEach(p => {
+    p.classList.toggle('active', p.id === id);
+  });
+}
+
+function scoreClass(s) {
+  if (s == null) return '';
+  if (s >= 4) return 'score-high';
+  if (s >= 2.5) return 'score-mid';
+  return 'score-low';
+}
+
+function fmt(v, decimals = 1) {
+  if (v == null) return '—';
+  return Number(v).toFixed(decimals);
+}
+
+const DATA = {{DATA}};
+const summary = DATA.summary;
+const results = DATA.results || [];
+
+// Subtitle
+document.getElementById('subtitle').textContent =
+  'Completed ' + (summary.completedAt ? new Date(summary.completedAt).toLocaleString() : '') + ' · ' + summary.totalCells + ' cells';
+
+// Scoreboard tab
+const sb = document.getElementById('scoreboard');
+
+// Stats row
+const stats = [
+  { label: 'Total Cells', value: summary.totalCells },
+  { label: 'Completed', value: summary.completedCells },
+  { label: 'Failed', value: summary.failedCells },
+  { label: 'Models', value: summary.modelSummaries ? summary.modelSummaries.length : 0 },
+];
+sb.innerHTML = '<div class="stats-row">' + stats.map(function(s) {
+  return '<div class="stat"><div class="stat-value">' + s.value + '</div><div class="stat-label">' + s.label + '</div></div>';
+}).join('') + '</div>';
+
+// Model rankings
+sb.innerHTML += '<div class="section-title">Model Rankings</div>';
+if (summary.modelSummaries && summary.modelSummaries.length) {
+  sb.innerHTML += '<table><thead><tr><th>#</th><th>Model</th><th>Avg Score</th><th>Success Rate</th><th>Avg Latency</th><th>Tokens/s</th></tr></thead><tbody>' +
+    summary.modelSummaries.map(function(m, i) {
+      return '<tr>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td><code>' + m.modelId + '</code></td>' +
+        '<td class="score ' + scoreClass(m.avgCompositeScore) + '">' + fmt(m.avgCompositeScore) + '</td>' +
+        '<td>' + fmt(m.successRate * 100) + '%</td>' +
+        '<td>' + fmt(m.avgDurationMs) + 'ms</td>' +
+        '<td>' + fmt(m.avgTokensPerSecond) + '</td>' +
+        '</tr>';
+    }).join('') + '</tbody></table>';
+}
+
+// Prompt rankings
+if (summary.promptSummaries && summary.promptSummaries.length) {
+  sb.innerHTML += '<div class="section-title">Prompt Rankings</div>';
+  sb.innerHTML += '<table><thead><tr><th>Prompt ID</th><th>Version</th><th>Avg Score</th><th>Success Rate</th><th>Avg Latency</th></tr></thead><tbody>' +
+    summary.promptSummaries.map(function(p) {
+      return '<tr>' +
+        '<td><code>' + p.promptId + '</code></td>' +
+        '<td>v' + p.promptVersion + '</td>' +
+        '<td class="score ' + scoreClass(p.avgCompositeScore) + '">' + fmt(p.avgCompositeScore) + '</td>' +
+        '<td>' + fmt(p.successRate * 100) + '%</td>' +
+        '<td>' + fmt(p.avgDurationMs) + 'ms</td>' +
+        '</tr>';
+    }).join('') + '</tbody></table>';
+}
+
+// Details tab
+const det = document.getElementById('details');
+det.innerHTML = '<table><thead><tr><th>Cell</th><th>Model</th><th>Prompt</th><th>Status</th><th>Score</th><th>Duration</th><th>Keywords OK</th></tr></thead><tbody>' +
+  results.map(function(c) {
+    var kwOk = '—';
+    if (c.deterministicMetrics) {
+      kwOk = (c.deterministicMetrics.keywordsMissing && c.deterministicMetrics.keywordsMissing.length === 0) ? '✓' : '✗';
+    }
+    return '<tr>' +
+      '<td><code style="font-size:11px">' + c.id + '</code></td>' +
+      '<td><code>' + c.modelId + '</code></td>' +
+      '<td><code>' + c.promptId + ' v' + c.promptVersion + '</code></td>' +
+      '<td><span class="badge ' + (c.status === 'completed' ? 'badge-ok' : 'badge-err') + '">' + c.status + '</span></td>' +
+      '<td class="score ' + scoreClass(c.compositeScore) + '">' + fmt(c.compositeScore) + '</td>' +
+      '<td>' + (c.durationMs != null ? c.durationMs + 'ms' : '—') + '</td>' +
+      '<td>' + kwOk + '</td>' +
+      '</tr>';
+  }).join('') + '</tbody></table>';
+
+// Metrics tab
+const met = document.getElementById('metrics');
+met.innerHTML = '<div class="section-title">Latency by Model</div>';
+if (summary.modelSummaries && summary.modelSummaries.length) {
+  const maxLatency = Math.max.apply(null, summary.modelSummaries.map(function(m) { return m.avgDurationMs; }));
+  met.innerHTML += '<table><thead><tr><th>Model</th><th>Avg Latency</th><th>Bar</th></tr></thead><tbody>' +
+    summary.modelSummaries.map(function(m) {
+      const pct = maxLatency > 0 ? (m.avgDurationMs / maxLatency * 100).toFixed(1) : 0;
+      return '<tr>' +
+        '<td><code>' + m.modelId + '</code></td>' +
+        '<td>' + fmt(m.avgDurationMs) + 'ms</td>' +
+        '<td><div style="background:var(--accent);height:8px;border-radius:4px;width:' + pct + '%;min-width:2px"></div></td>' +
+        '</tr>';
+    }).join('') + '</tbody></table>';
+}
+</script>
+</body>
+</html>

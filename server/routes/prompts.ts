@@ -1,5 +1,8 @@
 import { Hono } from 'hono';
+import { join } from 'path';
 import { PromptService } from '../services/PromptService';
+import { readJson, ensureDir, listDir, EVALUATIONS_DIR } from '../services/FileService';
+import type { EvaluationConfig, EvaluationSummary } from '../../src/types/eval';
 
 export const promptsRouter = new Hono();
 
@@ -55,4 +58,42 @@ promptsRouter.put('/:id/tools', async c => {
   const updated = PromptService.updateTools(id, body.tools ?? []);
   if (!updated) return c.json({ error: 'Prompt not found' }, 404);
   return c.json(updated);
+});
+
+promptsRouter.get('/:id/history', c => {
+  const { id } = c.req.param();
+
+  ensureDir(EVALUATIONS_DIR);
+  const history: Array<{
+    evalId: string;
+    date: string;
+    modelScores: Record<string, number>;
+    promptScore?: number;
+  }> = [];
+
+  for (const evalId of listDir(EVALUATIONS_DIR)) {
+    const config = readJson<EvaluationConfig>(join(EVALUATIONS_DIR, evalId, 'config.json'));
+    if (!config || !config.promptIds.includes(id)) continue;
+    if (config.status !== 'completed') continue;
+
+    const summary = readJson<EvaluationSummary>(join(EVALUATIONS_DIR, evalId, 'summary.json'));
+    if (!summary) continue;
+
+    const modelScores: Record<string, number> = {};
+    for (const m of summary.modelSummaries) {
+      if (m.avgCompositeScore != null) modelScores[m.modelId] = m.avgCompositeScore;
+    }
+
+    const promptSummary = summary.promptSummaries.find(p => p.promptId === id);
+
+    history.push({
+      evalId,
+      date: summary.completedAt ?? config.createdAt,
+      modelScores,
+      promptScore: promptSummary?.avgCompositeScore,
+    });
+  }
+
+  history.sort((a, b) => b.date.localeCompare(a.date));
+  return c.json(history);
 });
