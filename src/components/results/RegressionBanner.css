@@ -1,0 +1,35 @@
+.regression-banner {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--border);
+}
+
+.rb-improvements, .rb-regressions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+.rb-item-improved {
+  background: var(--diff-add-bg);
+  color: var(--diff-add-text);
+}
+
+.rb-item-regressed {
+  background: var(--diff-remove-bg);
+  color: var(--diff-remove-text);
+}

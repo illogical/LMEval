@@ -1,0 +1,21 @@
+.metrics-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.mv-chart {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.mv-chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
