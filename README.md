@@ -34,19 +34,57 @@ Whether you're tightening instructions, adjusting tone, restructuring context, o
 - **Eval template library** — four built-in scoring rubrics (General Quality, Tool Calling, Code Generation, Instruction Following) plus unlimited custom templates
 - **REST API** — Hono-based HTTP server at port 3200 with full CRUD for templates, prompts, and test suites
 
-### Planned: Full Evaluation Pipeline (Phase 2+)
+### Session Management (Phase 1.5)
+
+- **Session tracking** — tie prompt pairs together as a "session" representing one comparison effort over time
+- **Version history** — each time Prompt A or B changes, a new session version is created automatically
+- **Drag-and-drop upload** — load `.md` or `.txt` prompt files directly into the editor panels
+- **Browse file button** — alternative to drag-and-drop with file picker
+- **"Use as Prompt A →"** — advance the B prompt to A position for iterative refinement workflows
+- **Upload status** — subtle status strip shows "Saving…" → "Saved" with auto-dismiss
+
+### Evaluation Engine (Phase 2)
 
 - **N prompts × M models matrix** — evaluate every combination of prompts and models in a single run
 - **Deterministic metric checks** — keyword matching, forbidden phrase detection, JSON Schema validation, tool call matching (via `ajv`)
-- **LLM-as-judge scoring** — configurable rubric perspectives with weighted scores (1–5), dispatched via LMApi
+- **Parallel execution with concurrency control** — semaphore-limited parallel dispatch (configurable via `EVAL_CONCURRENCY`)
+- **Retry resilience** — automatic retry on 429/502/503/504 and network errors (configurable via `LMAPI_RETRY_COUNT`, `LMAPI_RETRY_DELAY_MS`)
+- **Abort/cancel** — stop a running evaluation at any time via `DELETE /api/eval/evaluations/:id`
+- **Session linking** — link evaluation runs to sessions for history tracking
+- **Re-run support** — retry failed evaluations via `POST /api/eval/evaluations/:id/retry`
+- **WebSocket events** — real-time `cell:started`, `cell:completed`, `eval:progress`, `eval:completed` events
+
+### Git Integration for Prompt Versioning (Phase 2.5)
+
+- **Git-tracked data** — initialize a git repo in `data/` to version-control prompt changes and eval results
+- **Commit API** — commit changes with enforced message format (`feat|fix|chore(prompt): ...`)
+- **Revert support** — revert to any previous commit via the API
+- **Change log** — view git history via `GET /api/eval/git/log`
+
+### Export & History (Phase 3)
+
+- **HTML reports** — self-contained offline reports with dark theme, sortable tables, and tab navigation
+- **Markdown reports** — shareable Markdown with model rankings, prompt rankings, and regression analysis
+- **Baseline snapshots** — save evaluation summaries as baselines for regression comparison
+- **Regression detection** — compare evaluations against baselines to identify performance changes
+- **Prompt history** — timeline of all evaluations for a given prompt
+- **Model leaderboard** — aggregate composite scores across all evaluations
+
+### LLM-as-Judge Scoring (Phase 4)
+
+- **Rubric-based scoring** — per-perspective 1-5 scoring dispatched via LMApi to a configurable judge model
 - **Pairwise ranking** — head-to-head comparison of model responses to reduce position bias
-- **WebSocket progress feed** — real-time `cell:started`, `cell:completed`, `eval:progress` events
-- **Parallel execution with concurrency control** — semaphore-limited parallel dispatch (default: 8 concurrent)
-- **Abort/cancel** — stop a running evaluation at any time
-- **Auto-template generation** — analyze your system prompt and auto-propose scoring dimensions and test cases
-- **Scoreboard & heatmap** — visual matrix of prompt × model scores, sortable leaderboard
-- **Regression detection** — compare evaluation runs to identify performance regressions
-- **HTML & Markdown reports** — self-contained offline report files for sharing and archiving
+- **Composite scores** — weighted average of perspective scores per evaluation cell
+- **Auto-template generation** — analyze a system prompt and auto-propose scoring dimensions and test cases
+- **Graceful parse fallback** — 4-step JSON extraction (direct parse → strip fences → regex extract → warn+skip)
+
+### Planned: Frontend Evaluation UI (Phase 5+)
+
+- **Three-panel layout** — resizable panels for prompts, configuration, and results
+- **Heatmap scoreboard** — visual matrix of prompt × model scores
+- **Live progress dashboard** — real-time updates via WebSocket with per-model progress bars
+- **Results analysis** — comparison view, detail view, metrics charts, timeline view
+- **Keyboard shortcuts** — `Ctrl+Enter` to run, `Ctrl+E` to export, etc.
 
 ---
 
@@ -136,7 +174,8 @@ The eval API runs on [http://localhost:3200](http://localhost:3200).
 LMEval/
 ├── src/                        # Frontend (Vite + React + TypeScript)
 │   ├── api/
-│   │   └── lmapi.ts            # getServers(), chatCompletion()
+│   │   ├── lmapi.ts            # getServers(), chatCompletion()
+│   │   └── eval.ts             # Eval backend API client (prompts, sessions)
 │   ├── components/
 │   │   ├── layout/
 │   │   │   └── Header.tsx      # Logo, model selector, Run button
@@ -147,24 +186,49 @@ LMEval/
 │   │   └── useModels.ts        # Fetches and flattens LMApi server models
 │   ├── types/
 │   │   ├── lmapi.ts            # LMApi request/response interfaces
-│   │   └── eval.ts             # Eval system interfaces (shared with backend)
+│   │   ├── eval.ts             # Eval system interfaces (shared with backend)
+│   │   └── session.ts          # Session management types
 │   ├── test/                   # Vitest unit tests
 │   ├── App.tsx
 │   └── index.css               # CSS custom properties, dark theme
 ├── server/                     # Eval backend (Hono)
 │   ├── index.ts                # Server entry point (port 3200)
-│   ├── routes/                 # templates, prompts, testSuites, models
-│   ├── services/               # FileService, TemplateService, PromptService, etc.
+│   ├── ws.ts                   # WebSocket event broadcasting
+│   ├── routes/
+│   │   ├── templates.ts        # Template CRUD + auto-generate endpoint
+│   │   ├── prompts.ts          # Prompt CRUD + history endpoint
+│   │   ├── testSuites.ts       # Test suite CRUD
+│   │   ├── models.ts           # LMApi model proxy + leaderboard
+│   │   ├── evaluations.ts      # Eval CRUD, export, baseline endpoints
+│   │   ├── sessions.ts         # Session and eval run CRUD
+│   │   └── git.ts              # Git status, commit, revert, log endpoints
+│   ├── services/
+│   │   ├── FileService.ts      # JSON/Markdown I/O, slug generation
+│   │   ├── TemplateService.ts  # Eval template management
+│   │   ├── PromptService.ts    # Versioned prompt storage
+│   │   ├── TestSuiteService.ts # Test case management
+│   │   ├── LmapiClient.ts      # HTTP client for LMApi with retry
+│   │   ├── MetricsService.ts   # JSON schema validation, keyword checking, tool call verification
+│   │   ├── SummaryService.ts   # Per-model/prompt aggregation, regression detection
+│   │   ├── ExecutionService.ts # Eval pipeline orchestration (matrix, completions, judge, aggregate)
+│   │   ├── SessionService.ts   # Session and eval run management
+│   │   ├── JudgeService.ts     # LLM judge prompt building and response parsing
+│   │   ├── ReportService.ts    # HTML and Markdown report generation
+│   │   └── GitService.ts       # Git operations for data versioning
 │   └── types/                  # Re-exports shared types
-├── data/evals/                 # File-based storage
-│   ├── templates/              # Built-in + custom eval templates
-│   ├── prompts/                # Versioned system prompts
-│   ├── test-suites/            # Test case collections
-│   ├── evaluations/            # Eval run results
-│   └── baselines/              # Baseline snapshots for regression
+├── data/
+│   ├── evals/                  # File-based eval storage
+│   │   ├── templates/          # Built-in + custom eval templates
+│   │   ├── prompts/            # Versioned system prompts
+│   │   ├── test-suites/        # Test case collections
+│   │   ├── evaluations/        # Eval run results
+│   │   └── baselines/          # Baseline snapshots for regression
+│   └── sessions/               # Session manifests and version history
 ├── scripts/
 │   ├── seed-templates.ts       # Seed built-in eval templates
-│   └── test-api.ts             # Integration tests for the eval API
+│   ├── test-api.ts             # Integration tests for the eval API
+│   ├── test-sessions.ts        # Session API integration tests
+│   └── test-execution.ts       # Execution pipeline integration tests
 ├── docs/                       # Design docs and implementation plans
 ├── .example.env
 ├── vite.config.ts
@@ -184,6 +248,77 @@ LMEval/
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run lint` | ESLint |
 | `npm run test:api` | Run API integration tests (requires server running) |
+| `npm run test:sessions` | Run session API integration tests |
+| `npm run test:execution` | Run execution pipeline integration tests (requires server + LMApi) |
+
+---
+
+## API Endpoints
+
+### Templates (`/api/eval/templates`)
+| Endpoint | Description |
+|---|---|
+| `GET /api/eval/templates` | List all templates (built-in + custom) |
+| `GET /api/eval/templates/:id` | Get template by ID |
+| `POST /api/eval/templates` | Create custom template |
+| `PUT /api/eval/templates/:id` | Update custom template |
+| `DELETE /api/eval/templates/:id` | Delete custom template |
+| `POST /api/eval/templates/generate` | Auto-generate template from system prompt |
+
+### Prompts (`/api/eval/prompts`)
+| Endpoint | Description |
+|---|---|
+| `GET /api/eval/prompts` | List all prompts |
+| `GET /api/eval/prompts/:id` | Get prompt manifest |
+| `POST /api/eval/prompts` | Create new prompt |
+| `POST /api/eval/prompts/:id/versions` | Add new version |
+| `GET /api/eval/prompts/:id/content?version=N` | Get version content |
+| `GET /api/eval/prompts/:id/diff?from=1&to=2` | Unified diff between versions |
+| `PUT /api/eval/prompts/:id/tools` | Update tool definitions |
+| `GET /api/eval/prompts/:id/history` | Timeline of evaluations for this prompt |
+
+### Sessions (`/api/eval/sessions`)
+| Endpoint | Description |
+|---|---|
+| `GET /api/eval/sessions` | List all sessions |
+| `GET /api/eval/sessions/:id` | Get session manifest |
+| `POST /api/eval/sessions` | Create session with initial A/B prompt slots |
+| `GET /api/eval/sessions/:id/active` | Get active (latest) session version |
+| `GET /api/eval/sessions/:id/versions/:n` | Get specific version |
+| `POST /api/eval/sessions/:id/versions` | Add new version (new A/B pair) |
+| `PUT /api/eval/sessions/:id/latest` | Update latest version pointer |
+| `GET /api/eval/sessions/:id/runs` | List eval runs for session |
+| `POST /api/eval/sessions/:id/runs` | Add eval run |
+| `PATCH /api/eval/sessions/:id/runs/:runId` | Update run status/scores |
+| `DELETE /api/eval/sessions/:id` | Delete session |
+
+### Evaluations (`/api/eval/evaluations`)
+| Endpoint | Description |
+|---|---|
+| `GET /api/eval/evaluations` | List evaluations (filterable by status/promptId/modelId) |
+| `GET /api/eval/evaluations/:id` | Get evaluation config |
+| `GET /api/eval/evaluations/:id/results` | Get cell results |
+| `GET /api/eval/evaluations/:id/summary` | Get aggregated summary |
+| `POST /api/eval/evaluations` | Create and start evaluation |
+| `DELETE /api/eval/evaluations/:id` | Cancel running evaluation |
+| `POST /api/eval/evaluations/:id/retry` | Re-run failed evaluation |
+| `GET /api/eval/evaluations/:id/export?format=html\|md` | Download report |
+| `POST /api/eval/evaluations/:id/baseline` | Save summary as baseline |
+
+### Models (`/api/eval/models`)
+| Endpoint | Description |
+|---|---|
+| `GET /api/eval/models` | List models from LMApi (grouped by server) |
+| `GET /api/eval/models/leaderboard` | Aggregate composite scores across all evals |
+
+### Git (`/api/eval/git`)
+| Endpoint | Description |
+|---|---|
+| `GET /api/eval/git/status` | Git initialization status + recent log |
+| `POST /api/eval/git/init` | Initialize git repo in data/ |
+| `POST /api/eval/git/commit` | Commit current changes (enforced message format) |
+| `POST /api/eval/git/revert` | Revert a specific commit |
+| `GET /api/eval/git/log?limit=N` | Get commit history |
 
 ---
 
