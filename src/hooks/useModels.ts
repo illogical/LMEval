@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getServers } from '../api/lmapi';
-import type { LmapiServerStatus } from '../types/lmapi';
+import { getLoadedModels } from '../api/lmapi';
 
 export interface ModelOption {
   value: string;
@@ -24,18 +23,14 @@ export function useModels(): UseModelsResult {
     setLoading(true);
     setError(null);
 
-    getServers()
-      .then((servers: LmapiServerStatus[]) => {
+    getLoadedModels()
+      .then((modelNames: string[]) => {
         if (cancelled) return;
-        const opts: ModelOption[] = servers
-          .filter(s => s.isOnline)
-          .flatMap(s =>
-            s.models.map(m => ({
-              value: m,
-              label: m,
-              serverName: s.config.name,
-            }))
-          );
+        const opts: ModelOption[] = modelNames.map(m => ({
+          value: m,
+          label: m,
+          serverName: 'Available',
+        }));
         setModels(opts);
       })
       .catch((err: Error) => {

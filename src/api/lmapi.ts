@@ -1,9 +1,10 @@
-import type { LmapiServerStatus, LmapiChatCompletionRequest, LmapiChatCompletionResponse } from '../types/lmapi';
+import type { LmapiLoadedModelsResponse, LmapiChatCompletionRequest, LmapiChatCompletionResponse } from '../types/lmapi';
 
-export async function getServers(): Promise<LmapiServerStatus[]> {
-  const res = await fetch('/lmapi/api/servers');
-  if (!res.ok) throw new Error(`Failed to fetch servers: ${res.statusText}`);
-  return res.json();
+export async function getLoadedModels(): Promise<string[]> {
+  const res = await fetch('/lmapi/api/models/loaded');
+  if (!res.ok) throw new Error(`Failed to fetch models: ${res.statusText}`);
+  const data: LmapiLoadedModelsResponse = await res.json();
+  return data.models;
 }
 
 export async function chatCompletion(

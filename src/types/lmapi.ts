@@ -8,6 +8,10 @@ export interface LmapiServerStatus {
   lastChecked: number;
 }
 
+export interface LmapiLoadedModelsResponse {
+  models: string[];
+}
+
 export interface LmapiChatCompletionRequest {
   model: string;
   messages: Array<{
