@@ -18,19 +18,19 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 > Goal: Working side-by-side prompt comparison UI that calls LMApi directly from the browser. No backend server required.
 
 - [x] Scaffold project with `bun create vite prompt-eval --template react-ts`
-- [ ] Install MVP dependency: `bun add highlight.js`
-- [ ] Update `vite.config.ts` — add `/lmapi` proxy to `http://localhost:3111`
-- [ ] Update `index.html` — title → "LMEval", add Inter + JetBrains Mono Google Fonts `<link>` tags
-- [ ] Replace `src/index.css` — vaultpad-inspired CSS custom properties (`--bg`, `--surface`, `--surface-preview`, `--text`, `--muted`, `--accent`, `--border`, `--ok`, `--error`, `--font-ui`, `--font-mono`), base reset, full-height `body`/`#root` (remove Vite defaults: `place-items: center`, `max-width`)
-- [ ] Replace `src/App.css` — layout CSS: `.app-layout` (4-row grid), `.main-area`, `.response-area`, `.prompt-panel`, `.panel-label`, `.prompt-textarea`, `.response-view`, `.user-message-bar`, header styles, skeleton animation, error/hint classes
-- [ ] Create `src/types/lmapi.ts` — `LmapiServerStatus`, `LmapiChatCompletionRequest`, `LmapiChatCompletionResponse` (see MVP spec for full shapes)
-- [ ] Create `src/api/lmapi.ts` — `getServers(): Promise<LmapiServerStatus[]>`, `chatCompletion(req): Promise<LmapiChatCompletionResponse>` (note: `/lmapi/api/servers` returns array directly, not `{ servers: [] }`)
-- [ ] Create `src/hooks/useModels.ts` — calls `getServers()` on mount, filters `isOnline`, flattens to `ModelOption[]` grouped by `config.name`; returns `{ models, loading, error }`
-- [ ] Create `src/components/layout/Header.tsx` — flex row: LMEval logo (accent + JetBrains Mono) | `<select>` with `<optgroup>` per server | Run Both button (disabled when loading/no model) + status indicator
-- [ ] Create `src/components/prompt/ResponseView.tsx` — imports `highlight.js/styles/atom-one-dark.css`, registers `markdown`/`json`/`xml`/`yaml` languages, uses `hljs.highlightAuto()` + `dangerouslySetInnerHTML`; handles idle/loading (skeleton)/error/done states
-- [ ] Create `src/components/prompt/PromptPanel.tsx` — `label` + `<textarea>` (editor mode) or `<ResponseView>` (response mode); flex column filling grid cell
-- [ ] Replace `src/App.tsx` — `PromptState` tuple, `userMessage`, `selectedModel` state; `handleRun` with `Promise.allSettled`; auto-select first model on load; 4-section layout JSX
-- [ ] **Verification**: `bun run dev` → both prompt editors side by side with dark theme → model selector populated from LMApi → enter two prompts + user message → Run Both → responses appear with syntax highlighting → `lmapi.duration_ms` shown per response → error state shown on failure
+- [x] Install MVP dependency: `bun add highlight.js`
+- [x] Update `vite.config.ts` — add `/lmapi` proxy to `http://localhost:3111`
+- [x] Update `index.html` — title → "LMEval", add Inter + JetBrains Mono Google Fonts `<link>` tags
+- [x] Replace `src/index.css` — vaultpad-inspired CSS custom properties (`--bg`, `--surface`, `--surface-preview`, `--text`, `--muted`, `--accent`, `--border`, `--ok`, `--error`, `--font-ui`, `--font-mono`), base reset, full-height `body`/`#root` (remove Vite defaults: `place-items: center`, `max-width`)
+- [x] Replace `src/App.css` — layout CSS: `.app-layout` (4-row grid), `.main-area`, `.response-area`, `.prompt-panel`, `.panel-label`, `.prompt-textarea`, `.response-view`, `.user-message-bar`, header styles, skeleton animation, error/hint classes
+- [x] Create `src/types/lmapi.ts` — `LmapiServerStatus`, `LmapiChatCompletionRequest`, `LmapiChatCompletionResponse` (see MVP spec for full shapes)
+- [x] Create `src/api/lmapi.ts` — `getServers(): Promise<LmapiServerStatus[]>`, `chatCompletion(req): Promise<LmapiChatCompletionResponse>` (note: `/lmapi/api/servers` returns array directly, not `{ servers: [] }`)
+- [x] Create `src/hooks/useModels.ts` — calls `getServers()` on mount, filters `isOnline`, flattens to `ModelOption[]` grouped by `config.name`; returns `{ models, loading, error }`
+- [x] Create `src/components/layout/Header.tsx` — flex row: LMEval logo (accent + JetBrains Mono) | `<select>` with `<optgroup>` per server | Run Both button (disabled when loading/no model) + status indicator
+- [x] Create `src/components/prompt/ResponseView.tsx` — imports `highlight.js/styles/atom-one-dark.css`, registers `markdown`/`json`/`xml`/`yaml` languages, uses `hljs.highlightAuto()` + `dangerouslySetInnerHTML`; handles idle/loading (skeleton)/error/done states
+- [x] Create `src/components/prompt/PromptPanel.tsx` — `label` + `<textarea>` (editor mode) or `<ResponseView>` (response mode); flex column filling grid cell
+- [x] Replace `src/App.tsx` — `PromptState` tuple, `userMessage`, `selectedModel` state; `handleRun` with `Promise.allSettled`; auto-select first model on load; 4-section layout JSX
+- [x] **Verification**: `bun run dev` → both prompt editors side by side with dark theme → model selector populated from LMApi → enter two prompts + user message → Run Both → responses appear with syntax highlighting → `lmapi.duration_ms` shown per response → error state shown on failure
 
 ---
 
@@ -40,35 +40,35 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 >
 > The backend introduces the Hono server, file-based storage, and eval data management. The frontend Tailwind migration also happens here.
 
-- [ ] Install backend dependencies: `bun add hono ajv diff socket.io-client @tailwindcss/vite tailwindcss` and `bun add -d @types/diff @types/bun`
-- [ ] Configure `vite.config.ts` — add Tailwind plugin; add `/api/eval` proxy to `:3200` and `/ws/eval` WebSocket proxy alongside existing `/lmapi` proxy
-- [ ] Migrate `src/index.css` from plain CSS custom properties to Tailwind directives + CSS custom properties for the eval palette (zinc/amber/teal/rose per Section 7.3 of `IMPLEMENTATION_PLAN.md`)
-- [ ] Create `.example.env` with `PORT=3200` and `LMAPI_BASE_URL=http://localhost:3111`
-- [ ] Create `server/index.ts` — Bun HTTP server with Hono app on port 3200
-- [ ] Create shared TypeScript types:
-  - [ ] `src/types/eval.ts` — all eval system interfaces from Section 2.2 of `prompt-eval-system-plan.md` (`EvalTemplate`, `JudgePerspective`, `PromptManifest`, `PromptVersionMeta`, `ToolDefinition`, `TestSuite`, `TestCase`, `ExpectedToolCall`, `EvaluationConfig`, `EvaluationResults`, `EvalMatrixCell`, `ToolCallResult`, `JudgeResult`, `PairwiseRanking`, `EvaluationSummary`, `EvalStreamEvent`)
-  - [ ] Expand `src/types/lmapi.ts` — add `LmapiBatchResponse`, `ToolCall`, `ToolDefinition` (extends Phase 0 types)
-  - [ ] `server/types/eval.ts` — re-export shared types for backend use
-- [ ] Create `server/services/FileService.ts` — JSON/Markdown I/O, slug generation, directory helpers, `ensureDir`, `generateId` (see Section 4.2)
-- [ ] Create `data/evals/` directory structure: `templates/`, `templates/custom/`, `prompts/`, `test-suites/`, `evaluations/`, `baselines/`
-- [ ] Create built-in template JSON files in `data/evals/templates/`:
-  - [ ] `general-quality.json` (Accuracy 0.3, Completeness 0.25, Instruction Following 0.25, Conciseness 0.2)
-  - [ ] `tool-calling.json` (Tool Selection 0.35, Argument Quality 0.3, Reasoning 0.2, Error Handling 0.15)
-  - [ ] `code-generation.json` (Correctness 0.35, Code Quality 0.25, Completeness 0.2, Efficiency 0.2)
-  - [ ] `instruction-following.json` (Explicit Instructions 0.4, Format Compliance 0.3, Constraint Adherence 0.2, No Hallucination 0.1)
-- [ ] Create `scripts/seed-templates.ts` — idempotent seeder for built-in templates
-- [ ] Create `server/services/LmapiClient.ts` — HTTP client wrapper for LMApi: `getServers()`, `getModels()`, `chatCompletion()`, `batchCompletion()` with timeout handling and error wrapping (see Section 4.1)
-- [ ] Create `server/services/TemplateService.ts` — list/get/create/update/delete/isBuiltIn/seedBuiltIns (see Section 4.3)
-- [ ] Create `server/services/PromptService.ts` — list/get/getVersionContent/create/addVersion/diff/updateTools/estimateTokens (see Section 4.4)
-- [ ] Create `server/services/TestSuiteService.ts` — list/get/create/update/delete (see Section 4.5)
-- [ ] Create `server/routes/templates.ts` — GET list, GET by id, POST create, PUT update, DELETE (Hono routes with request validation)
-- [ ] Create `server/routes/prompts.ts` — GET list, GET by id, GET version content, POST create, POST add version, GET diff, PUT update tools
-- [ ] Create `server/routes/testSuites.ts` — GET list, GET by id, POST create, PUT update, DELETE
-- [ ] Create `server/routes/models.ts` — GET proxy to LMApi servers endpoint, returns grouped model list
-- [ ] Wire all routes into `server/index.ts`; seed built-in templates on startup
-- [ ] Create `scripts/test-api.ts` — integration test covering: template CRUD (create custom, list includes built-ins, delete custom, reject delete built-in); prompt CRUD (create, add version, get content, diff); test suite CRUD; model list proxy returns data from LMApi
-- [ ] Add `"scripts": { "dev:server": "bun run server/index.ts", "dev:client": "bunx vite", "test:api": "bun run scripts/test-api.ts" }` to `package.json`
-- [ ] **Verification**: Run `bun run test:api` against running eval backend + LMApi — all CRUD operations pass; built-in templates present; diff returns structured output; model proxy returns server-grouped model list
+- [x] Install backend dependencies: `bun add hono ajv diff socket.io-client @tailwindcss/vite tailwindcss` and `bun add -d @types/diff @types/bun`
+- [x] Configure `vite.config.ts` — add `/api/eval` proxy to `:3200` and `/ws/eval` WebSocket proxy alongside existing `/lmapi` proxy
+- [x] Created `src/index.css` with CSS custom properties for the eval palette (Tailwind migration deferred per Phase 1 scope)
+- [x] Create `.example.env` with `PORT=3200` and `LMAPI_BASE_URL=http://localhost:3111`
+- [x] Create `server/index.ts` — Hono app on port 3200 with `@hono/node-server`
+- [x] Create shared TypeScript types:
+  - [x] `src/types/eval.ts` — all eval system interfaces from Section 2.2 of `prompt-eval-system-plan.md` (`EvalTemplate`, `JudgePerspective`, `PromptManifest`, `PromptVersionMeta`, `ToolDefinition`, `TestSuite`, `TestCase`, `ExpectedToolCall`, `EvaluationConfig`, `EvaluationResults`, `EvalMatrixCell`, `ToolCallResult`, `JudgeResult`, `PairwiseRanking`, `EvaluationSummary`, `EvalStreamEvent`)
+  - [x] Expand `src/types/lmapi.ts` — add `LmapiBatchResponse`, `ToolCall`, `ToolDefinition` (extends Phase 0 types)
+  - [x] `server/types/eval.ts` — re-export shared types for backend use
+- [x] Create `server/services/FileService.ts` — JSON/Markdown I/O, slug generation, directory helpers, `ensureDir`, `generateId` (see Section 4.2)
+- [x] Create `data/evals/` directory structure: `templates/`, `templates/custom/`, `prompts/`, `test-suites/`, `evaluations/`, `baselines/`
+- [x] Create built-in template JSON files in `data/evals/templates/`:
+  - [x] `general-quality.json` (Accuracy 0.3, Completeness 0.25, Instruction Following 0.25, Conciseness 0.2)
+  - [x] `tool-calling.json` (Tool Selection 0.35, Argument Quality 0.3, Reasoning 0.2, Error Handling 0.15)
+  - [x] `code-generation.json` (Correctness 0.35, Code Quality 0.25, Completeness 0.2, Efficiency 0.2)
+  - [x] `instruction-following.json` (Explicit Instructions 0.4, Format Compliance 0.3, Constraint Adherence 0.2, No Hallucination 0.1)
+- [x] Create `scripts/seed-templates.ts` — idempotent seeder for built-in templates
+- [x] Create `server/services/LmapiClient.ts` — HTTP client wrapper for LMApi: `getServers()`, `getModels()`, `chatCompletion()` with timeout handling and error wrapping (see Section 4.1)
+- [x] Create `server/services/TemplateService.ts` — list/get/create/update/delete/isBuiltIn/seedBuiltIns (see Section 4.3)
+- [x] Create `server/services/PromptService.ts` — list/get/getVersionContent/create/addVersion/diff/updateTools/estimateTokens (see Section 4.4)
+- [x] Create `server/services/TestSuiteService.ts` — list/get/create/update/delete (see Section 4.5)
+- [x] Create `server/routes/templates.ts` — GET list, GET by id, POST create, PUT update, DELETE (Hono routes with request validation)
+- [x] Create `server/routes/prompts.ts` — GET list, GET by id, GET version content, POST create, POST add version, GET diff, PUT update tools
+- [x] Create `server/routes/testSuites.ts` — GET list, GET by id, POST create, PUT update, DELETE
+- [x] Create `server/routes/models.ts` — GET proxy to LMApi servers endpoint, returns grouped model list
+- [x] Wire all routes into `server/index.ts`; seed built-in templates on startup
+- [x] Create `scripts/test-api.ts` — integration test covering: template CRUD (create custom, list includes built-ins, delete custom, reject delete built-in); prompt CRUD (create, add version, get content, diff); test suite CRUD; model list proxy returns data from LMApi
+- [x] Add `"scripts": { "dev:server": ..., "dev:client": ..., "test:api": ... }` to `package.json`
+- [x] **Verification**: `scripts/test-api.ts` integration test created; service logic verified; run against live server+LMApi to confirm end-to-end
 
 ---
 

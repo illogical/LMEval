@@ -1,0 +1,42 @@
+{
+  "id": "general-quality",
+  "name": "General Quality",
+  "description": "Evaluates responses on general quality dimensions: accuracy, completeness, instruction following, and conciseness.",
+  "builtIn": true,
+  "perspectives": [
+    {
+      "id": "accuracy",
+      "name": "Accuracy",
+      "description": "Factual correctness and absence of hallucination",
+      "weight": 0.3,
+      "criteria": "Is the information provided factually correct and grounded?",
+      "scoringGuide": "1=Many errors, 2=Some errors, 3=Mostly correct, 4=Correct, 5=Exceptionally accurate"
+    },
+    {
+      "id": "completeness",
+      "name": "Completeness",
+      "description": "All aspects of the request are addressed",
+      "weight": 0.25,
+      "criteria": "Does the response fully address all parts of the user request?",
+      "scoringGuide": "1=Very incomplete, 2=Missing major parts, 3=Mostly complete, 4=Complete, 5=Thorough and complete"
+    },
+    {
+      "id": "instruction-following",
+      "name": "Instruction Following",
+      "description": "Adherence to system prompt and user instructions",
+      "weight": 0.25,
+      "criteria": "Does the response follow the instructions in the system prompt and user message?",
+      "scoringGuide": "1=Ignores instructions, 2=Partially follows, 3=Mostly follows, 4=Follows well, 5=Perfectly follows all instructions"
+    },
+    {
+      "id": "conciseness",
+      "name": "Conciseness",
+      "description": "Appropriately concise without unnecessary verbosity",
+      "weight": 0.2,
+      "criteria": "Is the response appropriately concise and free of unnecessary verbosity?",
+      "scoringGuide": "1=Very verbose/padded, 2=Somewhat verbose, 3=Acceptable length, 4=Concise, 5=Optimally concise"
+    }
+  ],
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}
