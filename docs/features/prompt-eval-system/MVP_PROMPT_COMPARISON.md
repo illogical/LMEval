@@ -55,7 +55,7 @@ Supported formats for prompt and response content: Markdown, JSON, XML, YAML, pl
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ Header: LMEval logo | Model selector ▼ | Run Both ▶      │
+│ Header: LMEval logo | Model selector + |           Run ▶ │
 ├────────────────────────────┬─────────────────────────────┤
 │ PROMPT A                   │ PROMPT B                    │
 │ [monospace textarea]       │ [monospace textarea]        │
@@ -134,7 +134,7 @@ Note: `GET /lmapi/api/servers` returns an **array directly** (not `{ servers: [.
 | `src/types/lmapi.ts` | Create | `LmapiServerStatus`, `LmapiChatCompletionRequest`, `LmapiChatCompletionResponse` |
 | `src/api/lmapi.ts` | Create | `getServers()`, `chatCompletion()` fetch wrappers |
 | `src/hooks/useModels.ts` | Create | Fetches servers, flattens to `ModelOption[]` grouped by server |
-| `src/components/layout/Header.tsx` | Create | Logo + model `<select>` + Run Both button + status |
+| `src/components/layout/Header.tsx` | Create | Logo + model `<select>` + Run button + status |
 | `src/components/prompt/ResponseView.tsx` | Create | highlight.js rendering, loading/error/idle states |
 | `src/components/prompt/PromptPanel.tsx` | Create | Label + textarea (shared for prompt and response sections) |
 | `src/App.tsx` | Replace | Root layout, all state, `handleRun` orchestration |
@@ -254,7 +254,7 @@ interface HeaderProps {
 Structure (flex row, `justify-content: space-between`):
 1. **Left**: `<span class="logo">LMEval</span>` — accent color, JetBrains Mono, bold
 2. **Center**: `<select>` with one `<optgroup label={serverName}>` per server, each `<option value={model.value}>`
-3. **Right**: `<button disabled={runDisabled}>Run Both ▶</button>` + status indicator (spinner while loading, "Done in Xs" after, error dot on failure)
+3. **Right**: `<button disabled={runDisabled}>Run ▶</button>` + status indicator (spinner while loading, "Done in Xs" after, error dot on failure)
 
 ### `ResponseView.tsx`
 
@@ -462,7 +462,7 @@ bun run dev
 # ✓ Both prompt editors visible side by side with vaultpad-style dark theme
 # ✓ Model selector populated from LMApi (/lmapi/api/servers)
 # ✓ Enter two different system prompts + a user message
-# ✓ Click "Run Both ▶" — both completions dispatch in parallel
+# ✓ Click "Run ▶" — both completions dispatch in parallel
 # ✓ Responses appear with syntax highlighting (atom-one-dark theme)
 # ✓ Each response panel shows duration from lmapi.duration_ms
 # ✓ Error state shown if a completion fails

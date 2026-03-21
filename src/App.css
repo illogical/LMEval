@@ -13,6 +13,17 @@
   min-height: 0;
 }
 
+.bottom-area {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.bottom-area .response-area {
+  flex: 1;
+}
+
 .prompt-panel {
   display: flex;
   flex-direction: column;
@@ -49,6 +60,16 @@
   font-weight: 400;
   letter-spacing: normal;
   text-transform: none;
+}
+
+.panel-model-tag {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  margin-left: 6px;
 }
 
 .prompt-textarea {

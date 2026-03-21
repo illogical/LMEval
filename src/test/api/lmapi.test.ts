@@ -1,24 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getServers, chatCompletion } from '../../api/lmapi';
+import { getLoadedModels, chatCompletion } from '../../api/lmapi';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-describe('getServers', () => {
+describe('getLoadedModels', () => {
   beforeEach(() => mockFetch.mockReset());
 
-  it('returns servers array on success', async () => {
-    const servers = [{ config: { name: 'alpha', baseUrl: 'http://localhost:3111' }, isOnline: true, models: ['llama3:latest'], runningModels: [], activeModels: [], activeRequests: 0, lastChecked: 0 }];
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => servers });
+  it('returns models array on success', async () => {
+    const models = ['llama3:latest', 'mistral:7b'];
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ models }) });
 
-    const result = await getServers();
-    expect(result).toEqual(servers);
-    expect(mockFetch).toHaveBeenCalledWith('/lmapi/api/servers');
+    const result = await getLoadedModels();
+    expect(result).toEqual(models);
+    expect(mockFetch).toHaveBeenCalledWith('/lmapi/api/models/loaded');
   });
 
   it('throws on non-ok response', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, statusText: 'Service Unavailable' });
-    await expect(getServers()).rejects.toThrow('Failed to fetch servers: Service Unavailable');
+    await expect(getLoadedModels()).rejects.toThrow('Failed to fetch models: Service Unavailable');
   });
 });
 

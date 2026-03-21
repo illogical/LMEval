@@ -9,6 +9,7 @@ interface PromptPanelProps {
   status?: 'idle' | 'loading' | 'done' | 'error';
   error?: string;
   durationMs?: number;
+  modelTag?: string;
 }
 
 export function PromptPanel({
@@ -20,12 +21,16 @@ export function PromptPanel({
   status = 'idle',
   error,
   durationMs,
+  modelTag,
 }: PromptPanelProps) {
   return (
     <div className="prompt-panel">
       <div className="panel-label">
         <div className="panel-label-text">
-          <span>Prompt {label}</span>
+          <span>
+            Prompt {label}
+            {modelTag && <span className="panel-model-tag">· {modelTag}</span>}
+          </span>
           {!isEditor && status === 'done' && durationMs != null && (
             <span className="panel-duration">{durationMs}ms</span>
           )}

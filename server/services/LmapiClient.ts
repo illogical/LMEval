@@ -2,6 +2,7 @@ import type {
   LmapiChatCompletionRequest,
   LmapiChatCompletionResponse,
   LmapiLoadedModelsResponse,
+  LmapiServerStatus,
 } from '../../src/types/lmapi';
 import { config } from '../config';
 
@@ -27,6 +28,12 @@ export const LmapiClient = {
     if (!res.ok) throw new Error(`LMApi models fetch failed: ${res.statusText}`);
     const data = await res.json() as LmapiLoadedModelsResponse;
     return data.models;
+  },
+
+  async getServers(): Promise<LmapiServerStatus[]> {
+    const res = await fetchWithTimeout(`${config.lmapiBaseUrl}/api/servers`);
+    if (!res.ok) throw new Error(`LMApi servers fetch failed: ${res.statusText}`);
+    return res.json() as Promise<LmapiServerStatus[]>;
   },
 
   async chatCompletion(

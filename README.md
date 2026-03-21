@@ -125,7 +125,7 @@ The eval API runs on [http://localhost:3200](http://localhost:3200).
 2. **Enter System Prompt A** in the left editor panel — your baseline/original prompt
 3. **Enter System Prompt B** in the right editor panel — your revised/candidate prompt
 4. **Enter a User Message** in the shared bar below the editors
-5. **Click "Run Both ▶"** — both completions dispatch in parallel
+5. **Click "Run ▶"** — both completions dispatch in parallel
 6. **Compare responses** — syntax-highlighted results appear side by side with server-side timing
 
 ---
@@ -139,7 +139,7 @@ LMEval/
 │   │   └── lmapi.ts            # getServers(), chatCompletion()
 │   ├── components/
 │   │   ├── layout/
-│   │   │   └── Header.tsx      # Logo, model selector, Run Both button
+│   │   │   └── Header.tsx      # Logo, model selector, Run button
 │   │   └── prompt/
 │   │       ├── PromptPanel.tsx # Dual-mode: textarea editor or response view
 │   │       └── ResponseView.tsx # Syntax-highlighted response + states

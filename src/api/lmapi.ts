@@ -21,3 +21,19 @@ export async function chatCompletion(
   }
   return res.json();
 }
+
+export async function chatCompletionOnServer(
+  req: LmapiChatCompletionRequest,
+  serverName: string
+): Promise<LmapiChatCompletionResponse> {
+  const res = await fetch('/lmapi/api/chat/completions/server', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...req, serverName }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error ?? res.statusText);
+  }
+  return res.json();
+}
