@@ -78,13 +78,23 @@ Whether you're tightening instructions, adjusting tone, restructuring context, o
 - **Auto-template generation** — analyze a system prompt and auto-propose scoring dimensions and test cases
 - **Graceful parse fallback** — 4-step JSON extraction (direct parse → strip fences → regex extract → warn+skip)
 
-### Planned: Frontend Evaluation UI (Phase 5+)
+### Eval Wizard — Multi-Step Evaluation UI (Phases 5 & 6)
 
-- **Three-panel layout** — resizable panels for prompts, configuration, and results
-- **Heatmap scoreboard** — visual matrix of prompt × model scores
-- **Live progress dashboard** — real-time updates via WebSocket with per-model progress bars
-- **Results analysis** — comparison view, detail view, metrics charts, timeline view
-- **Keyboard shortcuts** — `Ctrl+Enter` to run, `Ctrl+E` to export, etc.
+- **Session Hub** (`/`) — landing page with recent session cards, "New Evaluation" and "Quick Compare" CTAs, and feature highlights
+- **5-step guided wizard** — horizontal step indicator with click-to-navigate; steps are Prompts → Config → Run → Results → Summary
+- **Step 1 — Prompts & Models** (`/eval/prompts`) — dual prompt editors with drag-and-drop upload, saved-prompt version selector, collapsible side-by-side diff (word-level highlights using `diffLines`/`diffWords`), and multi-model selector
+- **Step 2 — Configuration** (`/eval/config`) — template picker (built-in + auto-generate), test case editor (quick mode / suite table), judge model config, pairwise toggle, runs-per-cell input, execution preview matrix (`2P × 3M × 4T × 1R = 24 completions`), save/load evaluation presets
+- **Step 3 — Execution Dashboard** (`/eval/run/:id`) — frontend `HH:MM:SS` elapsed timer, overall progress bar with phase indicator, per-model progress cards grouped by server, live feed of completed cells with CSS slide-in animation (click to preview response)
+- **Step 4 — Results & Analysis** (`/eval/results/:id`) — five-tab layout:
+  - **Scoreboard** — heatmap matrix (CSS Grid, `scoreToColor()` gradient), model leaderboard, prompt leaderboard, regression banner
+  - **Compare** — side-by-side cell comparison with diff toggle and pairwise verdict
+  - **Detail** — full cell drill-down: raw response, tool calls, deterministic metrics, per-perspective judge scores, latency breakdown
+  - **Metrics** — Recharts bar charts for latency, tokens/sec, and token usage (input vs output); deterministic compliance table
+  - **Timeline** — Recharts line chart of historical composite scores per model from `/api/eval/prompts/:id/history`
+- **Export & Baseline** — HTML/Markdown download buttons, "Save as Baseline" prompt
+- **Evaluation Presets** (`/api/eval/presets`) — save and load reusable evaluation configurations (model selection, template, judge settings)
+- **Wizard state persistence** — `EvalWizardContext` (`useReducer`) serialized to `localStorage`, restored on page reload
+- **WebSocket integration** — real-time eval events streamed to the dashboard via native WebSocket; exponential backoff reconnect
 
 ---
 
@@ -94,7 +104,10 @@ Whether you're tightening instructions, adjusting tone, restructuring context, o
 |---|---|
 | Runtime | Bun / Node.js |
 | Frontend | Vite + React 19 + TypeScript |
+| Routing | react-router-dom v7 |
 | Styling | CSS custom properties (vaultpad dark theme) |
+| Icons | lucide-react |
+| Charts | Recharts (bar + line charts in results views) |
 | Syntax highlighting | highlight.js (atom-one-dark) |
 | Backend API | Hono on `@hono/node-server` |
 | Storage | File-based JSON + Markdown on disk |
@@ -157,7 +170,11 @@ The eval API runs on [http://localhost:3200](http://localhost:3200).
 
 ---
 
-## Using the Prompt Comparison UI
+## Using LMEval
+
+### Quick Compare (simple A/B)
+
+Navigate to `/compare` for the original side-by-side comparison UI:
 
 1. **Select a model** from the dropdown in the header (populated from LMApi's online servers)
 2. **Enter System Prompt A** in the left editor panel — your baseline/original prompt
@@ -165,6 +182,15 @@ The eval API runs on [http://localhost:3200](http://localhost:3200).
 4. **Enter a User Message** in the shared bar below the editors
 5. **Click "Run ▶"** — both completions dispatch in parallel
 6. **Compare responses** — syntax-highlighted results appear side by side with server-side timing
+
+### Full Evaluation Wizard (multi-model, scored)
+
+Navigate to `/` and click **"New Evaluation"** to start the 5-step wizard:
+
+1. **Prompts & Models** (`/eval/prompts`) — load two prompt variants (type, drag-and-drop `.md`/`.txt`, or load from saved library with version picker); toggle the diff panel to see line-by-line and word-level differences; select one or more models
+2. **Configure** (`/eval/config`) — choose an eval template (or auto-generate one from your prompt), add test cases (quick single-message or full suite), configure the judge model and pairwise comparison, preview the evaluation matrix, and optionally save/load a preset
+3. **Run** (`/eval/run/:id`) — watch the evaluation run live: elapsed timer, overall progress, per-model cards with latency/tokens stats, and a scrolling live feed of completed cells you can click to preview
+4. **Results** (`/eval/results/:id`) — explore five tabs: Scoreboard (heatmap + leaderboards), Compare (side-by-side diff), Detail (full cell drill-down), Metrics (Recharts bar charts), Timeline (score history); export as HTML or Markdown; save as baseline for regression tracking
 
 ---
 
@@ -175,25 +201,67 @@ LMEval/
 ├── src/                        # Frontend (Vite + React + TypeScript)
 │   ├── api/
 │   │   ├── lmapi.ts            # getServers(), chatCompletion()
-│   │   └── eval.ts             # Eval backend API client (prompts, sessions)
+│   │   └── eval.ts             # Eval backend API client (prompts, templates, evaluations, presets, etc.)
 │   ├── components/
 │   │   ├── layout/
-│   │   │   └── Header.tsx      # Logo, model selector, Run button
-│   │   └── prompt/
-│   │       ├── PromptPanel.tsx # Dual-mode: textarea editor or response view
-│   │       └── ResponseView.tsx # Syntax-highlighted response + states
+│   │   │   ├── Header.tsx              # Logo, model selector, Run button
+│   │   │   └── EvalStepIndicator.tsx   # Horizontal 5-step wizard bar
+│   │   ├── config/
+│   │   │   ├── TemplateSelector.tsx    # Template picker + auto-generate
+│   │   │   ├── TestCaseEditor.tsx      # Quick / suite mode test case entry
+│   │   │   ├── JudgeConfig.tsx         # Judge model, pairwise toggle, runs-per-cell
+│   │   │   ├── ExecutionPreview.tsx    # Matrix badge + large-matrix warning
+│   │   │   └── PresetSelector.tsx      # Save / load eval presets
+│   │   ├── dashboard/
+│   │   │   ├── ElapsedTimer.tsx        # Frontend HH:MM:SS clock
+│   │   │   ├── ProgressOverview.tsx    # Progress bar + phase indicator
+│   │   │   ├── ModelProgressGrid.tsx   # Per-model cards grouped by server
+│   │   │   └── LiveFeed.tsx            # Slide-in cell completion cards
+│   │   ├── prompt/
+│   │   │   ├── PromptPanel.tsx         # Dual-mode: textarea editor or response view
+│   │   │   ├── ResponseView.tsx        # Syntax-highlighted response + states
+│   │   │   ├── PromptDiffView.tsx      # Side-by-side diff with word-level highlights
+│   │   │   └── PromptVersionSelector.tsx # Load saved prompts with version picker
+│   │   ├── results/
+│   │   │   ├── Scoreboard.tsx          # Heatmap matrix + model/prompt leaderboards
+│   │   │   ├── HeatmapMatrix.tsx       # CSS Grid cells with scoreToColor() background
+│   │   │   ├── CompareView.tsx         # Side-by-side cell comparison + diff toggle
+│   │   │   ├── DetailView.tsx          # Full cell drill-down (response, metrics, judge)
+│   │   │   ├── MetricsView.tsx         # Recharts bar charts (latency, tps, tokens)
+│   │   │   ├── TimelineView.tsx        # Recharts line chart of historical scores
+│   │   │   └── RegressionBanner.tsx    # Improvement ↑ / regression ↓ alert
+│   │   └── model/
+│   │       ├── ModelSelector.tsx       # Searchable multi-select with server grouping
+│   │       └── ModelNav.tsx            # Tab navigation between selected models
+│   ├── contexts/
+│   │   ├── EvalWizardContext.tsx       # useReducer wizard state + localStorage persistence
+│   │   └── WebSocketContext.tsx        # Shared WS connection with backoff reconnect
 │   ├── hooks/
-│   │   └── useModels.ts        # Fetches and flattens LMApi server models
+│   │   ├── useModels.ts                # Fetches and flattens LMApi server models
+│   │   ├── useModelsByServer.ts        # Models grouped by server name
+│   │   └── useEvalSocket.ts            # Per-evalId WS event subscription
+│   ├── layouts/
+│   │   └── EvalLayout.tsx              # Header + step indicator + Outlet
+│   ├── lib/
+│   │   ├── scoring.ts                  # scoreToColor(), formatScore(), formatLatency()
+│   │   └── highlight.ts                # highlight.js instance with registered languages
+│   ├── pages/
+│   │   ├── SessionHubPage.tsx          # Landing: session cards, CTAs, empty state
+│   │   ├── ComparePage.tsx             # Simple A/B comparison (/compare)
+│   │   ├── PromptsPage.tsx             # Step 1: prompts, diff, models
+│   │   ├── ConfigPage.tsx              # Step 2: template, test cases, judge, presets
+│   │   ├── DashboardPage.tsx           # Step 3: live execution monitoring
+│   │   ├── ResultsPage.tsx             # Step 4: 5-tab results explorer
+│   │   └── SummaryPage.tsx             # Step 5: placeholder (Phase 9)
 │   ├── types/
-│   │   ├── lmapi.ts            # LMApi request/response interfaces
-│   │   ├── eval.ts             # Eval system interfaces (shared with backend)
-│   │   └── session.ts          # Session management types
-│   ├── test/                   # Vitest unit tests
-│   ├── App.tsx
-│   └── index.css               # CSS custom properties, dark theme
+│   │   ├── lmapi.ts                    # LMApi request/response interfaces
+│   │   ├── eval.ts                     # Eval system interfaces + EvalPreset
+│   │   └── session.ts                  # Session management types
+│   ├── test/                           # Vitest unit + component tests (83 tests)
+│   └── index.css                       # CSS custom properties, dark theme
 ├── server/                     # Eval backend (Hono)
 │   ├── index.ts                # Server entry point (port 3200)
-│   ├── ws.ts                   # WebSocket event broadcasting
+│   ├── ws.ts                   # WebSocket server (ws package) + event broadcasting
 │   ├── routes/
 │   │   ├── templates.ts        # Template CRUD + auto-generate endpoint
 │   │   ├── prompts.ts          # Prompt CRUD + history endpoint
@@ -201,12 +269,14 @@ LMEval/
 │   │   ├── models.ts           # LMApi model proxy + leaderboard
 │   │   ├── evaluations.ts      # Eval CRUD, export, baseline endpoints
 │   │   ├── sessions.ts         # Session and eval run CRUD
+│   │   ├── presets.ts          # Eval preset CRUD
 │   │   └── git.ts              # Git status, commit, revert, log endpoints
 │   ├── services/
 │   │   ├── FileService.ts      # JSON/Markdown I/O, slug generation
 │   │   ├── TemplateService.ts  # Eval template management
 │   │   ├── PromptService.ts    # Versioned prompt storage
 │   │   ├── TestSuiteService.ts # Test case management
+│   │   ├── PresetService.ts    # Evaluation preset management
 │   │   ├── LmapiClient.ts      # HTTP client for LMApi with retry
 │   │   ├── MetricsService.ts   # JSON schema validation, keyword checking, tool call verification
 │   │   ├── SummaryService.ts   # Per-model/prompt aggregation, regression detection
@@ -222,7 +292,8 @@ LMEval/
 │   │   ├── prompts/            # Versioned system prompts
 │   │   ├── test-suites/        # Test case collections
 │   │   ├── evaluations/        # Eval run results
-│   │   └── baselines/          # Baseline snapshots for regression
+│   │   ├── baselines/          # Baseline snapshots for regression
+│   │   └── presets/            # Saved evaluation presets
 │   ├── prompts/
 │   │   └── judge/              # Judge system prompt files (editable markdown)
 │   │       ├── rubric-system.md        # Rubric scoring prompt (uses {{PERSPECTIVE_NAME}} etc.)
@@ -391,6 +462,15 @@ GET  /api/eval/prompts/:id/history
 | `POST /api/eval/evaluations/:id/retry` | Re-run failed evaluation |
 | `GET /api/eval/evaluations/:id/export?format=html\|md` | Download report |
 | `POST /api/eval/evaluations/:id/baseline` | Save summary as baseline |
+
+### Presets (`/api/eval/presets`)
+| Endpoint | Description |
+|---|---|
+| `GET /api/eval/presets` | List all saved evaluation presets |
+| `GET /api/eval/presets/:id` | Get preset by ID |
+| `POST /api/eval/presets` | Create a new preset |
+| `PUT /api/eval/presets/:id` | Update an existing preset |
+| `DELETE /api/eval/presets/:id` | Delete a preset |
 
 ### Models (`/api/eval/models`)
 | Endpoint | Description |
