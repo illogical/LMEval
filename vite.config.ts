@@ -1,27 +1,42 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    proxy: {
-      '/lmapi': {
-        target: 'http://localhost:3111',
-        changeOrigin: true,
-      },
-      '/api/eval': {
-        target: 'http://localhost:3200',
-        changeOrigin: true,
-      },
-      '/ws/eval': {
-        target: 'ws://localhost:3200',
-        ws: true,
+export default defineConfig(({ mode }) => {
+  // Load .env variables (no VITE_ prefix restriction needed for server config)
+  const env = loadEnv(mode, process.cwd(), '')
+
+  // LMApi is an external dependency — configure its base URL via LMAPI_BASE_URL in .env
+  const lmapiBaseUrl = env.LMAPI_BASE_URL ?? 'http://localhost:3111'
+
+  // Eval backend — configure its port via PORT in .env
+  const evalPort = env.PORT ?? '3200'
+  const evalBaseUrl = `http://localhost:${evalPort}`
+  const evalWsUrl = `ws://localhost:${evalPort}`
+
+  return {
+    plugins: [react()],
+    server: {
+      proxy: {
+        // Proxy to LMApi (external model routing service — see LMAPI_BASE_URL in .env)
+        '/lmapi': {
+          target: lmapiBaseUrl,
+          changeOrigin: true,
+        },
+        // Proxy to the local eval backend
+        '/api/eval': {
+          target: evalBaseUrl,
+          changeOrigin: true,
+        },
+        '/ws/eval': {
+          target: evalWsUrl,
+          ws: true,
+        },
       },
     },
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-  },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: ['./src/test/setup.ts'],
+    },
+  }
 })

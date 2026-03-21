@@ -1,12 +1,14 @@
 # LMEval
 
-> **Know whether your prompt changes help or hurt — locally, deterministically, and with your own models.**
+> **Refine your prompts with precision. Identify the best model for the job. Get deterministic, local feedback that makes every prompt engineering decision measurable.**
 
 ## Purpose
 
-LMEval is a standalone web application for systematic comparison and evaluation of LLM system prompts. It connects to [LMApi](https://github.com/illogical/LMApi) — a local multi-model routing layer — to give you **deterministic, reproducible, and fully local** feedback on whether prompt changes improve or degrade model responses.
+LMEval is a standalone web application for systematic prompt engineering and model evaluation. It connects to [LMApi](https://github.com/illogical/LMApi) — a local multi-model routing layer — to deliver **reproducible, deterministic, and fully private** insight into how prompt changes affect model output across every model you have available.
 
-Stop guessing whether a reworded instruction is better. Stop paying for cloud evaluation APIs. Run real side-by-side prompt comparisons against your own models, score responses with configurable rubrics, and know with confidence which version of your prompt performs best.
+Prompt engineering without measurement is guesswork. LMEval replaces intuition with evidence: run side-by-side comparisons of prompt variants, evaluate responses against structured rubrics, and surface which combination of prompt and model delivers the best results for your specific use case — ranked by accuracy, speed, and consistency.
+
+Whether you're tightening instructions, adjusting tone, restructuring context, or switching between models, LMEval gives you the feedback loop to iterate with confidence. No cloud dependencies. No per-token billing. No black-box scoring. Your models, your data, your results.
 
 ---
 
