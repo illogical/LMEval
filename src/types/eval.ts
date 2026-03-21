@@ -91,6 +91,9 @@ export interface EvaluationConfig {
   judgeModelId?: string;
   enablePairwise?: boolean;
   runsPerCell?: number;
+  sessionId?: string;
+  sessionVersion?: number;
+  baselineId?: string;
   status: EvalStatus;
   createdAt: string;
   updatedAt: string;
@@ -148,6 +151,12 @@ export interface EvalMatrixCell {
   judgeResults?: JudgeResult[];
   compositeScore?: number;
   error?: string;
+  retryAttempts?: Array<{
+    attemptNumber: number;
+    error: string;
+    timestamp: string;
+  }>;
+  errorType?: string;
 }
 
 export interface EvalModelSummary {
@@ -169,6 +178,20 @@ export interface EvalPromptSummary {
   successRate: number;
 }
 
+export interface MetricRegression {
+  metric: string;
+  baseline: number;
+  current: number;
+  delta: number;
+  status: 'improved' | 'regressed' | 'unchanged';
+}
+
+export interface RegressionResult {
+  metrics: MetricRegression[];
+  hasRegressions: boolean;
+  hasImprovements: boolean;
+}
+
 export interface EvaluationSummary {
   evalId: string;
   totalCells: number;
@@ -178,6 +201,7 @@ export interface EvaluationSummary {
   promptSummaries: EvalPromptSummary[];
   pairwiseRankings?: PairwiseRanking[];
   completedAt?: string;
+  regression?: RegressionResult;
 }
 
 export interface EvalStreamEvent {
