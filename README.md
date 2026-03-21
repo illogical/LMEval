@@ -56,8 +56,6 @@ Whether you're tightening instructions, adjusting tone, restructuring context, o
 
 ### Git Integration for Prompt Versioning (Phase 2.5)
 
-> **Not automatic** — LMEval never commits without your confirmation. Git integration is opt-in and human-confirmed.
-
 - **Git-tracked data** — initialize a git repo in `data/` to version-control prompt changes and eval results
 - **Commit API** — commit changes with enforced message format (`feat|fix|chore(prompt): ...`)
 - **Revert support** — revert to any previous commit via the API
