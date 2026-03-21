@@ -1,0 +1,12 @@
+.elapsed-timer {
+  display: inline-flex;
+  align-items: center;
+}
+
+.et-clock {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}

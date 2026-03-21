@@ -211,3 +211,17 @@ export interface EvalStreamEvent {
   data: Record<string, unknown>;
   timestamp: number;
 }
+
+export interface EvalPreset {
+  id: string;
+  name: string;
+  description?: string;
+  modelIds: string[];
+  templateId?: string;
+  testSuiteId?: string;
+  judgeModelId?: string;
+  enablePairwise: boolean;
+  runsPerCell: number;
+  createdAt: string;
+  updatedAt: string;
+}

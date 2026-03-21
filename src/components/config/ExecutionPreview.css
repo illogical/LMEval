@@ -1,0 +1,46 @@
+.exec-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+}
+
+.exec-preview.exec-preview-warn {
+  border-color: var(--heatmap-mid);
+}
+
+.ep-matrix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ep-factor {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ep-op {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ep-total {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-left: 4px;
+}
+
+.ep-warn {
+  font-size: 12px;
+  color: var(--heatmap-mid);
+  margin: 0;
+}

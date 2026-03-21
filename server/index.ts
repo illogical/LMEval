@@ -12,6 +12,7 @@ import { GitService } from './services/GitService';
 import { gitRouter } from './routes/git';
 import { setupWebSocket } from './ws';
 import { config } from './config';
+import { presetsRouter } from './routes/presets';
 
 const app = new Hono();
 
@@ -24,6 +25,7 @@ app.route('/api/eval/models', modelsRouter);
 app.route('/api/eval/sessions', sessionsRouter);
 app.route('/api/eval/evaluations', evaluationsRouter);
 app.route('/api/eval/git', gitRouter);
+app.route('/api/eval/presets', presetsRouter);
 
 app.get('/api/eval/health', c => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

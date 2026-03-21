@@ -1,0 +1,52 @@
+.progress-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.po-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.po-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.po-fill {
+  height: 100%;
+  background: var(--progress-bar);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.po-pct {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 38px;
+  text-align: right;
+}
+
+.po-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.po-phase {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.po-eta {
+  margin-left: auto;
+  color: var(--muted);
+}

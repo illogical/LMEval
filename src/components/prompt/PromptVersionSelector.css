@@ -1,0 +1,51 @@
+.pvs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.pvs-select {
+  flex: 1;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.pvs-version {
+  flex: 0 0 auto;
+  min-width: 160px;
+}
+
+.pvs-load-btn {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 5px;
+  padding: 4px 12px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.pvs-load-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.pvs-load-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

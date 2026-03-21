@@ -1,0 +1,83 @@
+.mpg {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mpg-group {}
+
+.mpg-server {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 8px;
+}
+
+.mpg-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.mpg-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s;
+}
+
+.mpg-card:hover {
+  border-color: var(--muted);
+}
+
+.mpg-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mpg-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mpg-bar {
+  flex: 1;
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mpg-fill {
+  height: 100%;
+  background: var(--progress-bar);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.mpg-pct {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+  min-width: 32px;
+  text-align: right;
+}
+
+.mpg-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}

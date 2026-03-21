@@ -10,6 +10,21 @@
   --error:           #f43f5e;
   --font-ui:         'Inter', system-ui, sans-serif;
   --font-mono:       'JetBrains Mono', ui-monospace, monospace;
+  --diff-add-bg: rgba(46, 160, 67, 0.15);
+  --diff-add-text: #3fb950;
+  --diff-remove-bg: rgba(244, 63, 94, 0.15);
+  --diff-remove-text: #f43f5e;
+  --diff-word-add-bg: rgba(46, 160, 67, 0.4);
+  --diff-word-remove-bg: rgba(244, 63, 94, 0.4);
+  --step-active: var(--accent);
+  --step-complete: var(--ok);
+  --step-pending: var(--muted);
+  --progress-bar: var(--accent);
+  --heatmap-low: #f43f5e;
+  --heatmap-mid: #f59e0b;
+  --heatmap-high: #2ea043;
+  --card-bg: #1A2B3A;
+  --card-hover: #1E3347;
 }
 
 *, *::before, *::after {
