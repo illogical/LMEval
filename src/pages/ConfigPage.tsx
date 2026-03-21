@@ -18,7 +18,13 @@ export function ConfigPage() {
 
   const promptCount = [state.promptA, state.promptB].filter(p => p.content.trim()).length;
   const modelCount = state.selectedModels.length;
-  const testCaseCount = state.testSuiteId ? 1 : Math.max(state.inlineTestCases.length, state.userMessage ? 1 : 0, 1);
+  function calcTestCaseCount(): number {
+    if (state.testSuiteId) return 1;
+    if (state.inlineTestCases.length > 0) return state.inlineTestCases.length;
+    if (state.userMessage) return 1;
+    return 1;
+  }
+  const testCaseCount = calcTestCaseCount();
 
   async function handleRun() {
     if (running) return;

@@ -57,7 +57,7 @@ export function DashboardPage() {
       modelId,
       serverName: completedCells.find(c => c.modelId === modelId)?.serverName,
       done: g.done,
-      total: Math.max(g.done, Math.ceil(totalCells / groups.size || 1)),
+      total: Math.max(g.done, Math.ceil(totalCells / (groups.size || 1))),
       avgLatencyMs: g.latencies.length > 0 ? g.latencies.reduce((a, b) => a + b, 0) / g.latencies.length : undefined,
       tokensPerSec: g.tpsVals.length > 0 ? g.tpsVals.reduce((a, b) => a + b, 0) / g.tpsVals.length : undefined,
     }));
