@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 import { Header } from './components/layout/Header';
 import { PromptPanel } from './components/prompt/PromptPanel';
@@ -7,7 +7,11 @@ import { useModelsByServer } from './hooks/useModelsByServer';
 import type { SelectedModel } from './hooks/useModelsByServer';
 import { modelKey } from './hooks/useModelsByServer';
 import { chatCompletionOnServer } from './api/lmapi';
+import { createPrompt, addPromptVersion } from './api/eval';
 import type { LmapiChatCompletionRequest, LmapiChatCompletionResponse } from './types/lmapi';
+import type { PromptManifest } from './types/eval';
+
+type UploadStatus = 'idle' | 'reading' | 'saving' | 'saved' | 'error';
 
 interface PromptState {
   content: string;
@@ -50,6 +54,11 @@ function App() {
   const [runStatus, setRunStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [runDurationMs, setRunDurationMs] = useState<number | undefined>(undefined);
 
+  const [promptManifests, setPromptManifests] = useState<[PromptManifest | null, PromptManifest | null]>([null, null]);
+  const [uploadStatuses, setUploadStatuses] = useState<[UploadStatus, UploadStatus]>(['idle', 'idle']);
+  const [uploadErrors, setUploadErrors] = useState<[string | undefined, string | undefined]>([undefined, undefined]);
+  const savedTimers = useRef<[ReturnType<typeof setTimeout> | undefined, ReturnType<typeof setTimeout> | undefined]>([undefined, undefined]);
+
   const { servers, loading: serversLoading } = useModelsByServer();
 
   // Auto-select first available model
@@ -77,6 +86,89 @@ function App() {
       setActiveModelIdx(selectedModels.length - 1);
     }
   }, [selectedModels, activeModelIdx]);
+
+  const handleFileUpload = useCallback(async (side: 0 | 1, content: string, fileName: string) => {
+    if (content.startsWith('__error__:')) {
+      const msg = content.replace('__error__:', '');
+      setUploadStatuses(prev => {
+        const next = [...prev] as [UploadStatus, UploadStatus];
+        next[side] = 'error';
+        return next;
+      });
+      setUploadErrors(prev => {
+        const next = [...prev] as [string | undefined, string | undefined];
+        next[side] = msg;
+        return next;
+      });
+      return;
+    }
+
+    setUploadStatuses(prev => {
+      const next = [...prev] as [UploadStatus, UploadStatus];
+      next[side] = 'saving';
+      return next;
+    });
+    setUploadErrors(prev => {
+      const next = [...prev] as [string | undefined, string | undefined];
+      next[side] = undefined;
+      return next;
+    });
+
+    // Clear any pending "saved" auto-clear timer for this side
+    clearTimeout(savedTimers.current[side]);
+    savedTimers.current[side] = undefined;
+
+    try {
+      const existing = promptManifests[side];
+      const name = fileName.replace(/\.(md|txt)$/i, '');
+      const manifest = existing
+        ? await addPromptVersion(existing.id, content)
+        : await createPrompt(name, content);
+
+      setPromptManifests(prev => {
+        const next = [...prev] as [PromptManifest | null, PromptManifest | null];
+        next[side] = manifest;
+        return next;
+      });
+      setUploadStatuses(prev => {
+        const next = [...prev] as [UploadStatus, UploadStatus];
+        next[side] = 'saved';
+        return next;
+      });
+
+      // Auto-clear "saved" after 2s
+      savedTimers.current[side] = setTimeout(() => {
+        savedTimers.current[side] = undefined;
+        setUploadStatuses(prev => {
+          const next = [...prev] as [UploadStatus, UploadStatus];
+          if (next[side] === 'saved') next[side] = 'idle';
+          return next;
+        });
+      }, 2000);
+    } catch (err) {
+      setUploadStatuses(prev => {
+        const next = [...prev] as [UploadStatus, UploadStatus];
+        next[side] = 'error';
+        return next;
+      });
+      setUploadErrors(prev => {
+        const next = [...prev] as [string | undefined, string | undefined];
+        next[side] = (err as Error).message;
+        return next;
+      });
+    }
+  }, [promptManifests]);
+
+  function handleAdvance() {
+    // Move Prompt B content → Prompt A, clear Prompt B
+    setPrompts(prev => [
+      { ...prev[1], response: null, status: 'idle' },
+      initialPrompt(),
+    ]);
+    setPromptManifests(prev => [prev[1], null]);
+    setUploadStatuses(['idle', 'idle']);
+    setUploadErrors([undefined, undefined]);
+  }
 
   async function handleRun() {
     if (isRunning || selectedModels.length === 0) return;
@@ -188,12 +280,19 @@ function App() {
           isEditor
           content={prompts[0].content}
           onChange={val => setPrompts(prev => [{ ...prev[0], content: val }, prev[1]])}
+          onFileUpload={(content, fileName) => handleFileUpload(0, content, fileName)}
+          uploadStatus={uploadStatuses[0]}
+          uploadError={uploadErrors[0]}
         />
         <PromptPanel
           label="B"
           isEditor
           content={prompts[1].content}
           onChange={val => setPrompts(prev => [prev[0], { ...prev[1], content: val }])}
+          onFileUpload={(content, fileName) => handleFileUpload(1, content, fileName)}
+          uploadStatus={uploadStatuses[1]}
+          uploadError={uploadErrors[1]}
+          onAdvance={handleAdvance}
         />
       </div>
       <div className="user-message-bar">

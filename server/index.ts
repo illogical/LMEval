@@ -5,6 +5,7 @@ import { templatesRouter } from './routes/templates';
 import { promptsRouter } from './routes/prompts';
 import { testSuitesRouter } from './routes/testSuites';
 import { modelsRouter } from './routes/models';
+import { sessionsRouter } from './routes/sessions';
 import { TemplateService } from './services/TemplateService';
 import { config } from './config';
 
@@ -16,6 +17,7 @@ app.route('/api/eval/templates', templatesRouter);
 app.route('/api/eval/prompts', promptsRouter);
 app.route('/api/eval/test-suites', testSuitesRouter);
 app.route('/api/eval/models', modelsRouter);
+app.route('/api/eval/sessions', sessionsRouter);
 
 app.get('/api/eval/health', c => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

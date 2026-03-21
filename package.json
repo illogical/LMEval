@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:api": "node scripts/test-api.ts"
+    "test:api": "node scripts/test-api.ts",
+    "test:sessions": "node scripts/test-sessions.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",

@@ -62,3 +62,5 @@ export const PROMPTS_DIR = join(DATA_DIR, 'prompts');
 export const TEST_SUITES_DIR = join(DATA_DIR, 'test-suites');
 export const EVALUATIONS_DIR = join(DATA_DIR, 'evaluations');
 export const BASELINES_DIR = join(DATA_DIR, 'baselines');
+
+export const SESSIONS_DIR = join(process.cwd(), 'data', 'sessions');
