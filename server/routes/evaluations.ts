@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
 import { join } from 'path';
 import {
-  readJson, writeJson, listDir, generateId, ensureDir, EVALUATIONS_DIR,
+  readJson, writeJson, listDir, generateId, ensureDir, EVALUATIONS_DIR, BASELINES_DIR,
 } from '../services/FileService';
 import { ExecutionService } from '../services/ExecutionService';
 import { SessionService } from '../services/SessionService';
+import { ReportService } from '../services/ReportService';
 import type { EvaluationConfig } from '../../src/types/eval';
 
 export const evaluationsRouter = new Hono();
@@ -143,4 +144,43 @@ evaluationsRouter.post('/:id/retry', async c => {
   });
 
   return c.json({ evalId: newEvalId, evalRunId }, 202);
+});
+
+evaluationsRouter.get('/:id/export', c => {
+  const { id } = c.req.param();
+  const format = c.req.query('format') ?? 'html';
+
+  if (format === 'html') {
+    const html = ReportService.generateHtml(id);
+    if (!html) return c.json({ error: 'Report could not be generated' }, 404);
+    const safeId = id.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    c.header('Content-Type', 'text/html; charset=utf-8');
+    c.header('Content-Disposition', `attachment; filename="eval-${safeId}.html"`);
+    return c.body(html);
+  }
+
+  if (format === 'md') {
+    const md = ReportService.generateMarkdown(id);
+    if (!md) return c.json({ error: 'Report could not be generated' }, 404);
+    const safeId = id.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    c.header('Content-Type', 'text/markdown; charset=utf-8');
+    c.header('Content-Disposition', `attachment; filename="eval-${safeId}.md"`);
+    return c.body(md);
+  }
+
+  return c.json({ error: 'format must be html or md' }, 400);
+});
+
+evaluationsRouter.post('/:id/baseline', async c => {
+  const { id } = c.req.param();
+  const body = await c.req.json().catch(() => ({})) as { slug?: string };
+  if (!body.slug) return c.json({ error: 'slug is required' }, 400);
+
+  const summary = readJson(join(EVALUATIONS_DIR, id, 'summary.json'));
+  if (!summary) return c.json({ error: 'Summary not found — run eval first' }, 404);
+
+  ensureDir(BASELINES_DIR);
+  const baselinePath = join(BASELINES_DIR, `${body.slug}.json`);
+  writeJson(baselinePath, { evalId: id, savedAt: new Date().toISOString(), summary });
+  return c.json({ success: true, slug: body.slug, path: baselinePath });
 });
