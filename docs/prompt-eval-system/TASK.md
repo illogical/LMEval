@@ -72,6 +72,37 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 
 ---
 
+## Phase 1.5 — Session Management Foundation + Prompt Upload
+
+> Prerequisite: Phase 1 complete. Must be implemented before Phase 2 so evaluation runs can be linked to sessions from day one.
+>
+> Specs: [`../features/session-management/SESSION_MANAGEMENT.md`](../features/session-management/SESSION_MANAGEMENT.md) | [`../features/prompt-upload/PROMPT_UPLOAD.md`](../features/prompt-upload/PROMPT_UPLOAD.md)
+
+**Session Backend:**
+- [ ] Create `src/types/session.ts` — `SessionSlot`, `SessionVersionMeta`, `SessionVersion`, `SessionManifest`, `EvalRun`, `ImprovementSuggestion` interfaces (see `SESSION_MANAGEMENT.md` for full type definitions)
+- [ ] Add `SESSIONS_DIR = join(process.cwd(), 'data', 'sessions')` constant to `server/services/FileService.ts`
+- [ ] Create `data/sessions/.gitkeep` to track the directory in git
+- [ ] Create `server/services/SessionService.ts` — `list`, `get`, `getBySlug`, `getVersion`, `getActiveVersion`, `create`, `createVersion`, `setLatestVersion`, `addEvalRun`, `getEvalRun`, `listEvalRuns`, `updateEvalRun`, `delete`
+- [ ] Create `server/routes/sessions.ts` — `GET` list, `GET` by id, `GET` active version, `GET` version by number, `POST` create, `POST` add version, `PUT` latest pointer, `GET` runs, `POST` add run, `PATCH` update run, `DELETE`
+- [ ] Wire `sessionsRouter` into `server/index.ts` at `/api/eval/sessions`
+- [ ] Create `scripts/test-sessions.ts` — integration test: create session with two valid prompt slots → add second version (swap B to A, new B) → list shows both versions → add eval run → update run status → delete session
+- [ ] Add `"test:sessions": "bun run scripts/test-sessions.ts"` to `package.json`
+- [ ] **Verification**: `bun run test:sessions` passes; `data/sessions/{slug}/manifest.json` created with correct shape; `v1.json` and `v2.json` present after version creation; run record written to `runs/{runId}.json`; `latestVersion` pointer updated correctly
+
+**Prompt Upload Frontend:**
+- [ ] Create `src/api/eval.ts` (pull forward from Phase 5) with `createPrompt(name, content)` and `addPromptVersion(id, content, description?)` fetch wrappers targeting `/api/eval/prompts`
+- [ ] Update `src/components/prompt/PromptPanel.tsx` — add `onFileUpload`, `uploadStatus`, `uploadError` props; add `isDragOver` state; add `onDragOver`/`onDragLeave`/`onDrop` handlers; add "Browse" button with hidden `<input type="file" accept=".txt,.md">`; add upload status strip below textarea; add drag highlight class when `isDragOver`
+- [ ] Add CSS classes to `src/App.css`: `.prompt-panel--dragging` (border + glow), `.upload-hint`, `.upload-browse`, `.upload-progress`, `.upload-progress--reading/saving/saved/error`
+- [ ] Update `src/App.tsx` — add `promptManifests: [PromptManifest | null, PromptManifest | null]` state; add `uploadStatus` state; add `activeSessionId` state (persisted in `localStorage`); implement `handleFileUpload(side, content, fileName)` calling `createPrompt` or `addPromptVersion`; pass `onFileUpload` to both editor PromptPanel instances
+- [ ] **Verification**: Drag a `.md` file onto Prompt A panel → textarea populates immediately → status shows "Saving…" then "Saved" → `POST /api/eval/prompts` fires → manifest stored; drag second file → `POST /api/eval/prompts/:id/versions` fires; Browse button opens picker with same behavior; unsupported type shows inline error
+
+**Prompt Version Advancement (B → A):**
+- [ ] Add `onAdvance` prop to `PromptPanel` — renders "Use as Prompt A →" button in the B panel header when panel has content; absent from A panel
+- [ ] Implement `handleAdvance()` in `App.tsx`: copy `prompts[1]` content → `prompts[0]`; clear `prompts[1]`; copy `promptManifests[1]` → `promptManifests[0]`; clear `promptManifests[1]`; if `activeSessionId` is set, call `POST /api/eval/sessions/:id/versions` with new slot data
+- [ ] **Verification**: Type into Prompt B → click "Use as Prompt A →" → content moves to A, B clears → session gains new version in `data/sessions/` → refreshing the page re-connects to active session via `localStorage`
+
+---
+
 ## Phase 2 — Evaluation Engine: Execution Pipeline (No Judge)
 
 - [ ] Create `server/services/MetricsService.ts` — `validateJsonSchema()` using ajv (singleton, `allErrors: true`); `validateToolCalls()` against definitions + expected calls; `checkKeywords()` for required/forbidden; `estimateTokenCount()` (see Section 4.6)
@@ -91,9 +122,41 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
   - [ ] `GET /api/eval/evaluations/:id/summary` — read and return `summary.json`
   - [ ] `POST /api/eval/evaluations` — validate config, write `config.json`, call `ExecutionService.run(id)` async (do not await), return 202 with config
   - [ ] `DELETE /api/eval/evaluations/:id` — call `ExecutionService.cancel(id)`, return success/failure
+- [ ] Add retry resilience to `server/services/LmapiClient.ts` (see [`../../features/retry-resilience/RETRY_RESILIENCE.md`](../../features/retry-resilience/RETRY_RESILIENCE.md)):
+  - [ ] Read `LMAPI_RETRY_COUNT` (default 3) and `LMAPI_RETRY_DELAY_MS` (default 2000) from environment
+  - [ ] Wrap `chatCompletion()` with `withRetry()` helper — linear backoff (attempt × delay); retry on 429/502/503/504 and network errors; throw immediately on 4xx client errors
+  - [ ] Add `retryAttempts?: { attemptNumber, error, timestamp }[]` and `errorType?` fields to `EvalMatrixCell` in `src/types/eval.ts`
+  - [ ] `ExecutionService` populates `retryAttempts` on each failed attempt before final failure
+  - [ ] Add `LMAPI_RETRY_COUNT` and `LMAPI_RETRY_DELAY_MS` to `.example.env`
+- [ ] Add session linking to evaluation runs (see [`../../features/session-management/SESSION_MANAGEMENT.md`](../../features/session-management/SESSION_MANAGEMENT.md)):
+  - [ ] `POST /api/eval/evaluations` accepts optional `{ sessionId, sessionVersion }` in request body
+  - [ ] If `sessionId` provided: call `SessionService.addEvalRun(sessionId, sessionVersion, evalId)` after writing `config.json`; return `evalRunId` in the 202 response
+  - [ ] `ExecutionService.aggregate()`: after writing `summary.json`, call `SessionService.updateEvalRun()` with `{ status: 'completed', completedAt, scoreSummary }` (extract `promptAScore`/`promptBScore` from `EvaluationSummary.promptSummaries`)
+  - [ ] On eval failure: call `SessionService.updateEvalRun()` with `{ status: 'failed' }`
+- [ ] Add eval re-run endpoint:
+  - [ ] `POST /api/eval/evaluations/:id/retry` — read original `config.json`; if `failedCellsOnly: true`, filter to failed cells; write new eval ID; call `ExecutionService.run(newEvalId)` async; if `sessionId` provided, link new run to session; return 202 `{ evalId, evalRunId? }`
 - [ ] Create `scripts/test-execution.ts` — end-to-end test: connect WebSocket, create minimal eval (1 prompt × 1 model × 1 test case, no judge), listen for `eval:completed`, verify `results.json` structure (cells have response content + deterministic metrics), verify `summary.json` (model rankings populated)
 - [ ] Add `"test:execution": "bun run scripts/test-execution.ts"` to `package.json`
-- [ ] **Verification**: `bun run test:execution` — eval completes; `config.json` status transitions to `completed`; all matrix cells present in `results.json` with populated metrics (inputTokens, outputTokens, durationMs, tokensPerSecond, serverName); `summary.json` has model rankings; WebSocket events arrive in correct sequence (cell:started → cell:completed → eval:progress → eval:completed); cancel mid-run stops execution cleanly
+- [ ] **Verification**: `bun run test:execution` — eval completes; `config.json` status transitions to `completed`; all matrix cells present in `results.json` with populated metrics (inputTokens, outputTokens, durationMs, tokensPerSecond, serverName); `summary.json` has model rankings; WebSocket events arrive in correct sequence (cell:started → cell:completed → eval:progress → eval:completed); cancel mid-run stops execution cleanly; eval with `sessionId` creates `EvalRun` record and populates `scoreSummary` after completion; simulate 503 response → retry fires and cell eventually completes
+
+---
+
+## Phase 2.5 — Git Integration for Prompt Versioning
+
+> Prerequisite: Phase 2 complete (sessions + eval runs exist to commit).
+>
+> Spec: [`../../features/git-integration/GIT_INTEGRATION.md`](../../features/git-integration/GIT_INTEGRATION.md)
+>
+> Scope: Human-confirmed git commits on the `data/` directory. Automated commits come later in Phase 8.
+
+- [ ] Create `server/services/GitService.ts` — `isInitialized()`, `init()`, `status()`, `commit(message)`, `log(limit?)`, `revert(hash)`; all git calls use `child_process.execFile` (not `exec`) with args as string array to prevent shell injection; `DATA_ROOT = join(process.cwd(), 'data')`
+- [ ] Create `server/routes/git.ts` — `GET /status` (initialized + status + last 10 log entries), `POST /init` (idempotent), `POST /commit` (validates message matches `/^(feat|fix|chore)\(prompt\):/`; links to session run if `sessionId`+`runId` provided), `POST /revert` (validates hash is alphanumeric only), `GET /log?limit=N`
+- [ ] Wire `gitRouter` into `server/index.ts` at `/api/eval/git`; log warning on startup if `data/` is not a git repo
+- [ ] On `POST /api/eval/git/init`, also write `data/.gitignore` with `*.tmp` exclusion
+- [ ] Add `.gitignore` note to root `.gitignore`: add `data/.git/` to prevent nested repo detection
+- [ ] Frontend — add "Commit Improvement" button in results area (visible after eval completes with positive `scoreDelta`): pre-fills `feat(prompt): improve {session.name} (+{delta} score)`; editable before submit; shows commit hash on success; button becomes disabled "Committed ✓" after commit
+- [ ] Frontend — add "Revert to Previous" button (visible when log has ≥ 1 commit): shows last commit subject + date; confirmation dialog before calling `POST /api/eval/git/revert`; toast on success
+- [ ] **Verification**: `POST /api/eval/git/init` → `data/.git/` created; create prompt + session + eval → commit → `GET /api/eval/git/log` returns entry with correct hash/subject/date; `POST /commit` with invalid message → 400; `POST /revert` → changes undone; UI buttons pre-fill correct message and show hash
 
 ---
 
@@ -242,14 +305,11 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
   - [ ] Constructs a diagnostic prompt: includes the original system prompt, user message, model response, judge rubric + score, and asks for specific improvement suggestions
   - [ ] Dispatches to LMApi via `LmapiClient.chatCompletion()`
   - [ ] Returns improvement suggestions as structured text
-- [ ] Add per-cell retry logic in `ExecutionService`:
-  - [ ] On transient error (network timeout, 503 from LMApi): retry once after 2s delay
-  - [ ] Make retry count configurable via eval config (default: 1, max: 3)
+- [ ] Confirm retry resilience from Phase 2 (see [`../../features/retry-resilience/RETRY_RESILIENCE.md`](../../features/retry-resilience/RETRY_RESILIENCE.md)) — retry is in `LmapiClient` and covers judge calls as well as cell completions; no additional `ExecutionService`-level retry needed
 - [ ] Handle partial evaluation failures:
-  - [ ] Cells that fail after retry: mark `status: 'failed'` in `EvalMatrixCell`, include error message
-  - [ ] Evaluation continues with remaining cells — never abort entire eval on individual cell failure
-  - [ ] `summary.json` notes failed cells count and which models/test cases were affected
-  - [ ] Frontend shows failed cells in heatmap with rose border + error icon
+  - [ ] Cells that fail after all retries: `status: 'failed'` in `EvalMatrixCell`; `errorType` and `retryAttempts` populated; eval continues
+  - [ ] `summary.json` notes `failedCells` count and which models/test cases were affected
+  - [ ] Frontend shows failed cells in heatmap with rose border + ⚠ icon; clicking opens failure detail panel (see below)
 - [ ] Add `groupId` tagging: set `groupId: evalId` on all LMApi requests so eval traffic can be filtered in LMApi's prompt history dashboard
 - [ ] Accessibility pass:
   - [ ] `aria-label` on all interactive controls (buttons, selects, tabs)
@@ -276,4 +336,52 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
   - [ ] Export formats (HTML standalone, Markdown)
   - [ ] Keyboard shortcuts table
   - [ ] Configuration reference (`.env` variables)
-- [ ] **Verification**: Force cell failure (use nonexistent model) → eval completes with partial results, failed cells shown in UI with error indicator; "Why Did This Fail?" returns suggestions for low-scoring cell; retry logic triggers on simulated timeout; screen reader navigates eval page successfully; responsive layout works at mobile widths; README is complete and accurate
+- [ ] Add failure detail panel to results UI (see [`../../features/retry-resilience/RETRY_RESILIENCE.md`](../../features/retry-resilience/RETRY_RESILIENCE.md)):
+  - [ ] Clicking a failed cell opens a detail panel: error type, retry history (attempt number + timestamp + error message), full raw model response (monospace scrollable), partial tool calls attempted, judge's `rawJudgeResponse` (if applicable), deterministic check breakdown
+  - [ ] Add `rawJudgeResponse?: string` field to `JudgeResult` in `src/types/eval.ts` (stored by JudgeService parse fallback chain)
+  - [ ] "↻ Retry this cell" button in the failure detail panel — calls `POST /api/eval/evaluations/:id/retry` with `{ failedCellsOnly: true }`
+- [ ] Add eval run selector to results panel (when session has multiple runs): run tab bar showing run number + completion status; clicking a tab loads that run's results
+- [ ] Add real-time timing display to execution progress UI: start time (from `EvalRun.createdAt`), live `HH:MM:SS` elapsed counter (updates every second, no WebSocket needed — frontend timer), end time on completion, running token total accumulating from `cell:completed` WS events, per-model token totals
+- [ ] **Verification**: Force cell failure (use nonexistent model) → eval completes with partial results; failed cells shown with rose + ⚠; clicking opens failure detail panel with retry history and raw response; "Retry" creates new eval scoped to failed cells; "Why Did This Fail?" returns suggestions for low-scoring cell; real-time timer increments correctly; run selector shows multiple runs when available; screen reader navigates eval page successfully; responsive layout works at mobile widths; README is complete and accurate
+
+---
+
+## Phase 8 — Automated Refinement Loop
+
+> Prerequisite: Phases 2–7 complete (sessions, evals, judge, git all working).
+>
+> Spec: [`../../features/automated-refinement/AUTOMATED_REFINEMENT.md`](../../features/automated-refinement/AUTOMATED_REFINEMENT.md)
+>
+> Phase 8a implements human-in-the-loop suggestions. Phase 8b implements the automated overnight loop.
+
+**Environment Configuration:**
+- [ ] Add `REFINEMENT_MODEL` to `.example.env` — model used for improvement suggestions (e.g. `qwen3:32b`); suggestions endpoint returns 400 if not set
+- [ ] Expose `REFINEMENT_MODEL` config in `GET /api/eval/health` so the frontend can gate the "Suggest Improvements" button
+
+**Phase 8a — Human-in-the-Loop:**
+- [ ] Add `ImprovementSuggestion` and `RefinementLoopConfig` types to `src/types/session.ts`
+- [ ] Create `server/services/RefinementService.ts`:
+  - [ ] `buildImprovementPrompt(session, activeVersion, promptContent, evalResults, template)` — constructs feedback prompt including eval template, current prompt, top failing cells with full context (raw response, `rawJudgeResponse`, `retryAttempts`, deterministic check failures), and scoring summary; requests JSON array of `ImprovementSuggestion`
+  - [ ] `parseSuggestions(rawResponse)` — 4-step fallback parse chain (same pattern as `JudgeService`); returns `ImprovementSuggestion[]` or null with logged raw text
+  - [ ] `applySuggestion(sessionId, suggestion, description?)` — calls `PromptService.addVersion()` then `SessionService.createVersion()` with updated slot; returns `{ promptManifest, sessionVersion }`
+  - [ ] `buildEvalImprovementPrompt()` and `parseEvalSuggestions()` — Phase 8c, lower priority
+- [ ] Create `POST /api/eval/sessions/:id/suggest-improvements` route — loads eval run results + template; calls `RefinementService.buildImprovementPrompt()`; dispatches via `LmapiClient` using `REFINEMENT_MODEL`; returns `ImprovementSuggestion[]`
+- [ ] Create `POST /api/eval/sessions/:id/apply-suggestion` route — calls `RefinementService.applySuggestion()`; returns `{ promptManifest, sessionVersion }`
+- [ ] Create `GET /api/eval/sessions/:id/suggestions` route — returns stored suggestions for the session
+- [ ] Frontend — "Suggest Improvements" button in results panel (only shown when `REFINEMENT_MODEL` configured and eval is complete): calls suggest endpoint; renders suggestion cards with `rationale`, `estimatedImpact`, and "Show diff" / "Apply" / "Reject" buttons; diff view uses same `diff` library as `PromptDiff` component
+- [ ] Frontend — "Apply" handler: calls apply endpoint; updates prompt panel content; creates new session version; shows toast "New session version created — run eval to compare"
+- [ ] **Verification (Phase 8a)**: Complete eval with failures → "Suggest Improvements" returns 1-3 suggestions with non-empty `rationale` and `revisedContent`; "Apply" creates new prompt version + new session version; "Reject" shows rejected state; `REFINEMENT_MODEL` not set → 400 error with clear message
+
+**Phase 8b — Automated Loop (deferred):**
+- [ ] Create `POST /api/eval/sessions/:id/refine-loop` route — accepts `RefinementLoopConfig`; starts background loop (suggest → apply → eval) with configurable stop conditions; streams `refine:*` WebSocket events; returns 202 `{ loopId }`
+- [ ] Implement stop conditions in loop: target score delta reached, max iterations, 3 consecutive no-improvement iterations, no parseable suggestions, user cancel
+- [ ] Add `DELETE /api/eval/sessions/:id/refine-loop/:loopId` cancel endpoint
+- [ ] Auto-commit successful iterations if `autoCommit: true` via `GitService.commit()`; auto-revert regressions via `GitService.revert()`
+- [ ] Write `loopSummary` to session run record on completion: iterations count, final delta, stop reason, commits/reverts made
+- [ ] Frontend — refinement loop progress UI: iteration counter, current action label, live score trajectory chart, "Cancel Loop" button
+- [ ] **Verification (Phase 8b)**: Run loop with `maxIterations: 3` → 3 iterations complete; WebSocket events arrive in order; `autoCommit: true` → git log shows `feat(prompt):` commits for improvements; regression → revert commit in git log; cancel mid-loop → stops cleanly after current iteration
+
+**Phase 8c — Eval Definition Improvement (lower priority, deferred):**
+- [ ] `RefinementService.buildEvalImprovementPrompt()` and `parseEvalSuggestions()` — analyze failures to propose new test cases, adjusted perspective weights, refined criteria
+- [ ] `POST /api/eval/sessions/:id/suggest-eval-improvements` route
+- [ ] Frontend — separate "Improve Evals" suggestion flow, reviewed before applying to template
