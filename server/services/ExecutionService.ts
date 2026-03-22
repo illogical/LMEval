@@ -1,6 +1,6 @@
 import { join } from 'path';
 import {
-  readJson, writeJson, ensureDir, generateId, EVALUATIONS_DIR,
+  readJson, writeJson, generateId, EVALUATIONS_DIR,
 } from './FileService';
 import { LmapiClient } from './LmapiClient';
 import { MetricsService } from './MetricsService';
@@ -141,31 +141,39 @@ export const ExecutionService = {
 
       try {
         const cellStartMs = Date.now();
-        const response = await LmapiClient.chatCompletion(
-          {
-            model: cell.modelId,
-            messages: [
-              { role: 'system', content: promptContent },
-              { role: 'user', content: userMessage },
-            ],
-            stream: false,
-            groupId: evalId,
-          },
-          (attemptNum, err) => {
-            retryAttempts.push({
-              attemptNumber: attemptNum,
-              error: err.message,
-              timestamp: new Date().toISOString(),
-            });
-          }
-        );
+        // Split "serverName::modelName" compound format into separate parts
+        const separatorIdx = cell.modelId.indexOf('::');
+        const serverName = separatorIdx !== -1 ? cell.modelId.slice(0, separatorIdx) : undefined;
+        const modelName = separatorIdx !== -1 ? cell.modelId.slice(separatorIdx + 2) : cell.modelId;
+
+        const chatReq = {
+          model: modelName,
+          messages: [
+            { role: 'system' as const, content: promptContent },
+            { role: 'user' as const, content: userMessage },
+          ],
+          stream: false as const,
+          groupId: evalId,
+        };
+
+        const onRetryCallback = (attemptNum: number, err: Error) => {
+          retryAttempts.push({
+            attemptNumber: attemptNum,
+            error: err.message,
+            timestamp: new Date().toISOString(),
+          });
+        };
+
+        const response = serverName
+          ? await LmapiClient.chatCompletionOnServer(chatReq, serverName, onRetryCallback)
+          : await LmapiClient.chatCompletion(chatReq, onRetryCallback);
         const durationMs = Date.now() - cellStartMs;
 
         const responseContent = response.choices[0]?.message.content ?? '';
         const usage = response.usage;
         const inputTokens = usage?.prompt_tokens;
         const outputTokens = usage?.completion_tokens;
-        const serverName = response.lmapi?.server_name;
+        const responseServerName = response.lmapi?.server_name ?? serverName;
 
         const prompt = PromptService.get(cell.promptId);
         const keywordCheck = MetricsService.checkKeywords(
@@ -204,7 +212,7 @@ export const ExecutionService = {
             outputTokens && durationMs > 0
               ? Math.round((outputTokens / durationMs) * 1000)
               : undefined,
-          serverName,
+          serverName: responseServerName,
           deterministicMetrics: {
             keywordsFound: keywordCheck.found,
             keywordsMissing: keywordCheck.missing,
@@ -447,6 +455,8 @@ export const ExecutionService = {
       if (config.testSuiteId) {
         const suite = TestSuiteService.get(config.testSuiteId);
         testCases = suite?.testCases ?? [];
+      } else if (config.inlineTestCases && config.inlineTestCases.length > 0) {
+        testCases = config.inlineTestCases;
       } else if (config.userMessage) {
         testCases = [{
           id: generateId('tc'),

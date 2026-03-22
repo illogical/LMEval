@@ -71,6 +71,7 @@ evaluationsRouter.post('/', async c => {
     modelIds: body.modelIds,
     testSuiteId: body.testSuiteId,
     userMessage: body.userMessage,
+    inlineTestCases: body.inlineTestCases,
     templateId: body.templateId,
     judgeModelId: body.judgeModelId,
     enablePairwise: body.enablePairwise,

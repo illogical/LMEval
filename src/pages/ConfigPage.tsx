@@ -7,7 +7,7 @@ import { JudgeConfig } from '../components/config/JudgeConfig';
 import { ExecutionPreview } from '../components/config/ExecutionPreview';
 import { PresetSelector } from '../components/config/PresetSelector';
 import { useEvalWizard } from '../contexts/EvalWizardContext';
-import { createEvaluation } from '../api/eval';
+import { createEvaluation, createPrompt } from '../api/eval';
 import './ConfigPage.css';
 
 export function ConfigPage() {
@@ -32,10 +32,22 @@ export function ConfigPage() {
     setError(null);
 
     try {
-      const promptIds = [
-        state.promptA.id,
-        state.promptB.id,
-      ].filter((id): id is string => id != null);
+      // Auto-save any prompt slot that has content but no saved ID
+      let promptAId = state.promptA.id;
+      let promptBId = state.promptB.id;
+
+      if (!promptAId && state.promptA.content.trim()) {
+        const manifest = await createPrompt(`Draft Prompt A`, state.promptA.content);
+        promptAId = manifest.id;
+        dispatch({ type: 'SET_PROMPT_A', payload: { id: manifest.id, manifest } });
+      }
+      if (!promptBId && state.promptB.content.trim()) {
+        const manifest = await createPrompt(`Draft Prompt B`, state.promptB.content);
+        promptBId = manifest.id;
+        dispatch({ type: 'SET_PROMPT_B', payload: { id: manifest.id, manifest } });
+      }
+
+      const promptIds = [promptAId, promptBId].filter((id): id is string => id != null);
 
       const modelIds = state.selectedModels.map(m => `${m.serverName}::${m.modelName}`);
 
@@ -45,6 +57,7 @@ export function ConfigPage() {
         modelIds,
         templateId: state.templateId ?? undefined,
         testSuiteId: state.testSuiteId ?? undefined,
+        inlineTestCases: state.inlineTestCases.length > 0 ? state.inlineTestCases : undefined,
         userMessage: state.userMessage || undefined,
         judgeModelId: state.judgeModelId ?? undefined,
         enablePairwise: state.enablePairwise,
