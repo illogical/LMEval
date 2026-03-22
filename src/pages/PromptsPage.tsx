@@ -28,7 +28,6 @@ export function PromptsPage() {
     <div className="prompts-page">
       <div className="pp-editors">
         <div className="pp-editor-col">
-          <div className="pp-col-label">Prompt A</div>
           <PromptPanel
             label="A"
             isEditor
@@ -44,7 +43,6 @@ export function PromptsPage() {
         </div>
 
         <div className="pp-editor-col">
-          <div className="pp-col-label">Prompt B <span className="pp-optional">(optional)</span></div>
           <PromptPanel
             label="B"
             isEditor

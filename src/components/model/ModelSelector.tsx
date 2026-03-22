@@ -40,7 +40,7 @@ export function ModelSelector({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, anchorTop: 0, left: 0, width: 0, openUpward: false });
 
   // Build flat list for keyboard navigation
   const flatItems = useMemo((): FlatItem[] => {
@@ -89,10 +89,13 @@ export function ModelSelector({
   function openDropdown() {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
+    const openUpward = window.innerHeight - rect.bottom < 300;
     setDropdownPos({
       top: rect.bottom + 4,
+      anchorTop: rect.top,
       left: rect.left,
       width: Math.max(rect.width, 320),
+      openUpward,
     });
     setIsOpen(true);
     setQuery('');
@@ -221,7 +224,14 @@ export function ModelSelector({
         <div
           className="ms-dropdown"
           ref={dropdownRef}
-          style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+          style={{
+            position: 'fixed',
+            ...(dropdownPos.openUpward
+              ? { bottom: window.innerHeight - dropdownPos.anchorTop + 4, top: 'auto' }
+              : { top: dropdownPos.top }),
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+          }}
         >
           <input
             ref={searchRef}

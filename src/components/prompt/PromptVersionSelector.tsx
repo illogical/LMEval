@@ -34,6 +34,7 @@ export function PromptVersionSelector({ onLoad }: PromptVersionSelectorProps) {
 
   return (
     <div className="pvs">
+      <span className="pvs-label">Load saved:</span>
       <select
         className="pvs-select"
         value={selectedId}
@@ -44,7 +45,7 @@ export function PromptVersionSelector({ onLoad }: PromptVersionSelectorProps) {
         }}
         aria-label="Select prompt"
       >
-        <option value="">Load saved prompt…</option>
+        <option value="">Select a prompt…</option>
         {prompts.map(p => (
           <option key={p.id} value={p.id}>{p.name}</option>
         ))}
