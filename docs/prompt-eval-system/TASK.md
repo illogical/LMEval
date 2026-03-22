@@ -300,6 +300,43 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 
 ---
 
+## Phase 6.5 — Run Dashboard Bug Fixes & Redesign
+
+> Prerequisite: Phase 5 & 6 complete.
+>
+> Spec: [`../../features/eval-wizard/RUN_DASHBOARD_REDESIGN.md`](../../features/eval-wizard/RUN_DASHBOARD_REDESIGN.md)
+>
+> The current Step 3 (`/eval/run/:id`) execution dashboard has critical bugs that prevent prompts from being sent to Ollama, and a very sparse UX that provides almost no feedback about what is happening.
+
+**Bug Fixes (backend):**
+- [ ] Fix `LmapiClient` endpoint for eval execution — add `chatCompletionOnServer(req, serverName)` method that calls `/api/chat/completions/server` (matches the working Compare view pattern); split `cell.modelId` ("serverName::modelName") in `ExecutionService.runCompletions()` before calling LMApi
+- [ ] Accept `inlineTestCases` in `POST /api/eval/evaluations` request body; persist them to `data/evals/evaluations/:id/test-cases.json`; load them in `ExecutionService.run()` alongside `testSuiteId` and `userMessage`
+- [ ] Broadcast `eval:error` event (or include error details in `cell:failed`) so the frontend can surface LmapiClient failures to the user
+
+**Bug Fixes (frontend):**
+- [ ] `ConfigPage.handleRun()` — before calling `createEvaluation()`, auto-save any prompt slot that has content but `id === null` via `createPrompt()`; dispatch `SET_PROMPT_A/B` with returned manifest before proceeding
+- [ ] `ConfigPage.handleRun()` — pass `inlineTestCases: state.inlineTestCases` to `createEvaluation()`
+- [ ] Update `createEvaluation()` API call type in `src/api/eval.ts` to include `inlineTestCases?: TestCase[]`
+- [ ] `useEvalSocket.ts` — reduce reconnect backoff: initial delay 500 ms, max 5 s (was 1 s initial doubling to 30 s)
+- [ ] `DashboardPage.tsx` — on mount, `GET /api/eval/evaluations/:id` to check current status; if already `completed` or `failed`, load results from REST rather than waiting for WS events; add `getEvaluation(id)` fetch helper to `src/api/eval.ts` if missing
+- [ ] Handle `cell:failed` event data correctly — the payload is `{ cellId, error }` not a full `EvalMatrixCell`; fix the cast in `DashboardPage.tsx`
+
+**Run Dashboard UX Redesign:**
+- [ ] Remove `ProgressOverview.tsx` (progress bar + percentage) — replace with prompt-centric two-column layout
+- [ ] Remove `ModelProgressGrid.tsx` — replaced by per-prompt model status rows
+- [ ] Create `EvalSummaryBar.tsx` — shows eval name, prompt count, model count, test case count; data fetched from `GET /api/eval/evaluations/:id` on mount
+- [ ] Create `PromptRunCard.tsx` — one card per prompt slot (A and B); shows prompt name or content preview; contains one `ModelStatusRow` per selected model
+- [ ] Create `ModelStatusRow.tsx` — shows model name, server name, and status: waiting / running (with elapsed time) / completed (latency + tok/s) / failed (error badge)
+- [ ] Create `ErrorPanel.tsx` — appears when any `cell:failed` events arrive; lists each failure with model ID, prompt ID, and error message; includes "Retry Failed Cells" button calling `POST /api/eval/evaluations/:id/retry`
+- [ ] Create `WsStatusDot.tsx` — small indicator in the dashboard header showing WebSocket state (connecting / connected / reconnecting / closed)
+- [ ] Update `LiveFeed.tsx` — extend rows to show failed cells with error text (rose color), not just successful completions
+- [ ] Rewrite `DashboardPage.tsx` layout — two-column `PromptRunCard` grid + below it `LiveFeed` and `ErrorPanel`; keep `ElapsedTimer`; use `EvalSummaryBar` in the header area
+- [ ] Update `DashboardPage.css` — new grid layout: `grid-template-columns: 1fr 1fr` for prompt cards; sidebar for live feed
+
+- [ ] **Verification**: New eval with typed (unsaved) prompts → prompts auto-save → eval starts → dashboard shows Prompt A and Prompt B cards each with selected models in "running" state → models update to "completed" with latency and tok/s → Live Feed shows completions → use a bad model name → ErrorPanel shows error message → "Retry" button creates new eval for failed cells; navigate away and back → REST status loaded, completion shown without WS events
+
+---
+
 ## Phase 7 — Polish, Edge Cases & Documentation
 
 - [ ] Implement "Why Did This Fail?" diagnostic endpoint:
