@@ -56,3 +56,10 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+.pvs-error {
+  font-size: 11px;
+  color: var(--error);
+  white-space: nowrap;
+  flex-shrink: 0;
+}

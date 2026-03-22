@@ -12,6 +12,8 @@ export function PromptVersionSelector({ onLoad }: PromptVersionSelectorProps) {
   const [selectedId, setSelectedId] = useState('');
   const [selectedVersion, setSelectedVersion] = useState<number>(1);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadSuccess, setLoadSuccess] = useState(false);
 
   useEffect(() => {
     listPrompts().then(setPrompts).catch(() => {});
@@ -20,13 +22,25 @@ export function PromptVersionSelector({ onLoad }: PromptVersionSelectorProps) {
   const selectedManifest = prompts.find(p => p.id === selectedId);
 
   async function handleLoad() {
-    if (!selectedManifest) return;
+    console.log('[PVS] handleLoad called', { selectedId, selectedVersion });
+    if (!selectedManifest) {
+      console.warn('[PVS] handleLoad: no selectedManifest — selectedId:', selectedId, 'prompts:', prompts.length);
+      return;
+    }
+    console.log('[PVS] loading content for', { id: selectedId, version: selectedVersion });
     setLoading(true);
+    setLoadError(null);
+    setLoadSuccess(false);
     try {
       const { content } = await getPromptContent(selectedId, selectedVersion);
+      console.log('[PVS] content received, length:', content?.length);
       onLoad(selectedManifest, content, selectedVersion);
+      console.log('[PVS] onLoad called successfully');
+      setLoadSuccess(true);
+      setTimeout(() => setLoadSuccess(false), 2000);
     } catch (err) {
-      console.error('Failed to load prompt:', err);
+      console.error('[PVS] Failed to load prompt:', err);
+      setLoadError(err instanceof Error ? err.message : 'Failed to load prompt');
     } finally {
       setLoading(false);
     }
@@ -65,12 +79,14 @@ export function PromptVersionSelector({ onLoad }: PromptVersionSelectorProps) {
       )}
 
       <button
+        type="button"
         className="pvs-load-btn"
         onClick={handleLoad}
         disabled={!selectedId || loading}
       >
-        {loading ? 'Loading…' : 'Load'}
+        {loading ? 'Loading…' : loadSuccess ? '✓ Loaded' : 'Load'}
       </button>
+      {loadError && <span className="pvs-error">{loadError}</span>}
     </div>
   );
 }

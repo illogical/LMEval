@@ -125,7 +125,7 @@
 
 .prompt-textarea::selection {
   background: rgba(79, 193, 255, 0.25);
-  color: var(--text);
+  color: transparent;
 }
 
 .response-view {

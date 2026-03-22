@@ -23,6 +23,12 @@
   overflow: hidden;
 }
 
+/* prompt-panel must grow to fill the column; pvs (flex-shrink: 0) stays fixed at bottom */
+.pp-editor-col .prompt-panel {
+  flex: 1;
+  min-height: 0;
+}
+
 .pp-editor-col:last-child {
   border-right: 0;
 }
