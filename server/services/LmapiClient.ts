@@ -119,4 +119,32 @@ export const LmapiClient = {
       onRetry
     );
   },
+
+  async chatCompletionOnServer(
+    req: LmapiChatCompletionRequest,
+    serverName: string,
+    onRetry?: (attemptNumber: number, err: Error) => void
+  ): Promise<LmapiChatCompletionResponse> {
+    return withRetry(
+      async () => {
+        const res = await fetchWithTimeout(
+          `${config.lmapiBaseUrl}/api/chat/completions/server`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...req, serverName }),
+          }
+        );
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({ error: res.statusText })) as { error?: string };
+          throw new LmapiError(errBody.error ?? res.statusText, res.status);
+        }
+        return res.json() as Promise<LmapiChatCompletionResponse>;
+      },
+      RETRY_COUNT,
+      RETRY_DELAY_MS,
+      `chatCompletionOnServer(${req.model}@${serverName})`,
+      onRetry
+    );
+  },
 };

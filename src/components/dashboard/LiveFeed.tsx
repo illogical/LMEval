@@ -39,6 +39,9 @@ export function LiveFeed({ cells, onCellClick }: LiveFeedProps) {
               {cell.compositeScore != null && <span className="lf-score">{cell.compositeScore.toFixed(1)}</span>}
               {cell.durationMs != null && <span className="lf-dur">{formatLatency(cell.durationMs)}</span>}
             </div>
+            {cell.status === 'failed' && cell.error && (
+              <div className="lf-error-text" title={cell.error}>{cell.error}</div>
+            )}
           </div>
         ))}
         {cells.length === 0 && <div className="lf-empty">Waiting for results…</div>}
@@ -51,7 +54,12 @@ export function LiveFeed({ cells, onCellClick }: LiveFeedProps) {
               <span>{modalCell.modelId}</span>
               <button className="lf-modal-close" onClick={() => setModalCell(null)}>×</button>
             </div>
-            <pre className="lf-modal-response">{modalCell.response ?? 'No response yet'}</pre>
+            {modalCell.status === 'failed' && modalCell.error && (
+              <div className="lf-modal-error">
+                <strong>Error:</strong> {modalCell.error}
+              </div>
+            )}
+            <pre className="lf-modal-response">{modalCell.response ?? (modalCell.status === 'failed' ? 'No response — cell failed' : 'No response yet')}</pre>
           </div>
         </div>
       )}

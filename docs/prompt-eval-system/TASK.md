@@ -309,79 +309,63 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 > The current Step 3 (`/eval/run/:id`) execution dashboard has critical bugs that prevent prompts from being sent to Ollama, and a very sparse UX that provides almost no feedback about what is happening.
 
 **Bug Fixes (backend):**
-- [ ] Fix `LmapiClient` endpoint for eval execution — add `chatCompletionOnServer(req, serverName)` method that calls `/api/chat/completions/server` (matches the working Compare view pattern); split `cell.modelId` ("serverName::modelName") in `ExecutionService.runCompletions()` before calling LMApi
-- [ ] Accept `inlineTestCases` in `POST /api/eval/evaluations` request body; persist them to `data/evals/evaluations/:id/test-cases.json`; load them in `ExecutionService.run()` alongside `testSuiteId` and `userMessage`
-- [ ] Broadcast `eval:error` event (or include error details in `cell:failed`) so the frontend can surface LmapiClient failures to the user
+- [x] Fix `LmapiClient` endpoint for eval execution — add `chatCompletionOnServer(req, serverName)` method that calls `/api/chat/completions/server` (matches the working Compare view pattern); split `cell.modelId` ("serverName::modelName") in `ExecutionService.runCompletions()` before calling LMApi
+- [x] Accept `inlineTestCases` in `POST /api/eval/evaluations` request body; persist them in `config.json`; load them in `ExecutionService.run()` alongside `testSuiteId` and `userMessage`; add `inlineTestCases?: TestCase[]` to `EvaluationConfig` type
+- [x] `cell:failed` event already includes error details — frontend now handles the `{ cellId, error }` payload correctly; error surfaced in ErrorPanel
 
 **Bug Fixes (frontend):**
-- [ ] `ConfigPage.handleRun()` — before calling `createEvaluation()`, auto-save any prompt slot that has content but `id === null` via `createPrompt()`; dispatch `SET_PROMPT_A/B` with returned manifest before proceeding
-- [ ] `ConfigPage.handleRun()` — pass `inlineTestCases: state.inlineTestCases` to `createEvaluation()`
-- [ ] Update `createEvaluation()` API call type in `src/api/eval.ts` to include `inlineTestCases?: TestCase[]`
-- [ ] `useEvalSocket.ts` — reduce reconnect backoff: initial delay 500 ms, max 5 s (was 1 s initial doubling to 30 s)
-- [ ] `DashboardPage.tsx` — on mount, `GET /api/eval/evaluations/:id` to check current status; if already `completed` or `failed`, load results from REST rather than waiting for WS events; add `getEvaluation(id)` fetch helper to `src/api/eval.ts` if missing
-- [ ] Handle `cell:failed` event data correctly — the payload is `{ cellId, error }` not a full `EvalMatrixCell`; fix the cast in `DashboardPage.tsx`
+- [x] `ConfigPage.handleRun()` — before calling `createEvaluation()`, auto-save any prompt slot that has content but `id === null` via `createPrompt()`; dispatch `SET_PROMPT_A/B` with returned manifest before proceeding
+- [x] `ConfigPage.handleRun()` — pass `inlineTestCases: state.inlineTestCases` to `createEvaluation()`
+- [x] `EvaluationConfig` type in `src/types/eval.ts` now includes `inlineTestCases?: TestCase[]` — `createEvaluation()` API call automatically includes it
+- [x] `useEvalSocket.ts` — reduce reconnect backoff: initial delay 500 ms, max 5 s (was 1 s initial doubling to 30 s)
+- [x] `DashboardPage.tsx` — on mount, `GET /api/eval/evaluations/:id` to check current status; if already `completed` or `failed`, load results from REST rather than waiting for WS events; `getEvaluation(id)` already existed in `src/api/eval.ts`
+- [x] Handle `cell:failed` event data correctly — the payload is `{ cellId, error }` not a full `EvalMatrixCell`; fixed the cast in `DashboardPage.tsx`
 
 **Run Dashboard UX Redesign:**
-- [ ] Remove `ProgressOverview.tsx` (progress bar + percentage) — replace with prompt-centric two-column layout
-- [ ] Remove `ModelProgressGrid.tsx` — replaced by per-prompt model status rows
-- [ ] Create `EvalSummaryBar.tsx` — shows eval name, prompt count, model count, test case count; data fetched from `GET /api/eval/evaluations/:id` on mount
-- [ ] Create `PromptRunCard.tsx` — one card per prompt slot (A and B); shows prompt name or content preview; contains one `ModelStatusRow` per selected model
-- [ ] Create `ModelStatusRow.tsx` — shows model name, server name, and status: waiting / running (with elapsed time) / completed (latency + tok/s) / failed (error badge)
-- [ ] Create `ErrorPanel.tsx` — appears when any `cell:failed` events arrive; lists each failure with model ID, prompt ID, and error message; includes "Retry Failed Cells" button calling `POST /api/eval/evaluations/:id/retry`
-- [ ] Create `WsStatusDot.tsx` — small indicator in the dashboard header showing WebSocket state (connecting / connected / reconnecting / closed)
-- [ ] Update `LiveFeed.tsx` — extend rows to show failed cells with error text (rose color), not just successful completions
-- [ ] Rewrite `DashboardPage.tsx` layout — two-column `PromptRunCard` grid + below it `LiveFeed` and `ErrorPanel`; keep `ElapsedTimer`; use `EvalSummaryBar` in the header area
-- [ ] Update `DashboardPage.css` — new grid layout: `grid-template-columns: 1fr 1fr` for prompt cards; sidebar for live feed
+- [x] Removed `ProgressOverview.tsx` (progress bar + percentage) from `DashboardPage.tsx` — replaced with prompt-centric two-column layout (files kept for potential reuse)
+- [x] Removed `ModelProgressGrid.tsx` from `DashboardPage.tsx` — replaced by per-prompt model status rows (files kept for potential reuse)
+- [x] Created `EvalSummaryBar.tsx` — shows eval name, prompt count, model count, test case count; data fetched from `GET /api/eval/evaluations/:id` on mount
+- [x] Created `PromptRunCard.tsx` — one card per prompt slot (A and B); shows prompt label; contains one `ModelStatusRow` per selected model
+- [x] Created `ModelStatusRow.tsx` — shows model name, server name, and status: pending / running (spinner) / completed (latency + tok/s) / failed (error badge + retry button)
+- [x] Created `ErrorPanel.tsx` — appears when any `cell:failed` events arrive; lists each failure with model ID, prompt ID, and error message; includes "Retry Failed Cells" button calling `POST /api/eval/evaluations/:id/retry`
+- [x] Created `WsStatusDot.tsx` — small indicator in the dashboard header showing WebSocket state (connecting / connected / reconnecting / closed)
+- [x] Updated `LiveFeed.tsx` — error rows now show error text in rose color; failed cell modal shows error details
+- [x] Rewrote `DashboardPage.tsx` layout — two-column `PromptRunCard` grid + `ErrorPanel` + `LiveFeed`; `ElapsedTimer` and `WsStatusDot` in header; `EvalSummaryBar` below header
+- [x] Rewrote `DashboardPage.css` — new grid layout with `grid-template-columns: 1fr 1fr` for prompt cards; full styling for all new components
 
-- [ ] **Verification**: New eval with typed (unsaved) prompts → prompts auto-save → eval starts → dashboard shows Prompt A and Prompt B cards each with selected models in "running" state → models update to "completed" with latency and tok/s → Live Feed shows completions → use a bad model name → ErrorPanel shows error message → "Retry" button creates new eval for failed cells; navigate away and back → REST status loaded, completion shown without WS events
+- [x] **Verification**: New eval with typed (unsaved) prompts → prompts auto-save → eval starts → dashboard shows Prompt A and Prompt B cards each with selected models in "running" state → models update to "completed" with latency and tok/s → Live Feed shows completions → use a bad model name → ErrorPanel shows error message → "Retry" button creates new eval for failed cells; navigate away and back → REST status loaded, completion shown without WS events
 
 ---
 
-## Phase 7 — Polish, Edge Cases & Documentation
+## Phase 7 — Prepare & Results Page Review / Refinement
 
-- [ ] Implement "Why Did This Fail?" diagnostic endpoint:
-  - [ ] `POST /api/eval/evaluations/:id/diagnose` — accepts `{ cellId: string }`
-  - [ ] Constructs a diagnostic prompt: includes the original system prompt, user message, model response, judge rubric + score, and asks for specific improvement suggestions
-  - [ ] Dispatches to LMApi via `LmapiClient.chatCompletion()`
-  - [ ] Returns improvement suggestions as structured text
-- [ ] Confirm retry resilience from Phase 2 (see [`../../features/retry-resilience/RETRY_RESILIENCE.md`](../../features/retry-resilience/RETRY_RESILIENCE.md)) — retry is in `LmapiClient` and covers judge calls as well as cell completions; no additional `ExecutionService`-level retry needed
-- [ ] Handle partial evaluation failures:
-  - [ ] Cells that fail after all retries: `status: 'failed'` in `EvalMatrixCell`; `errorType` and `retryAttempts` populated; eval continues
-  - [ ] `summary.json` notes `failedCells` count and which models/test cases were affected
-  - [ ] Frontend shows failed cells in heatmap with rose border + ⚠ icon; clicking opens failure detail panel (see below)
-- [ ] Add `groupId` tagging: set `groupId: evalId` on all LMApi requests so eval traffic can be filtered in LMApi's prompt history dashboard
-- [ ] Accessibility pass:
-  - [ ] `aria-label` on all interactive controls (buttons, selects, tabs)
-  - [ ] Keyboard navigation through model selector list and test case table
-  - [ ] Focus management on tab switches (focus first element in new tab content)
-  - [ ] High contrast mode: ensure all text meets WCAG AA contrast ratio against dark backgrounds
-  - [ ] Screen reader: heatmap cells announce score and model/test case context
-- [ ] Responsive layout:
-  - [ ] Below 1024px width: panels stack vertically (prompt → config → results)
-  - [ ] Panel collapse buttons work at all breakpoints
-  - [ ] Mobile: single-panel view with tab navigation between panels
-- [ ] Error boundary: React error boundary wrapping each panel so one panel crash doesn't take down the whole page
-- [ ] Loading states: skeleton loaders for model list, template list, results panels
-- [ ] Create project `README.md`:
-  - [ ] Overview and purpose
-  - [ ] Prerequisites: Node.js/Bun, running LMApi instance
-  - [ ] Setup instructions: clone, install, configure `.env`, seed templates
-  - [ ] Running: `bun run dev:server` + `bun run dev:client`
-  - [ ] Usage walkthrough: create prompt → configure eval → run → analyze results → export
-  - [ ] Architecture overview (standalone project consuming LMApi)
-  - [ ] All API endpoints table (`/api/eval/*`)
-  - [ ] Built-in template descriptions
-  - [ ] Data storage layout (`data/evals/` directory tree)
-  - [ ] Export formats (HTML standalone, Markdown)
-  - [ ] Keyboard shortcuts table
-  - [ ] Configuration reference (`.env` variables)
-- [ ] Add failure detail panel to results UI (see [`../../features/retry-resilience/RETRY_RESILIENCE.md`](../../features/retry-resilience/RETRY_RESILIENCE.md)):
-  - [ ] Clicking a failed cell opens a detail panel: error type, retry history (attempt number + timestamp + error message), full raw model response (monospace scrollable), partial tool calls attempted, judge's `rawJudgeResponse` (if applicable), deterministic check breakdown
-  - [ ] Add `rawJudgeResponse?: string` field to `JudgeResult` in `src/types/eval.ts` (stored by JudgeService parse fallback chain)
-  - [ ] "↻ Retry this cell" button in the failure detail panel — calls `POST /api/eval/evaluations/:id/retry` with `{ failedCellsOnly: true }`
-- [ ] Add eval run selector to results panel (when session has multiple runs): run tab bar showing run number + completion status; clicking a tab loads that run's results
-- [ ] Add real-time timing display to execution progress UI: start time (from `EvalRun.createdAt`), live `HH:MM:SS` elapsed counter (updates every second, no WebSocket needed — frontend timer), end time on completion, running token total accumulating from `cell:completed` WS events, per-model token totals
-- [ ] **Verification**: Force cell failure (use nonexistent model) → eval completes with partial results; failed cells shown with rose + ⚠; clicking opens failure detail panel with retry history and raw response; "Retry" creates new eval scoped to failed cells; "Why Did This Fail?" returns suggestions for low-scoring cell; real-time timer increments correctly; run selector shows multiple runs when available; screen reader navigates eval page successfully; responsive layout works at mobile widths; README is complete and accurate
+> Prerequisite: Phase 6.5 complete (run dashboard working end-to-end).
+>
+> Goal: Review and refine the **Prepare page** (Step 2 — `/eval/config`) and the **Results page** (Step 4 — `/eval/results/:id`) to improve usability, completeness, and feedback quality. This phase also adds the failure detail panel for the Results page, which is directly useful now that the run dashboard can surface cell failures.
+
+**Prepare Page (ConfigPage) Improvements:**
+- [ ] Add validation feedback before Run: if no prompts have content, show inline error ("At least one prompt is required"); if no models selected, show tooltip on disabled Run button
+- [ ] Show auto-save status on the Run button when prompts are being saved (e.g., spinner + "Saving prompts…" while `createPrompt()` calls are in-flight)
+- [ ] Add a "Cell count" summary below the Execution Preview that shows the total matrix: `promptCount × modelCount × testCaseCount × runsPerCell` with a plain-English label ("X total LLM calls")
+- [ ] Improve `TestCaseEditor` inline test case UX: add drag-to-reorder for inline test case rows; show row count badge next to section title; add "Import from test suite" shortcut
+
+**Results Page (ResultsPage) Improvements:**
+- [ ] Add failure detail panel to Results page: clicking a failed cell (rose border + ⚠ icon) in the heatmap opens a drawer/modal showing:
+  - [ ] Error message and error type
+  - [ ] Retry history: attempt number, timestamp, error message per attempt
+  - [ ] Full raw model response (monospace, scrollable) — may be partial
+  - [ ] Deterministic check breakdown (keywords found/missing, JSON schema errors)
+  - [ ] "↻ Retry this cell" button — calls `POST /api/eval/evaluations/:id/retry` with `{ failedCellsOnly: true }` → navigates to new run dashboard
+- [ ] Add `rawJudgeResponse?: string` field to `JudgeResult` in `src/types/eval.ts`; store it in `JudgeService` parse fallback chain; display it in the failure detail panel when available
+- [ ] Improve the Compare view tab: add a "Copy response" button for each side; show token counts and latency below each response panel
+- [ ] Improve the Metrics tab: add a "Success rate by model" bar chart; show a table of failed cells grouped by model
+- [ ] Add eval run selector when session has multiple runs: a tab bar at the top of ResultsPage showing run number + completion status; clicking a tab loads that run's results from the session's run history
+
+**Shared / Infra:**
+- [ ] Error boundary: React error boundary wrapping `DashboardPage`, `ResultsPage`, and `ConfigPage` so one panel crash doesn't take down the whole wizard flow
+- [ ] Loading states: skeleton loaders for heatmap cells while results are fetching; spinner in model leaderboard while data loads
+
+- [ ] **Verification**: ConfigPage — try to run with empty prompts → inline error shown; run button shows "Saving prompts…" while auto-save is in flight; cell count shows correct math. ResultsPage — click a failed heatmap cell → failure detail drawer opens with error, retry history, and "Retry" button; clicking "Retry" navigates to new run dashboard. Compare view has copy buttons and shows token counts. Session with 2+ runs shows run tab bar in ResultsPage.
 
 ---
 

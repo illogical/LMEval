@@ -87,6 +87,7 @@ export interface EvaluationConfig {
   modelIds: string[];
   testSuiteId?: string;
   userMessage?: string;
+  inlineTestCases?: TestCase[];
   templateId?: string;
   judgeModelId?: string;
   enablePairwise?: boolean;

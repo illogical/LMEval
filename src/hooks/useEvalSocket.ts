@@ -38,7 +38,7 @@ export function useEvalSocket(evalId: string | null): EvalSocketState {
 
       ws.onopen = () => {
         if (unmountedRef.current) { ws.close(); return; }
-        reconnectDelayRef.current = 1000;
+        reconnectDelayRef.current = 500;
         setState(s => ({ ...s, status: 'open', error: null }));
       };
 
@@ -71,7 +71,7 @@ export function useEvalSocket(evalId: string | null): EvalSocketState {
         if (unmountedRef.current) return;
         setState(s => ({ ...s, status: 'closed' }));
         wsRef.current = null;
-        const delay = Math.min(reconnectDelayRef.current * 2, 30000);
+        const delay = Math.min(reconnectDelayRef.current * 2, 5000);
         reconnectDelayRef.current = delay;
         reconnectTimerRef.current = setTimeout(connect, delay);
       };
@@ -91,7 +91,7 @@ export function useEvalSocket(evalId: string | null): EvalSocketState {
     setState({ progress: 0, events: [], status: 'idle', isCompleted: false, error: null });
     clearTimeout(reconnectTimerRef.current);
     wsRef.current?.close();
-    reconnectDelayRef.current = 1000;
+    reconnectDelayRef.current = 500;
 
     if (evalId) {
       connect();
