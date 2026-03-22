@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PromptsPage } from '../../pages/PromptsPage';
 import { EvalWizardProvider } from '../../contexts/EvalWizardContext';
+import { EvalHeaderActionProvider, useEvalHeaderAction } from '../../contexts/EvalHeaderActionContext';
 import { listPrompts, getPromptContent } from '../../api/eval';
 
 // Mock API and hooks
@@ -21,12 +22,21 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+// Consumer that renders the header action into the DOM so Next button is accessible
+function HeaderSlot() {
+  const { headerAction } = useEvalHeaderAction();
+  return <div data-testid="header-slot">{headerAction}</div>;
+}
+
 function renderPromptsPage() {
   return render(
     <MemoryRouter>
-      <EvalWizardProvider>
-        <PromptsPage />
-      </EvalWizardProvider>
+      <EvalHeaderActionProvider>
+        <EvalWizardProvider>
+          <PromptsPage />
+          <HeaderSlot />
+        </EvalWizardProvider>
+      </EvalHeaderActionProvider>
     </MemoryRouter>
   );
 }
@@ -46,7 +56,7 @@ describe('PromptsPage', () => {
     vi.mocked(getPromptContent).mockResolvedValue({ content: '' });
   });
 
-  it('renders Prompt A and B columns', () => {
+  it('renders Prompt A and B labels', () => {
     renderPromptsPage();
     expect(screen.getAllByText(/Prompt A/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Prompt B/).length).toBeGreaterThan(0);
@@ -59,7 +69,7 @@ describe('PromptsPage', () => {
 
   it('renders Next button (disabled without content)', () => {
     renderPromptsPage();
-    const btn = screen.getByText('Next: Configure Evaluation');
+    const btn = screen.getByText('Next: Prepare');
     expect(btn).toBeInTheDocument();
     expect(btn.closest('button')).toBeDisabled();
   });
@@ -71,8 +81,11 @@ describe('PromptsPage - loading a saved prompt', () => {
     vi.mocked(getPromptContent).mockResolvedValue({ content: 'Loaded from API' });
   });
 
-  it('updates Prompt A textarea after clicking Load', async () => {
+  it('shows Prompt A content in diff after clicking Load', async () => {
     renderPromptsPage();
+
+    // Open load controls first (hidden by default)
+    fireEvent.click(screen.getByTitle(/load a prompt file/i));
 
     const selects = await waitFor(() => screen.getAllByLabelText('Select prompt'));
     fireEvent.change(selects[0], { target: { value: 'prm_1' } });
@@ -81,12 +94,14 @@ describe('PromptsPage - loading a saved prompt', () => {
     fireEvent.click(loadBtns[0]);
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /system prompt a/i })).toHaveValue('Loaded from API');
+      expect(screen.queryAllByText(/Loaded from API/).length).toBeGreaterThan(0);
     });
   });
 
-  it('updates Prompt B textarea after clicking Load on the B selector', async () => {
+  it('shows Prompt B content in diff after clicking Load on the B selector', async () => {
     renderPromptsPage();
+
+    fireEvent.click(screen.getByTitle(/load a prompt file/i));
 
     const selects = await waitFor(() => screen.getAllByLabelText('Select prompt'));
     fireEvent.change(selects[1], { target: { value: 'prm_1' } });
@@ -95,27 +110,21 @@ describe('PromptsPage - loading a saved prompt', () => {
     fireEvent.click(loadBtns[1]);
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /system prompt b/i })).toHaveValue('Loaded from API');
+      expect(screen.queryAllByText(/Loaded from API/).length).toBeGreaterThan(0);
     });
   });
 
-  it('enables Next button after Prompt A is loaded', async () => {
-    vi.mock('../../hooks/useModelsByServer', () => ({
-      useModelsByServer: () => ({
-        servers: [{ name: 'local', models: ['llama3'] }],
-        loading: false,
-        error: null,
-      }),
-    }));
-
+  it('loads Prompt A content into the diff view', async () => {
     renderPromptsPage();
+
+    fireEvent.click(screen.getByTitle(/load a prompt file/i));
 
     const selects = await waitFor(() => screen.getAllByLabelText('Select prompt'));
     fireEvent.change(selects[0], { target: { value: 'prm_1' } });
     fireEvent.click(screen.getAllByRole('button', { name: /^load$/i })[0]);
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /system prompt a/i })).toHaveValue('Loaded from API');
+      expect(screen.queryAllByText(/Loaded from API/).length).toBeGreaterThan(0);
     });
   });
 });
@@ -125,31 +134,31 @@ describe('PromptsPage - file browse', () => {
     vi.mocked(listPrompts).mockResolvedValue([]);
   });
 
-  it('updates Prompt A textarea when a file is selected via browse', async () => {
+  it('shows Prompt A content in diff when a file is selected via browse', async () => {
     renderPromptsPage();
 
-    const fileContent = '# Browsed Prompt\nContent here.';
+    const fileContent = '# Browsed Prompt';
     const file = new File([fileContent], 'prompt.md', { type: 'text/markdown' });
 
-    const fileInputs = screen.getAllByLabelText('Upload prompt file');
+    const fileInputs = screen.getAllByLabelText(/Upload prompt .* file/i);
     fireEvent.change(fileInputs[0], { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /system prompt a/i })).toHaveValue(fileContent);
+      expect(screen.queryAllByText(/Browsed Prompt/).length).toBeGreaterThan(0);
     });
   });
 
-  it('updates Prompt B textarea when a file is selected via browse on B panel', async () => {
+  it('shows Prompt B content in diff when a file is selected via browse on B panel', async () => {
     renderPromptsPage();
 
-    const fileContent = '# Prompt B Content';
+    const fileContent = 'Prompt B Content';
     const file = new File([fileContent], 'prompt-b.md', { type: 'text/markdown' });
 
-    const fileInputs = screen.getAllByLabelText('Upload prompt file');
+    const fileInputs = screen.getAllByLabelText(/Upload prompt .* file/i);
     fireEvent.change(fileInputs[1], { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /system prompt b/i })).toHaveValue(fileContent);
+      expect(screen.queryAllByText(/Prompt B Content/).length).toBeGreaterThan(0);
     });
   });
 });

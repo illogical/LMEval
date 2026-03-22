@@ -2,9 +2,11 @@
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.5;
-  overflow: auto;
   background: var(--surface);
-  border-top: 1px solid var(--border);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .diff-empty {
@@ -36,13 +38,82 @@
 }
 
 .diff-a-label { color: var(--diff-remove-text); }
-.diff-b-label { color: var(--diff-add-text); }
+.diff-b-label {
+  color: var(--diff-add-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.diff-edit-toggle {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--muted);
+  color: var(--muted);
+  border-radius: 4px;
+  padding: 1px 8px;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.diff-edit-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.diff-edit-toggle--active {
+  border-color: var(--accent);
+  background: rgba(79, 193, 255, 0.12);
+  color: var(--accent);
+}
 
 .diff-gutter { background: var(--surface-preview); }
 
 .diff-body {
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Edit mode: side-by-side A panel + editable B textarea */
+.diff-edit-layout {
+  display: grid;
+  grid-template-columns: 1fr 24px 1fr;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.diff-a-panel {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.diff-gutter-panel {
+  background: var(--surface-preview);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.diff-b-editor {
+  background: var(--surface);
+  color: var(--text);
+  border: none;
+  padding: 1px 6px 1px 46px; /* align with line-number gutter: 32px + 8px + 6px */
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  overflow-y: auto;
 }
 
 .diff-row {

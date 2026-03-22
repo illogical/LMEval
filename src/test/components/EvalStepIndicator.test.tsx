@@ -28,7 +28,7 @@ describe('EvalStepIndicator', () => {
   it('renders all 5 steps', () => {
     renderStepIndicator(1);
     expect(screen.getByText('Prompts')).toBeInTheDocument();
-    expect(screen.getByText('Config')).toBeInTheDocument();
+    expect(screen.getByText('Prepare')).toBeInTheDocument();
     expect(screen.getByText('Run')).toBeInTheDocument();
     expect(screen.getByText('Results')).toBeInTheDocument();
     expect(screen.getByText('Summary')).toBeInTheDocument();
@@ -36,8 +36,8 @@ describe('EvalStepIndicator', () => {
 
   it('marks active step with aria-current=step', () => {
     renderStepIndicator(2);
-    const configBtn = screen.getByRole('button', { name: /config/i });
-    expect(configBtn).toHaveAttribute('aria-current', 'step');
+    const prepareBtn = screen.getByRole('button', { name: /prepare/i });
+    expect(prepareBtn).toHaveAttribute('aria-current', 'step');
   });
 
   it('marks step 1 active when activeStep=1', () => {
