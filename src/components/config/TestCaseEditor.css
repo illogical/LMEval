@@ -54,8 +54,43 @@
   line-height: 1.5;
 }
 
-.tce-suite-header {
+/* ── Suite container ── */
+.tce-suite {
+  position: relative;
   display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Drag overlay ── */
+.tce-drag-over {
+  border: 2px dashed var(--accent);
+  border-radius: 8px;
+}
+
+.tce-drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(79, 193, 255, 0.08);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.tce-drop-overlay span {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+}
+
+/* ── Toolbar ── */
+.tce-toolbar {
+  display: flex;
+  align-items: center;
   gap: 8px;
   margin-bottom: 14px;
 }
@@ -71,6 +106,205 @@
   font-size: 13px;
 }
 
+.tce-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Buttons ── */
+.tce-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.tce-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tce-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tce-btn-save {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.tce-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.tce-btn-ghost:hover:not(:disabled) {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* ── Dropdown menus ── */
+.tce-menu-wrap {
+  position: relative;
+}
+
+.tce-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 180px;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  padding: 4px 0;
+}
+
+.tce-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 14px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.tce-menu-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--accent);
+}
+
+.tce-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* ── Spinner ── */
+.tce-spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: tce-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes tce-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Banners ── */
+.tce-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.tce-banner-success {
+  background: rgba(80, 200, 120, 0.12);
+  border: 1px solid rgba(80, 200, 120, 0.3);
+  color: #50c878;
+}
+
+.tce-banner-error {
+  background: rgba(255, 80, 80, 0.1);
+  border: 1px solid rgba(255, 80, 80, 0.3);
+  color: var(--error);
+  justify-content: space-between;
+}
+
+.tce-banner-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+
+.tce-banner-dismiss:hover {
+  opacity: 1;
+}
+
+/* ── Confirm strip ── */
+.tce-confirm-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(79, 193, 255, 0.07);
+  border: 1px solid rgba(79, 193, 255, 0.2);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--text);
+  flex-wrap: wrap;
+}
+
+.tce-confirm-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* ── Save as Suite strip ── */
+.tce-save-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tce-save-label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tce-save-input {
+  flex: 1;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  outline: none;
+}
+
+/* ── Table ── */
 .tce-table {
   width: 100%;
   border-collapse: collapse;
@@ -140,6 +374,7 @@
   opacity: 1;
 }
 
+/* ── Add row button ── */
 .tce-add-btn {
   background: transparent;
   border: 1px dashed var(--muted);

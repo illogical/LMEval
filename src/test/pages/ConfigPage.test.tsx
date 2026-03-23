@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ConfigPage } from '../../pages/ConfigPage';
 import { EvalWizardProvider } from '../../contexts/EvalWizardContext';
+import { EvalHeaderActionProvider, useEvalHeaderAction } from '../../contexts/EvalHeaderActionContext';
 
 vi.mock('../../api/eval', () => ({
   listTemplates: vi.fn().mockResolvedValue([]),
@@ -18,11 +19,19 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+function HeaderSlot() {
+  const { headerAction } = useEvalHeaderAction();
+  return <>{headerAction}</>;
+}
+
 function renderConfigPage() {
   return render(
     <MemoryRouter>
       <EvalWizardProvider>
-        <ConfigPage />
+        <EvalHeaderActionProvider>
+          <HeaderSlot />
+          <ConfigPage />
+        </EvalHeaderActionProvider>
       </EvalWizardProvider>
     </MemoryRouter>
   );

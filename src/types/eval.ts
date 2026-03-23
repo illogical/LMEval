@@ -68,6 +68,8 @@ export interface TestCase {
   }>;
   referenceAnswer?: string;
   jsonSchema?: Record<string, unknown>;
+  expectedOutput?: string;
+  tags?: string[];
 }
 
 export interface TestSuite {

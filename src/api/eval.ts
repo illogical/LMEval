@@ -1,4 +1,4 @@
-import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset } from '../types/eval';
+import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset } from '../types/eval';
 import type { SessionManifest, SessionSlot } from '../types/session';
 
 const BASE = '/api/eval';
@@ -83,6 +83,9 @@ export async function listTestSuites(): Promise<TestSuite[]> {
 }
 export async function getTestSuite(id: string): Promise<TestSuite> {
   return apiFetch(`/test-suites/${id}`);
+}
+export async function createTestSuite(data: { name: string; description?: string; testCases?: Omit<TestCase, 'id'>[] }): Promise<TestSuite> {
+  return apiFetch('/test-suites', { method: 'POST', body: JSON.stringify(data) });
 }
 
 // Sessions

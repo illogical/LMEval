@@ -448,3 +448,90 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 - [ ] Uses `REFINEMENT_MODEL` env var — if not configured, the Summary page shows the raw results summary without AI-generated suggestions (graceful degradation)
 
 - [ ] **Verification**: Complete an eval → navigate to Step 4 (Results) → click "View Summary" → Step 5 loads with AI-generated executive summary, model recommendation with reasoning, per-model analysis for underperforming models, and 1–3 prompt improvement suggestions with diff previews; "Apply Suggestion" creates new prompt version + session version; "Apply & Re-run" starts new eval and navigates to Dashboard; `REFINEMENT_MODEL` not set → page shows manual summary only without AI suggestions; cached analysis loads instantly on revisit
+
+---
+
+## Phase F5 — AI-Generated Test Cases (Dogfood Candidate)
+
+> Prerequisite: Phase 4 (LLM Judge) complete. Requires a working `generateTemplate` prompt pattern (already in `JudgeService.buildTemplateGeneratorPrompt()`) as a reference for the generation prompt style.
+>
+> Full spec: [`../features/eval-wizard/TEST_CASE_IMPORT_EXPORT.md`](../features/eval-wizard/TEST_CASE_IMPORT_EXPORT.md) — Section 7
+>
+> **⭐ Self-evaluation candidate**: This feature is an ideal dogfood scenario for LMEval itself. The test case generation prompt can and should be evaluated using LMEval before the feature ships. See "Dogfood Eval Setup" below.
+
+### Why This Is Deferred
+
+The "Generate test cases" feature requires a carefully engineered prompt that reliably produces:
+- Diverse test cases (not just paraphrases of the prompt)
+- Correct JSON output format matching `TestCase[]`
+- Good coverage of happy paths, edge cases, refusal scenarios, and format stress tests
+
+This prompt must be iterated using LMEval before the feature ships. The generation prompt is the thing being evaluated — not the feature code itself.
+
+### What Exists Now (Context)
+
+- The existing **Auto-Generate** button on the Template Selector (`TemplateSelector.tsx`) calls `POST /api/eval/templates/generate`, which uses `JudgeService.buildTemplateGeneratorPrompt()` to generate evaluation rubric weights from a prompt. This is the closest existing pattern.
+- The existing import/export infrastructure (Phase I1–I4 above) provides the `TestCase[]` type and the import flow that generated cases will feed into.
+
+### Feature Description
+
+A **"Generate test cases"** button in the Suite tab of `TestCaseEditor`. When clicked:
+
+1. Takes the current **Prompt A content** as context (the prompt being evaluated)
+2. Optionally accepts a **"test focus"** free-text description from the user (e.g., "focus on edge cases and refusal behavior")
+3. Sends a structured request to LMApi to generate N test cases
+4. Streams or polls the response
+5. Parses the result as `TestCase[]`
+6. Feeds into the standard import/confirm flow (replace / append / cancel)
+
+### Backend Tasks
+
+- [ ] Add `buildTestCaseGeneratorPrompt(promptContent, focus, count)` to `server/services/JudgeService.ts`
+  - Prompt instructs the model to analyze the system prompt and generate diverse test cases
+  - Output format: JSON array matching `TestCase[]` (`description`, `userMessage`, `expectedOutput?`, `tags?`)
+  - Include diversity instructions: happy paths, edge cases, out-of-scope inputs, format stress tests, adversarial inputs
+- [ ] Add `parseTestCaseGeneratorResponse(raw)` to `JudgeService.ts` — 4-step fallback parse chain (same pattern as `parseRubricResponse`)
+- [ ] Add `POST /api/eval/test-cases/generate` route:
+  - Accepts `{ promptContent: string, focus?: string, count?: number }` (default count: 8)
+  - Dispatches via `LmapiClient` using the most capable available model
+  - Returns `{ cases: TestCase[], generationModel: string }`
+  - Returns 400 if `promptContent` is empty
+
+### Frontend Tasks
+
+- [ ] Add **"✨ Generate"** button to the Suite tab toolbar in `TestCaseEditor.tsx` (alongside Import/Export)
+- [ ] Button is disabled if Prompt A has no content (show tooltip: "Enter a prompt in Step 1 first")
+- [ ] On click: open a small inline panel below the toolbar:
+  - Text input: `Test focus (optional): [________________________]`
+  - Count selector: `Generate: [5 ▾] cases`
+  - `[Generate]` button
+- [ ] Loading state: spinner + "Generating…" while awaiting response
+- [ ] On success: feed into standard import/confirm flow (so user can Replace / Append)
+- [ ] On error: inline error banner with the failure reason
+
+### Dogfood Eval Setup
+
+Before shipping, run LMEval against the generation prompt itself:
+
+- **Prompt A**: Initial generation prompt (v1)
+- **Prompt B**: Refined generation prompt (v2 — after reviewing v1 output quality)
+- **Test cases**: A set of seeded system prompts covering different domains (customer service, code assistant, data extraction, creative writing, refusal-heavy)
+- **Template**: Custom rubric with perspectives:
+  - *Format compliance* — is the output valid JSON matching `TestCase[]`?
+  - *Diversity* — do the cases cover multiple input patterns, not just paraphrases?
+  - *Relevance* — are cases meaningfully related to the given system prompt?
+  - *Adversarial coverage* — does at least one case test a refusal or edge scenario?
+- **Judge**: Use the best available Ollama model
+- **Expected outcome**: Prompt B composite score ≥ Prompt A; format compliance = 100% (hard gate)
+
+This evaluation should be saved as a preset and re-run whenever the generation prompt is modified.
+
+### Acceptance Criteria
+
+- [ ] "Generate" button appears in Suite tab, disabled without Prompt A content
+- [ ] Inline focus input and count selector appear on button click
+- [ ] Loading state shown during generation
+- [ ] Generated cases feed into standard replace/append/cancel confirm flow
+- [ ] Generated cases respect the extended `TestCase` type (include `tags` and `expectedOutput` where appropriate)
+- [ ] Malformed LLM output (non-JSON, wrong shape) handled gracefully with error banner
+- [ ] Generation prompt has been validated using LMEval before the feature ships (see Dogfood Eval Setup above)
