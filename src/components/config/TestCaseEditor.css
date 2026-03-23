@@ -4,29 +4,40 @@
   gap: 0;
 }
 
+/* Pill-style tab switcher */
 .tce-tabs {
   display: flex;
-  gap: 2px;
-  margin-bottom: 10px;
+  gap: 0;
+  margin-bottom: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 3px;
+  width: fit-content;
 }
 
 .tce-tab {
-  padding: 5px 14px;
-  border: 1px solid var(--border);
+  padding: 6px 18px;
+  border: none;
   background: transparent;
   color: var(--muted);
   border-radius: 5px;
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .tce-tab.tce-tab-active {
-  background: var(--accent);
-  color: var(--bg);
-  border-color: var(--accent);
+  background: var(--card-bg);
+  color: var(--accent);
+  border: 1px solid var(--border);
   font-weight: 600;
+}
+
+.tce-tab:not(.tce-tab-active):hover {
+  color: var(--text);
 }
 
 .tce-textarea {
@@ -35,17 +46,18 @@
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   font-family: var(--font-ui);
   font-size: 13px;
   resize: vertical;
-  min-height: 80px;
+  min-height: 90px;
+  line-height: 1.5;
 }
 
 .tce-suite-header {
   display: flex;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .tce-suite-select {
@@ -54,7 +66,7 @@
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   font-family: var(--font-ui);
   font-size: 13px;
 }
@@ -62,30 +74,36 @@
 .tce-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
-  margin-bottom: 8px;
+  font-size: 13px;
+  margin-bottom: 10px;
 }
 
 .tce-table th {
   text-align: left;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border);
   color: var(--muted);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .tce-table td {
-  padding: 3px 4px;
+  padding: 5px 6px;
   border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.tce-table tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .tce-num {
   color: var(--muted);
   text-align: center;
   width: 32px;
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
 
 .tce-input {
@@ -94,9 +112,9 @@
   color: var(--text);
   border: 1px solid transparent;
   border-radius: 4px;
-  padding: 3px 6px;
+  padding: 5px 8px;
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 13px;
   transition: border-color 0.15s;
 }
 
@@ -124,12 +142,12 @@
 
 .tce-add-btn {
   background: transparent;
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--muted);
   color: var(--muted);
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 8px 14px;
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   width: 100%;
   transition: all 0.15s;

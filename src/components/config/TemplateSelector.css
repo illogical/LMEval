@@ -1,7 +1,7 @@
 .template-selector {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .ts-row {
@@ -18,7 +18,7 @@
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   font-family: var(--font-ui);
   font-size: 13px;
 }
@@ -28,7 +28,7 @@
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 8px 14px;
   font-family: var(--font-ui);
   font-size: 12px;
   cursor: pointer;
@@ -51,18 +51,20 @@
 }
 
 .ts-description {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   margin: 0;
+  line-height: 1.5;
 }
 
 .ts-weights {
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 12px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
+  background: var(--surface);
 }
 
 .ts-weights-title {
@@ -71,18 +73,18 @@
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--muted);
-  margin: 0 0 4px;
+  margin: 0 0 2px;
 }
 
 .ts-weight-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .ts-weight-label {
-  font-size: 12px;
-  width: 120px;
+  font-size: 13px;
+  width: 130px;
   flex-shrink: 0;
 }
 
@@ -96,4 +98,5 @@
   color: var(--muted);
   width: 36px;
   text-align: right;
+  font-family: var(--font-mono);
 }

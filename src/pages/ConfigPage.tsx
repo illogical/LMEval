@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play } from 'lucide-react';
 import { TemplateSelector } from '../components/config/TemplateSelector';
@@ -7,12 +7,14 @@ import { JudgeConfig } from '../components/config/JudgeConfig';
 import { ExecutionPreview } from '../components/config/ExecutionPreview';
 import { PresetSelector } from '../components/config/PresetSelector';
 import { useEvalWizard } from '../contexts/EvalWizardContext';
+import { useEvalHeaderAction } from '../contexts/EvalHeaderActionContext';
 import { createEvaluation, createPrompt } from '../api/eval';
 import './ConfigPage.css';
 
 export function ConfigPage() {
   const navigate = useNavigate();
   const { state, dispatch } = useEvalWizard();
+  const { setHeaderAction } = useEvalHeaderAction();
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +28,7 @@ export function ConfigPage() {
   }
   const testCaseCount = calcTestCaseCount();
 
-  async function handleRun() {
+  const handleRun = useCallback(async () => {
     if (running) return;
     setRunning(true);
     setError(null);
@@ -71,13 +73,28 @@ export function ConfigPage() {
     } finally {
       setRunning(false);
     }
-  }
+  }, [running, state, dispatch, navigate]);
+
+  // Inject Run button into the step indicator header
+  useEffect(() => {
+    setHeaderAction(
+      <button
+        className="cp-run-header-btn"
+        onClick={handleRun}
+        disabled={running || modelCount === 0}
+      >
+        <Play size={15} />
+        {running ? 'Starting…' : 'Run Evaluation'}
+      </button>
+    );
+    return () => setHeaderAction(null);
+  }, [running, modelCount, handleRun, setHeaderAction]);
 
   return (
     <div className="config-page">
       <div className="cp-content">
         <div className="cp-col">
-          <div className="cp-section">
+          <div className="cp-card">
             <h3 className="cp-section-title">Evaluation Template</h3>
             <TemplateSelector
               value={state.templateId}
@@ -86,7 +103,7 @@ export function ConfigPage() {
             />
           </div>
 
-          <div className="cp-section">
+          <div className="cp-card">
             <h3 className="cp-section-title">Test Cases</h3>
             <TestCaseEditor
               userMessage={state.userMessage}
@@ -98,7 +115,7 @@ export function ConfigPage() {
             />
           </div>
 
-          <div className="cp-section">
+          <div className="cp-card">
             <h3 className="cp-section-title">Judge Configuration</h3>
             <JudgeConfig
               judgeModelId={state.judgeModelId}
@@ -112,7 +129,7 @@ export function ConfigPage() {
         </div>
 
         <div className="cp-sidebar">
-          <div className="cp-section">
+          <div className="cp-card">
             <h3 className="cp-section-title">Execution Preview</h3>
             <ExecutionPreview
               promptCount={promptCount}
@@ -122,7 +139,7 @@ export function ConfigPage() {
             />
           </div>
 
-          <div className="cp-section">
+          <div className="cp-card">
             <h3 className="cp-section-title">Presets</h3>
             <PresetSelector
               currentState={{
@@ -138,11 +155,6 @@ export function ConfigPage() {
           </div>
 
           {error && <p className="cp-error">{error}</p>}
-
-          <button className="cp-run-btn" onClick={handleRun} disabled={running || modelCount === 0}>
-            <Play size={16} />
-            {running ? 'Starting…' : 'Run Evaluation'}
-          </button>
         </div>
       </div>
     </div>

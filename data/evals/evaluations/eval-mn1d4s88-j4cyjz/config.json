@@ -1,0 +1,17 @@
+{
+  "id": "eval-mn1d4s88-j4cyjz",
+  "name": "Eval 3/22/2026, 2:15:28 AM",
+  "promptIds": [
+    "prm-mn0tjwa3-afrv1g",
+    "prm-mn1ch0by-7jfz6i"
+  ],
+  "modelIds": [
+    "Localhost::ministral-3:latest"
+  ],
+  "templateId": "instruction-following",
+  "enablePairwise": false,
+  "runsPerCell": 1,
+  "status": "failed",
+  "createdAt": "2026-03-22T06:15:28.232Z",
+  "updatedAt": "2026-03-22T06:15:28.236Z"
+}

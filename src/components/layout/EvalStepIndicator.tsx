@@ -50,9 +50,7 @@ export function EvalStepIndicator({ activeStep, rightSlot }: EvalStepIndicatorPr
           return (
             <div key={step.num} className="step-wrapper">
               {i > 0 && (
-                isComplete
-                  ? <span className="step-connector connector-complete">→</span>
-                  : <div className="step-connector" />
+                <div className={`step-connector${isComplete ? ' connector-complete' : ''}`} />
               )}
               <button
                 className={className}

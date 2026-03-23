@@ -1,14 +1,14 @@
 .config-page {
   height: 100%;
   overflow-y: auto;
-  padding: 24px;
+  padding: 28px;
 }
 
 .cp-content {
   display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 24px;
-  max-width: 1100px;
+  grid-template-columns: 1fr 340px;
+  gap: 28px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -19,28 +19,38 @@
 .cp-col {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 .cp-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  align-self: start;
 }
 
-.cp-section {
+/* Card container for each section */
+.cp-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 24px;
 }
 
 .cp-section-title {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--muted);
   margin: 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
 }
 
 .cp-error {
@@ -53,32 +63,30 @@
   margin: 0;
 }
 
-.cp-run-btn {
+/* Run button in step indicator header */
+.cp-run-header-btn {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  width: 100%;
-  padding: 12px 20px;
-  background: var(--ok);
-  color: #fff;
+  background: var(--accent);
+  color: var(--bg);
   border: none;
   border-radius: 8px;
+  padding: 9px 20px;
   font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
+  white-space: nowrap;
   letter-spacing: 0.02em;
 }
 
-.cp-run-btn:hover:not(:disabled) {
-  background: #3cc251;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(46, 160, 67, 0.4);
+.cp-run-header-btn:hover:not(:disabled) {
+  background: #6dcfff;
 }
 
-.cp-run-btn:disabled {
-  opacity: 0.45;
+.cp-run-header-btn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
