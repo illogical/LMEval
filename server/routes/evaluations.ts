@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { join } from 'path';
 import {
-  readJson, writeJson, listDir, generateId, ensureDir, EVALUATIONS_DIR, BASELINES_DIR,
+  readJson, writeJson, listDir, generateId, ensureDir, deleteDir, EVALUATIONS_DIR, BASELINES_DIR,
 } from '../services/FileService';
 import { ExecutionService } from '../services/ExecutionService';
 import { SessionService } from '../services/SessionService';
@@ -100,7 +100,18 @@ evaluationsRouter.post('/', async c => {
 
 evaluationsRouter.delete('/:id', c => {
   const { id } = c.req.param();
-  const config = readJson<EvaluationConfig>(join(EVALUATIONS_DIR, id, 'config.json'));
+  const evalDir = join(EVALUATIONS_DIR, id);
+  const config = readJson<EvaluationConfig>(join(evalDir, 'config.json'));
+  if (!config) return c.json({ error: 'Evaluation not found' }, 404);
+  ExecutionService.cancel(id);
+  deleteDir(evalDir);
+  return c.json({ success: true });
+});
+
+evaluationsRouter.post('/:id/cancel', c => {
+  const { id } = c.req.param();
+  const evalDir = join(EVALUATIONS_DIR, id);
+  const config = readJson<EvaluationConfig>(join(evalDir, 'config.json'));
   if (!config) return c.json({ error: 'Evaluation not found' }, 404);
   const cancelled = ExecutionService.cancel(id);
   return c.json({ success: true, cancelled });

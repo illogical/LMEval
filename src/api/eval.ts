@@ -1,4 +1,5 @@
 import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset } from '../types/eval';
+import type { ParseResult } from '../utils/testCaseIO';
 import type { SessionManifest, SessionSlot } from '../types/session';
 
 const BASE = '/api/eval';
@@ -141,4 +142,35 @@ export async function updatePreset(id: string, data: Partial<EvalPreset>): Promi
 }
 export async function deletePreset(id: string): Promise<void> {
   await apiFetch(`/presets/${id}`, { method: 'DELETE' });
+}
+
+// Delete operations (for cleanup / agent use)
+export async function deletePrompt(id: string): Promise<void> {
+  await apiFetch(`/prompts/${id}`, { method: 'DELETE' });
+}
+export async function deleteEvaluation(id: string): Promise<void> {
+  await apiFetch(`/evaluations/${id}`, { method: 'DELETE' });
+}
+export async function cancelEvaluation(id: string): Promise<void> {
+  await apiFetch(`/evaluations/${id}/cancel`, { method: 'POST' });
+}
+export async function deleteSession(id: string): Promise<void> {
+  await apiFetch(`/sessions/${id}`, { method: 'DELETE' });
+}
+export async function deleteTestSuite(id: string): Promise<void> {
+  await apiFetch(`/test-suites/${id}`, { method: 'DELETE' });
+}
+export async function deleteTemplate(id: string): Promise<void> {
+  await apiFetch(`/templates/${id}`, { method: 'DELETE' });
+}
+
+// Server-side test case parsing (CSV or JSON text → TestCase[])
+export async function parseTestCases(
+  content: string,
+  format: 'csv' | 'json'
+): Promise<ParseResult & { cases: (TestCase)[] }> {
+  return apiFetch('/test-suites/parse', {
+    method: 'POST',
+    body: JSON.stringify({ content, format }),
+  });
 }

@@ -9,6 +9,7 @@ import {
   generateId,
   slugify,
   ensureDir,
+  deleteDir,
   PROMPTS_DIR,
 } from './FileService';
 import type { PromptManifest, ToolDefinition } from '../../src/types/eval';
@@ -99,6 +100,12 @@ export const PromptService = {
     writeJson(join(PROMPTS_DIR, manifest.slug, 'manifest.json'), manifest);
     writeJson(join(PROMPTS_DIR, manifest.slug, 'tools.json'), tools);
     return manifest;
+  },
+
+  delete(id: string): boolean {
+    const manifest = this.get(id);
+    if (!manifest) return false;
+    return deleteDir(join(PROMPTS_DIR, manifest.slug));
   },
 
   estimateTokens(content: string): number {

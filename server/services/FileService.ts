@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 
 export function ensureDir(dirPath: string): void {
@@ -31,6 +31,12 @@ export function writeText(filePath: string, content: string): void {
 export function deleteFile(filePath: string): boolean {
   if (!existsSync(filePath)) return false;
   unlinkSync(filePath);
+  return true;
+}
+
+export function deleteDir(dirPath: string): boolean {
+  if (!existsSync(dirPath)) return false;
+  rmSync(dirPath, { recursive: true, force: true });
   return true;
 }
 

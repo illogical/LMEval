@@ -68,6 +68,13 @@ promptsRouter.put('/:id/tools', async c => {
   return c.json(updated);
 });
 
+promptsRouter.delete('/:id', c => {
+  const { id } = c.req.param();
+  const deleted = PromptService.delete(id);
+  if (!deleted) return c.json({ error: 'Prompt not found' }, 404);
+  return c.json({ success: true });
+});
+
 promptsRouter.get('/:id/history', c => {
   const { id } = c.req.param();
 

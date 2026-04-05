@@ -52,6 +52,7 @@ export function setBroadcast(fn: BroadcastFn) {
 }
 
 const activeControllers = new Map<string, AbortController>();
+const cancelledEvals = new Set<string>();
 
 export const ExecutionService = {
   buildMatrix(config: EvaluationConfig, testCases: TestCase[]): EvalMatrixCell[] {
@@ -427,6 +428,7 @@ export const ExecutionService = {
   },
 
   cancel(evalId: string): boolean {
+    cancelledEvals.add(evalId);
     const controller = activeControllers.get(evalId);
     if (!controller) return false;
     controller.abort();
@@ -499,11 +501,13 @@ export const ExecutionService = {
       // Phase 4: Aggregate
       await this.aggregate(evalId, finalCells, pairwiseRankings);
 
-      config.status = 'completed';
+      const wasCancelled = cancelledEvals.has(evalId);
+      cancelledEvals.delete(evalId);
+      config.status = wasCancelled ? 'cancelled' : 'completed';
       config.updatedAt = new Date().toISOString();
       writeJson(join(evalDir, 'config.json'), config);
 
-      broadcast({ type: 'eval:completed', evalId, data: {}, timestamp: Date.now() });
+      broadcast({ type: wasCancelled ? 'eval:cancelled' : 'eval:completed', evalId, data: {}, timestamp: Date.now() });
 
       if (config.sessionId) {
         try {
