@@ -1,11 +1,9 @@
 import { join } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import {
-  readJson, writeText, EVALUATIONS_DIR
+  readJson, writeText, EVALUATIONS_DIR, REPORT_TEMPLATE_PATH
 } from './FileService';
 import type { EvaluationConfig, EvaluationSummary, EvalMatrixCell } from '../../src/types/eval';
-
-const REPORT_TEMPLATE_PATH = join(process.cwd(), 'data', 'evals', 'templates', 'report-template.html');
 
 function escapeHtml(str: string): string {
   return str

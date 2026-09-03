@@ -61,12 +61,54 @@ export function slugify(text: string): string {
     .substring(0, 80);
 }
 
-export const DATA_DIR = join(process.cwd(), 'data', 'evals');
-export const TEMPLATES_DIR = join(DATA_DIR, 'templates');
-export const CUSTOM_TEMPLATES_DIR = join(TEMPLATES_DIR, 'custom');
-export const PROMPTS_DIR = join(DATA_DIR, 'prompts');
-export const TEST_SUITES_DIR = join(DATA_DIR, 'test-suites');
-export const EVALUATIONS_DIR = join(DATA_DIR, 'evaluations');
-export const BASELINES_DIR = join(DATA_DIR, 'baselines');
+// All `let` (not `const`), repointed together by configurePaths() below via
+// ES modules' live-binding semantics: `import { EVALUATIONS_DIR }` elsewhere
+// always reads the *current* value of this binding, not an import-time
+// snapshot — no call-site changes needed anywhere else in the codebase.
+//
+// Two independent roots, both defaulting to today's standalone layout
+// (repoRoot === cwd, dataRoot === cwd/data) so standalone paths are
+// byte-for-byte unchanged:
+//   - dataRoot: user-writable runtime data (prompts, test suites, eval
+//     results, sessions, custom templates, presets). Hosted mode points this
+//     at `options.dataPath` (HomeBase-provisioned, per-app).
+//   - repoRoot: read-only, repo-committed seed content (built-in eval
+//     templates, the HTML report template, judge system-prompt templates).
+//     Hosted mode points this at `options.repositoryRoot` — this content
+//     ships with the checked-out repo, not with HomeBase's per-app data dir.
+export let DATA_ROOT = join(process.cwd(), 'data');
+export let DATA_DIR = join(DATA_ROOT, 'evals');
+export let CUSTOM_TEMPLATES_DIR = join(DATA_DIR, 'templates', 'custom');
+export let PROMPTS_DIR = join(DATA_DIR, 'prompts');
+export let TEST_SUITES_DIR = join(DATA_DIR, 'test-suites');
+export let EVALUATIONS_DIR = join(DATA_DIR, 'evaluations');
+export let BASELINES_DIR = join(DATA_DIR, 'baselines');
+export let PRESETS_DIR = join(DATA_DIR, 'presets');
+export let SESSIONS_DIR = join(DATA_ROOT, 'sessions');
 
-export const SESSIONS_DIR = join(process.cwd(), 'data', 'sessions');
+export let REPO_ROOT = process.cwd();
+export let BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');
+export let REPORT_TEMPLATE_PATH = join(REPO_ROOT, 'data', 'evals', 'templates', 'report-template.html');
+export let JUDGE_PROMPTS_DIR = join(REPO_ROOT, 'data', 'prompts', 'judge');
+
+/**
+ * Repoints every path constant above at the given roots. Must run before any
+ * route/service reads these paths — called once by the standalone guard
+ * (server/index.ts) or the hosted adapter's initialize() (server/host/adapter.ts).
+ */
+export function configurePaths(options: { dataRoot: string; repoRoot: string }): void {
+  DATA_ROOT = options.dataRoot;
+  DATA_DIR = join(DATA_ROOT, 'evals');
+  CUSTOM_TEMPLATES_DIR = join(DATA_DIR, 'templates', 'custom');
+  PROMPTS_DIR = join(DATA_DIR, 'prompts');
+  TEST_SUITES_DIR = join(DATA_DIR, 'test-suites');
+  EVALUATIONS_DIR = join(DATA_DIR, 'evaluations');
+  BASELINES_DIR = join(DATA_DIR, 'baselines');
+  PRESETS_DIR = join(DATA_DIR, 'presets');
+  SESSIONS_DIR = join(DATA_ROOT, 'sessions');
+
+  REPO_ROOT = options.repoRoot;
+  BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');
+  REPORT_TEMPLATE_PATH = join(REPO_ROOT, 'data', 'evals', 'templates', 'report-template.html');
+  JUDGE_PROMPTS_DIR = join(REPO_ROOT, 'data', 'prompts', 'judge');
+}

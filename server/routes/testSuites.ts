@@ -1,53 +1,53 @@
-import { Hono } from 'hono';
+import { Router } from 'express';
 import { TestSuiteService } from '../services/TestSuiteService';
 import { parseCSV, parseJSON } from '../../src/utils/testCaseIO';
 import { generateId } from '../services/FileService';
 
-export const testSuitesRouter = new Hono();
+export const testSuitesRouter = Router();
 
-testSuitesRouter.get('/', c => {
-  return c.json(TestSuiteService.list());
+testSuitesRouter.get('/', (req, res) => {
+  res.json(TestSuiteService.list());
 });
 
-testSuitesRouter.get('/:id', c => {
-  const { id } = c.req.param();
+testSuitesRouter.get('/:id', (req, res) => {
+  const { id } = req.params;
   const suite = TestSuiteService.get(id);
-  if (!suite) return c.json({ error: 'Test suite not found' }, 404);
-  return c.json(suite);
+  if (!suite) return void res.status(404).json({ error: 'Test suite not found' });
+  res.json(suite);
 });
 
-testSuitesRouter.post('/', async c => {
-  const body = await c.req.json();
-  if (!body.name) return c.json({ error: 'name is required' }, 400);
+testSuitesRouter.post('/', (req, res) => {
+  const body = req.body;
+  if (!body.name) return void res.status(400).json({ error: 'name is required' });
   const suite = TestSuiteService.create(body);
-  return c.json(suite, 201);
+  res.status(201).json(suite);
 });
 
-testSuitesRouter.put('/:id', async c => {
-  const { id } = c.req.param();
-  const body = await c.req.json();
+testSuitesRouter.put('/:id', (req, res) => {
+  const { id } = req.params;
+  const body = req.body;
   const updated = TestSuiteService.update(id, body);
-  if (!updated) return c.json({ error: 'Test suite not found' }, 404);
-  return c.json(updated);
+  if (!updated) return void res.status(404).json({ error: 'Test suite not found' });
+  res.json(updated);
 });
 
-testSuitesRouter.post('/parse', async c => {
-  const body = await c.req.json().catch(() => null);
+testSuitesRouter.post('/parse', (req, res) => {
+  const body = req.body ?? null;
   if (!body || typeof body.content !== 'string') {
-    return c.json({ error: 'content (string) is required' }, 400);
+    return void res.status(400).json({ error: 'content (string) is required' });
   }
   const format: string = body.format ?? 'json';
   if (format !== 'csv' && format !== 'json') {
-    return c.json({ error: 'format must be "csv" or "json"' }, 400);
+    return void res.status(400).json({ error: 'format must be "csv" or "json"' });
   }
   const result = format === 'csv' ? parseCSV(body.content) : parseJSON(body.content);
   const cases = result.cases.map(tc => ({ ...tc, id: generateId('tc') }));
-  return c.json({ cases, warnings: result.warnings, errors: result.errors });
+  res.json({ cases, warnings: result.warnings, errors: result.errors });
 });
 
-testSuitesRouter.delete('/:id', c => {
-  const { id } = c.req.param();
+testSuitesRouter.delete('/:id', (req, res) => {
+  const { id } = req.params;
   const deleted = TestSuiteService.delete(id);
-  if (!deleted) return c.json({ error: 'Test suite not found' }, 404);
-  return c.json({ success: true });
+  if (!deleted) return void res.status(404).json({ error: 'Test suite not found' });
+  res.json({ success: true });
 });

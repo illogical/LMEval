@@ -1,34 +1,34 @@
-import { Hono } from 'hono';
+import { Router } from 'express';
 import { PresetService } from '../services/PresetService';
 
-export const presetsRouter = new Hono();
+export const presetsRouter = Router();
 
-presetsRouter.get('/', async (c) => {
+presetsRouter.get('/', async (req, res) => {
   const presets = await PresetService.list();
-  return c.json(presets);
+  res.json(presets);
 });
 
-presetsRouter.get('/:id', async (c) => {
-  const preset = await PresetService.get(c.req.param('id'));
-  if (!preset) return c.json({ error: 'Not found' }, 404);
-  return c.json(preset);
+presetsRouter.get('/:id', async (req, res) => {
+  const preset = await PresetService.get(req.params.id);
+  if (!preset) return void res.status(404).json({ error: 'Not found' });
+  res.json(preset);
 });
 
-presetsRouter.post('/', async (c) => {
-  const body = await c.req.json();
+presetsRouter.post('/', async (req, res) => {
+  const body = req.body;
   const preset = await PresetService.create(body);
-  return c.json(preset, 201);
+  res.status(201).json(preset);
 });
 
-presetsRouter.patch('/:id', async (c) => {
-  const body = await c.req.json();
-  const preset = await PresetService.update(c.req.param('id'), body);
-  if (!preset) return c.json({ error: 'Not found' }, 404);
-  return c.json(preset);
+presetsRouter.patch('/:id', async (req, res) => {
+  const body = req.body;
+  const preset = await PresetService.update(req.params.id, body);
+  if (!preset) return void res.status(404).json({ error: 'Not found' });
+  res.json(preset);
 });
 
-presetsRouter.delete('/:id', async (c) => {
-  const deleted = await PresetService.delete(c.req.param('id'));
-  if (!deleted) return c.json({ error: 'Not found' }, 404);
-  return c.json({ ok: true });
+presetsRouter.delete('/:id', async (req, res) => {
+  const deleted = await PresetService.delete(req.params.id);
+  if (!deleted) return void res.status(404).json({ error: 'Not found' });
+  res.json({ ok: true });
 });

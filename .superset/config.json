@@ -1,6 +1,6 @@
 {
   "setup": [
-    "bun install"
+    "npm install"
   ],
   "teardown": [],
   "run": []

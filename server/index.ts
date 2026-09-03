@@ -1,51 +1,98 @@
-import { Hono } from 'hono';
-import { cors } from 'hono/cors';
-import { serve } from '@hono/node-server';
+import express, { Router, type Request, type Response, type NextFunction } from 'express';
+import cors from 'cors';
+import { createServer } from 'http';
+import { pathToFileURL } from 'url';
+import { join } from 'path';
 import { templatesRouter } from './routes/templates';
 import { promptsRouter } from './routes/prompts';
 import { testSuitesRouter } from './routes/testSuites';
 import { modelsRouter } from './routes/models';
 import { sessionsRouter } from './routes/sessions';
 import { evaluationsRouter } from './routes/evaluations';
+import { gitRouter } from './routes/git';
+import { presetsRouter } from './routes/presets';
 import { TemplateService } from './services/TemplateService';
 import { GitService } from './services/GitService';
-import { gitRouter } from './routes/git';
+import { configurePaths } from './services/FileService';
 import { setupWebSocket } from './ws';
 import { config } from './config';
-import { presetsRouter } from './routes/presets';
 
-const app = new Hono();
+/**
+ * Composition root (docs/plans/2026-08-23-homebase-integration.md §2). Builds
+ * the Express router and runs the (still I/O, but now deferred until called
+ * rather than run at module-import time) startup checks. Has no side effects
+ * beyond that — never listens, never touches the WebSocket server. Those are
+ * the caller's job (the standalone guard below, or the hosted adapter's
+ * initialize()/attachRealtime()).
+ *
+ * Returns a bare Router (not a full Express app) so it can be assigned
+ * directly to HomeBase's `HostedApplication.router` contract field. The
+ * standalone guard mounts it into its own `express()` instance at root.
+ */
+export function buildApp(): { router: Router; dispose: () => Promise<void> } {
+  const router = Router();
+  router.use(express.json());
 
-app.use('*', cors());
+  router.use('/api/eval/templates', templatesRouter);
+  router.use('/api/eval/prompts', promptsRouter);
+  router.use('/api/eval/test-suites', testSuitesRouter);
+  router.use('/api/eval/models', modelsRouter);
+  router.use('/api/eval/sessions', sessionsRouter);
+  router.use('/api/eval/evaluations', evaluationsRouter);
+  router.use('/api/eval/git', gitRouter);
+  router.use('/api/eval/presets', presetsRouter);
 
-app.route('/api/eval/templates', templatesRouter);
-app.route('/api/eval/prompts', promptsRouter);
-app.route('/api/eval/test-suites', testSuitesRouter);
-app.route('/api/eval/models', modelsRouter);
-app.route('/api/eval/sessions', sessionsRouter);
-app.route('/api/eval/evaluations', evaluationsRouter);
-app.route('/api/eval/git', gitRouter);
-app.route('/api/eval/presets', presetsRouter);
+  router.get('/api/eval/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
 
-app.get('/api/eval/health', c => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  router.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+    // express.json() forwards a malformed body here as a SyntaxError before
+    // any route handler runs — surface it the same way Hono's c.req.json()
+    // rejection used to (a 400, not the generic 500 below).
+    if (err instanceof SyntaxError && 'body' in err) {
+      return void res.status(400).json({ error: 'Invalid JSON body' });
+    }
+    console.error('[server] Unhandled error:', err);
+    res.status(500).json({ error: (err as Error).message ?? 'Internal server error' });
+  });
 
-app.onError((err, c) => {
-  console.error('[server] Unhandled error:', err);
-  return c.json({ error: err.message }, 500);
-});
+  // Seed built-in templates on startup
+  TemplateService.seedBuiltIns();
 
-// Seed built-in templates on startup
-TemplateService.seedBuiltIns();
+  // Check if data dir is a git repo on startup
+  GitService.isInitialized().then(initialized => {
+    if (!initialized) {
+      console.warn('[git] data/ is not a git repository. Run POST /api/eval/git/init to initialize.');
+    }
+  }).catch(() => {});
 
-// Check if data dir is a git repo on startup
-GitService.isInitialized().then(initialized => {
-  if (!initialized) {
-    console.warn('[git] data/ is not a git repository. Run POST /api/eval/git/init to initialize.');
-  }
-}).catch(() => {});
+  return {
+    router,
+    // Nothing owned at this layer needs releasing today — WebSocket
+    // teardown is the caller's responsibility via setupWebSocket()'s own
+    // returned Disposer (server/ws.ts), not duplicated here.
+    dispose: async () => {},
+  };
+}
 
-const httpServer = serve({ fetch: app.fetch, port: config.port }, () => {
-  console.log(`Eval server running on http://localhost:${config.port}`);
-});
+const isMainModule = process.argv[1] !== undefined
+  && import.meta.url === pathToFileURL(process.argv[1]).href;
 
-setupWebSocket(httpServer);
+if (isMainModule) {
+  configurePaths({ dataRoot: join(process.cwd(), 'data'), repoRoot: process.cwd() });
+
+  const { router } = buildApp();
+
+  const app = express();
+  app.use(cors());
+  app.use(router);
+
+  const httpServer = createServer(app);
+  httpServer.listen(config.port, () => {
+    console.log(`Eval server running on http://localhost:${config.port}`);
+  });
+
+  setupWebSocket(httpServer, '/');
+}

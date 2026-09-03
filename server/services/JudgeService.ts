@@ -1,8 +1,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { JUDGE_PROMPTS_DIR } from './FileService';
 import type { JudgePerspective, JudgeResult, PairwiseRanking, EvalTemplate } from '../../src/types/eval';
-
-const JUDGE_PROMPTS_DIR = join(process.cwd(), 'data', 'prompts', 'judge');
 
 function loadJudgePrompt(filename: string): string {
   const filePath = join(JUDGE_PROMPTS_DIR, filename);

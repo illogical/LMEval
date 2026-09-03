@@ -14,7 +14,7 @@ import { EvalLayout } from './layouts/EvalLayout.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route path="/" element={<SessionHubPage />} />
         <Route path="/compare" element={<ComparePage />} />

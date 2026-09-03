@@ -1,8 +1,6 @@
 import { join } from 'path';
-import { readJson, writeJson, deleteFile, listDir, generateId, ensureDir } from './FileService';
+import { readJson, writeJson, deleteFile, listDir, generateId, ensureDir, PRESETS_DIR } from './FileService';
 import type { EvalPreset } from '../../src/types/eval';
-
-const PRESETS_DIR = join(process.cwd(), 'data', 'evals', 'presets');
 
 function presetPath(id: string) {
   return join(PRESETS_DIR, `${id}.json`);

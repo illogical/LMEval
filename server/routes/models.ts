@@ -1,21 +1,21 @@
-import { Hono } from 'hono';
+import { Router } from 'express';
 import { join } from 'path';
 import { LmapiClient } from '../services/LmapiClient';
 import { readJson, ensureDir, listDir, EVALUATIONS_DIR } from '../services/FileService';
 import type { EvaluationConfig, EvaluationSummary } from '../../src/types/eval';
 
-export const modelsRouter = new Hono();
+export const modelsRouter = Router();
 
-modelsRouter.get('/', async c => {
+modelsRouter.get('/', async (req, res) => {
   try {
     const models = await LmapiClient.getLoadedModels();
-    return c.json({ models });
+    res.json({ models });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 502);
+    res.status(502).json({ error: (err as Error).message });
   }
 });
 
-modelsRouter.get('/by-server', async c => {
+modelsRouter.get('/by-server', async (req, res) => {
   try {
     const servers = await LmapiClient.getServers();
     const result = servers
@@ -24,13 +24,13 @@ modelsRouter.get('/by-server', async c => {
         name: s.config.name,
         models: [...s.models].sort((a, b) => a.localeCompare(b)),
       }));
-    return c.json({ servers: result });
+    res.json({ servers: result });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 502);
+    res.status(502).json({ error: (err as Error).message });
   }
 });
 
-modelsRouter.get('/leaderboard', c => {
+modelsRouter.get('/leaderboard', (req, res) => {
   ensureDir(EVALUATIONS_DIR);
   const modelScores = new Map<string, number[]>();
 
@@ -55,5 +55,5 @@ modelsRouter.get('/leaderboard', c => {
     evalCount: scores.length,
   })).sort((a, b) => b.avgScore - a.avgScore);
 
-  return c.json(leaderboard);
+  res.json(leaderboard);
 });

@@ -1,28 +1,28 @@
-import { Hono } from 'hono';
+import { Router } from 'express';
 import { TemplateService } from '../services/TemplateService';
 import { LmapiClient } from '../services/LmapiClient';
 import { JudgeService } from '../services/JudgeService';
 import { generateId } from '../services/FileService';
 
-export const templatesRouter = new Hono();
+export const templatesRouter = Router();
 
-templatesRouter.get('/', c => {
+templatesRouter.get('/', (req, res) => {
   const templates = TemplateService.list();
-  return c.json(templates);
+  res.json(templates);
 });
 
-templatesRouter.get('/:id', c => {
-  const { id } = c.req.param();
+templatesRouter.get('/:id', (req, res) => {
+  const { id } = req.params;
   const template = TemplateService.get(id);
-  if (!template) return c.json({ error: 'Template not found' }, 404);
-  return c.json(template);
+  if (!template) return void res.status(404).json({ error: 'Template not found' });
+  res.json(template);
 });
 
-templatesRouter.post('/generate', async c => {
-  const body = await c.req.json() as { promptContent?: string; tools?: unknown[]; modelId?: string };
+templatesRouter.post('/generate', async (req, res) => {
+  const body = req.body as { promptContent?: string; tools?: unknown[]; modelId?: string };
 
   if (!body.promptContent) {
-    return c.json({ error: 'promptContent is required' }, 400);
+    return void res.status(400).json({ error: 'promptContent is required' });
   }
 
   let modelId = body.modelId;
@@ -37,7 +37,7 @@ templatesRouter.post('/generate', async c => {
   }
 
   if (!modelId) {
-    return c.json({ error: 'No model available. Specify modelId or ensure LMApi is running.' }, 503);
+    return void res.status(503).json({ error: 'No model available. Specify modelId or ensure LMApi is running.' });
   }
 
   const tools = body.tools as Array<{ function: { name: string; description: string } }> | undefined;
@@ -60,7 +60,7 @@ templatesRouter.post('/generate', async c => {
     const proposed = JudgeService.parseTemplateGeneratorResponse(raw);
 
     if (!proposed) {
-      return c.json({ error: 'Model returned unparseable response', raw }, 422);
+      return void res.status(422).json({ error: 'Model returned unparseable response', raw });
     }
 
     const now = new Date().toISOString();
@@ -76,40 +76,40 @@ templatesRouter.post('/generate', async c => {
       updatedAt: now,
     };
 
-    return c.json(result);
+    res.json(result);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    res.status(500).json({ error: (err as Error).message });
   }
 });
 
-templatesRouter.post('/', async c => {
-  const body = await c.req.json();
+templatesRouter.post('/', (req, res) => {
+  const body = req.body;
   if (!body.name || !body.perspectives) {
-    return c.json({ error: 'name and perspectives are required' }, 400);
+    return void res.status(400).json({ error: 'name and perspectives are required' });
   }
   const template = TemplateService.create(body);
-  return c.json(template, 201);
+  res.status(201).json(template);
 });
 
-templatesRouter.put('/:id', async c => {
-  const { id } = c.req.param();
-  const body = await c.req.json();
+templatesRouter.put('/:id', (req, res) => {
+  const { id } = req.params;
+  const body = req.body;
   try {
     const updated = TemplateService.update(id, body);
-    if (!updated) return c.json({ error: 'Template not found' }, 404);
-    return c.json(updated);
+    if (!updated) return void res.status(404).json({ error: 'Template not found' });
+    res.json(updated);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 403);
+    res.status(403).json({ error: (err as Error).message });
   }
 });
 
-templatesRouter.delete('/:id', c => {
-  const { id } = c.req.param();
+templatesRouter.delete('/:id', (req, res) => {
+  const { id } = req.params;
   try {
     const deleted = TemplateService.delete(id);
-    if (!deleted) return c.json({ error: 'Template not found' }, 404);
-    return c.json({ success: true });
+    if (!deleted) return void res.status(404).json({ error: 'Template not found' });
+    res.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 403);
+    res.status(403).json({ error: (err as Error).message });
   }
 });

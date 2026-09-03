@@ -2,9 +2,9 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { join } from 'path';
 import { existsSync, writeFileSync } from 'fs';
+import { DATA_ROOT } from './FileService';
 
 const execFileAsync = promisify(execFile);
-const DATA_ROOT = join(process.cwd(), 'data');
 
 function gitExec(args: string[]): Promise<{ stdout: string; stderr: string }> {
   return execFileAsync('git', ['-C', DATA_ROOT, ...args]);

@@ -1,97 +1,97 @@
-import { Hono } from 'hono';
+import { Router } from 'express';
 import { SessionService } from '../services/SessionService';
 
-export const sessionsRouter = new Hono();
+export const sessionsRouter = Router();
 
-sessionsRouter.get('/', c => {
-  return c.json(SessionService.list());
+sessionsRouter.get('/', (req, res) => {
+  res.json(SessionService.list());
 });
 
-sessionsRouter.get('/:id', c => {
-  const { id } = c.req.param();
+sessionsRouter.get('/:id', (req, res) => {
+  const { id } = req.params;
   const session = SessionService.get(id);
-  if (!session) return c.json({ error: 'Session not found' }, 404);
-  return c.json(session);
+  if (!session) return void res.status(404).json({ error: 'Session not found' });
+  res.json(session);
 });
 
-sessionsRouter.get('/:id/active', c => {
-  const { id } = c.req.param();
+sessionsRouter.get('/:id/active', (req, res) => {
+  const { id } = req.params;
   const version = SessionService.getActiveVersion(id);
-  if (!version) return c.json({ error: 'Session or active version not found' }, 404);
-  return c.json(version);
+  if (!version) return void res.status(404).json({ error: 'Session or active version not found' });
+  res.json(version);
 });
 
-sessionsRouter.get('/:id/versions/:version', c => {
-  const { id, version } = c.req.param();
+sessionsRouter.get('/:id/versions/:version', (req, res) => {
+  const { id, version } = req.params;
   const sv = SessionService.getVersion(id, Number(version));
-  if (!sv) return c.json({ error: 'Version not found' }, 404);
-  return c.json(sv);
+  if (!sv) return void res.status(404).json({ error: 'Version not found' });
+  res.json(sv);
 });
 
-sessionsRouter.post('/', async c => {
-  const body = await c.req.json();
+sessionsRouter.post('/', (req, res) => {
+  const body = req.body;
   if (!body.name || !body.promptA || !body.promptB) {
-    return c.json({ error: 'name, promptA, and promptB are required' }, 400);
+    return void res.status(400).json({ error: 'name, promptA, and promptB are required' });
   }
   if (!body.promptA.promptId || body.promptA.promptVersion == null) {
-    return c.json({ error: 'promptA must have promptId and promptVersion' }, 400);
+    return void res.status(400).json({ error: 'promptA must have promptId and promptVersion' });
   }
   if (!body.promptB.promptId || body.promptB.promptVersion == null) {
-    return c.json({ error: 'promptB must have promptId and promptVersion' }, 400);
+    return void res.status(400).json({ error: 'promptB must have promptId and promptVersion' });
   }
   const session = SessionService.create(body);
-  return c.json(session, 201);
+  res.status(201).json(session);
 });
 
-sessionsRouter.post('/:id/versions', async c => {
-  const { id } = c.req.param();
-  const body = await c.req.json();
+sessionsRouter.post('/:id/versions', (req, res) => {
+  const { id } = req.params;
+  const body = req.body;
   if (!body.promptA || !body.promptB) {
-    return c.json({ error: 'promptA and promptB are required' }, 400);
+    return void res.status(400).json({ error: 'promptA and promptB are required' });
   }
   const version = SessionService.createVersion(id, body);
-  if (!version) return c.json({ error: 'Session not found' }, 404);
-  return c.json(version, 201);
+  if (!version) return void res.status(404).json({ error: 'Session not found' });
+  res.status(201).json(version);
 });
 
-sessionsRouter.put('/:id/latest', async c => {
-  const { id } = c.req.param();
-  const body = await c.req.json();
-  if (body.version == null) return c.json({ error: 'version is required' }, 400);
+sessionsRouter.put('/:id/latest', (req, res) => {
+  const { id } = req.params;
+  const body = req.body;
+  if (body.version == null) return void res.status(400).json({ error: 'version is required' });
   const updated = SessionService.setLatestVersion(id, Number(body.version));
-  if (!updated) return c.json({ error: 'Session or version not found' }, 404);
-  return c.json(updated);
+  if (!updated) return void res.status(404).json({ error: 'Session or version not found' });
+  res.json(updated);
 });
 
-sessionsRouter.get('/:id/runs', c => {
-  const { id } = c.req.param();
-  const versionParam = c.req.query('version');
+sessionsRouter.get('/:id/runs', (req, res) => {
+  const { id } = req.params;
+  const versionParam = req.query.version as string | undefined;
   const runs = SessionService.listEvalRuns(id, versionParam ? Number(versionParam) : undefined);
-  return c.json(runs);
+  res.json(runs);
 });
 
-sessionsRouter.post('/:id/runs', async c => {
-  const { id } = c.req.param();
-  const body = await c.req.json();
+sessionsRouter.post('/:id/runs', (req, res) => {
+  const { id } = req.params;
+  const body = req.body;
   if (!body.evalId || body.sessionVersion == null) {
-    return c.json({ error: 'evalId and sessionVersion are required' }, 400);
+    return void res.status(400).json({ error: 'evalId and sessionVersion are required' });
   }
   const run = SessionService.addEvalRun(id, Number(body.sessionVersion), body.evalId);
-  if (!run) return c.json({ error: 'Session not found' }, 404);
-  return c.json(run, 201);
+  if (!run) return void res.status(404).json({ error: 'Session not found' });
+  res.status(201).json(run);
 });
 
-sessionsRouter.patch('/:id/runs/:runId', async c => {
-  const { id, runId } = c.req.param();
-  const body = await c.req.json();
+sessionsRouter.patch('/:id/runs/:runId', (req, res) => {
+  const { id, runId } = req.params;
+  const body = req.body;
   const updated = SessionService.updateEvalRun(id, runId, body);
-  if (!updated) return c.json({ error: 'Run not found' }, 404);
-  return c.json(updated);
+  if (!updated) return void res.status(404).json({ error: 'Run not found' });
+  res.json(updated);
 });
 
-sessionsRouter.delete('/:id', c => {
-  const { id } = c.req.param();
+sessionsRouter.delete('/:id', (req, res) => {
+  const { id } = req.params;
   const deleted = SessionService.delete(id);
-  if (!deleted) return c.json({ error: 'Session not found' }, 404);
-  return c.json({ success: true });
+  if (!deleted) return void res.status(404).json({ error: 'Session not found' });
+  res.json({ success: true });
 });

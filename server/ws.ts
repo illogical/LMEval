@@ -1,3 +1,5 @@
+import type { Server } from 'http';
+import { WebSocketServer } from 'ws';
 import { setBroadcast } from './services/ExecutionService';
 import type { EvalStreamEvent } from '../src/types/eval';
 
@@ -7,55 +9,48 @@ export function broadcast(event: EvalStreamEvent) {
   broadcastFn?.(event);
 }
 
-export function setupWebSocket(server: unknown) {
-  // Try to use the ws package for real WebSocket support
-  let WebSocketServer: typeof import('ws').WebSocketServer | null = null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    WebSocketServer = require('ws').WebSocketServer;
-  } catch {
-    // ws not available — fall back to logging
-  }
+export type Disposer = () => Promise<void> | void;
 
-  if (WebSocketServer && server) {
-    try {
-      const wss = new WebSocketServer({ server: server as import('http').Server, path: '/ws/eval' });
+/**
+ * Namespaces the WebSocket upgrade path under `basePath` ("/" standalone,
+ * "/lmeval/" hosted) so it doesn't intercept upgrade requests for sibling
+ * apps sharing HomeBase's http.Server (docs/plans/2026-08-23-homebase-integration.md §5).
+ */
+export function setupWebSocket(server: Server, basePath: string = '/'): Disposer {
+  const path = `${basePath}ws/eval`.replace(/\/\/+/g, '/');
+  const wss = new WebSocketServer({ server, path });
 
-      broadcastFn = (event: EvalStreamEvent) => {
-        const msg = JSON.stringify(event);
-        wss.clients.forEach(client => {
-          if (client.readyState === 1 /* OPEN */) {
-            client.send(msg);
-          }
-        });
-        if (process.env.NODE_ENV !== 'test') {
-          console.log(`[eval:ws] broadcast ${event.type} (${event.evalId}) to ${wss.clients.size} clients`);
-        }
-      };
-
-      wss.on('connection', (ws) => {
-        if (process.env.NODE_ENV !== 'test') {
-          console.log('[eval:ws] client connected');
-        }
-        ws.on('close', () => {
-          if (process.env.NODE_ENV !== 'test') {
-            console.log('[eval:ws] client disconnected');
-          }
-        });
-      });
-    } catch (err) {
-      console.warn('[eval:ws] Failed to start WebSocket server:', err);
-      broadcastFn = logBroadcast;
+  broadcastFn = (event: EvalStreamEvent) => {
+    const msg = JSON.stringify(event);
+    wss.clients.forEach(client => {
+      if (client.readyState === 1 /* OPEN */) {
+        client.send(msg);
+      }
+    });
+    if (process.env.NODE_ENV !== 'test') {
+      console.log(`[eval:ws] broadcast ${event.type} (${event.evalId}) to ${wss.clients.size} clients`);
     }
-  } else {
-    broadcastFn = logBroadcast;
-  }
+  };
 
-  setBroadcast(broadcastFn ?? logBroadcast);
-}
+  wss.on('connection', (ws) => {
+    if (process.env.NODE_ENV !== 'test') {
+      console.log('[eval:ws] client connected');
+    }
+    ws.on('close', () => {
+      if (process.env.NODE_ENV !== 'test') {
+        console.log('[eval:ws] client disconnected');
+      }
+    });
+  });
 
-function logBroadcast(event: EvalStreamEvent) {
-  if (process.env.NODE_ENV !== 'test') {
-    console.log(`[eval:event] ${event.type} (${event.evalId})`);
-  }
+  setBroadcast(broadcastFn);
+
+  return () => {
+    setBroadcast(() => {});
+    broadcastFn = null;
+    for (const client of wss.clients) {
+      client.terminate();
+    }
+    return new Promise(resolve => wss.close(() => resolve()));
+  };
 }

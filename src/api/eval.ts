@@ -2,7 +2,9 @@ import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCa
 import type { ParseResult } from '../utils/testCaseIO';
 import type { SessionManifest, SessionSlot } from '../types/session';
 
-const BASE = '/api/eval';
+// "/api/eval" standalone, "/lmeval/api/eval" when hosted under HomeBase —
+// derived from Vite's BASE_URL (docs/plans/2026-08-23-homebase-integration.md §4).
+const BASE = `${import.meta.env.BASE_URL}api/eval`.replace(/\/\/+/g, '/');
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -114,7 +116,7 @@ export async function getEvaluationSummary(id: string): Promise<EvaluationSummar
   return apiFetch(`/evaluations/${id}/summary`);
 }
 export async function exportEvaluation(id: string, format: 'html' | 'md'): Promise<Blob> {
-  const res = await fetch(`/api/eval/evaluations/${id}/export?format=${format}`);
+  const res = await fetch(`${BASE}/evaluations/${id}/export?format=${format}`);
   if (!res.ok) throw new Error(res.statusText);
   return res.blob();
 }

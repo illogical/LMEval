@@ -10,7 +10,10 @@ const WebSocketContext = createContext<WebSocketContextValue | null>(null);
 
 const WS_URL = (() => {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${window.location.host}/ws/eval`;
+  // BASE_URL is "/" standalone, "/lmeval/" hosted — matches the namespaced
+  // path setupWebSocket() registers server-side (server/ws.ts).
+  const path = `${import.meta.env.BASE_URL}ws/eval`.replace(/\/\/+/g, '/');
+  return `${proto}//${window.location.host}${path}`;
 })();
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {

@@ -209,7 +209,7 @@ export interface EvaluationSummary {
 }
 
 export interface EvalStreamEvent {
-  type: 'cell:started' | 'cell:completed' | 'cell:failed' | 'eval:progress' | 'eval:completed' | 'eval:failed' | 'judge:started' | 'judge:completed';
+  type: 'cell:started' | 'cell:completed' | 'cell:failed' | 'eval:progress' | 'eval:completed' | 'eval:cancelled' | 'eval:failed' | 'judge:started' | 'judge:completed';
   evalId: string;
   data: Record<string, unknown>;
   timestamp: number;

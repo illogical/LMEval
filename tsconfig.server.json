@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.server.tsbuildinfo",
+    "target": "ES2023",
+    // DOM only for typechecking: server/routes/testSuites.ts imports
+    // parseCSV/parseJSON from src/utils/testCaseIO.ts, a file shared with
+    // the browser that also has a browser-only downloadFile() helper the
+    // server never calls but that still gets typechecked as part of this
+    // program. Node has no DOM at runtime; nothing server-side uses it.
+    "lib": ["ES2023", "DOM"],
+    "module": "ESNext",
+    "types": ["node"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    // Off (unlike tsconfig.app.json): Express handlers conventionally keep
+    // an unused `req`/`next` parameter for signature shape (route lists,
+    // error middleware) — matches the sibling Express ports (DevPlanner).
+    "noUnusedParameters": false,
+    // Off (unlike tsconfig.app.json): pre-existing services use TS parameter
+    // properties (e.g. ExecutionService's Semaphore, LmapiClient's
+    // LmapiError), which this flag rejects. Server code runs via tsx/esbuild
+    // (both strip these fine), never via Node's native type-stripping, so
+    // the flag buys nothing here.
+    "erasableSyntaxOnly": false,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["server"]
+}

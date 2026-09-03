@@ -102,14 +102,14 @@ Whether you're tightening instructions, adjusting tone, restructuring context, o
 
 | Layer | Technology |
 |---|---|
-| Runtime | Bun / Node.js |
+| Runtime | Node.js |
 | Frontend | Vite + React 19 + TypeScript |
 | Routing | react-router-dom v7 |
 | Styling | CSS custom properties (vaultpad dark theme) |
 | Icons | lucide-react |
 | Charts | Recharts (bar + line charts in results views) |
 | Syntax highlighting | highlight.js (atom-one-dark) |
-| Backend API | Hono on `@hono/node-server` |
+| Backend API | Express 5 |
 | Storage | File-based JSON + Markdown on disk |
 | JSON Schema validation | `ajv` |
 | Text diffing | `diff` npm package |
@@ -121,7 +121,7 @@ Whether you're tightening instructions, adjusting tone, restructuring context, o
 ## Prerequisites
 
 - **[LMApi](https://github.com/illogical/LMApi)** running locally on port `3111` (or configured via `LMAPI_BASE_URL`)
-- **Node.js ≥ 18** or **Bun** runtime
+- **Node.js ≥ 20**
 - At least one Ollama model available through LMApi
 
 ---
@@ -134,7 +134,6 @@ Whether you're tightening instructions, adjusting tone, restructuring context, o
 git clone https://github.com/illogical/LMEval.git
 cd LMEval
 npm install
-# or: bun install
 ```
 
 ### 2. Configure environment (optional)
@@ -150,23 +149,35 @@ PORT=3200
 LMAPI_BASE_URL=http://localhost:3111
 ```
 
-### 3. Start the frontend
+### 3. Start the frontend and backend together
 
 ```bash
 npm run dev
-# or: bun run dev
 ```
 
-Navigate to [http://localhost:5173](http://localhost:5173).
+This runs the frontend (Vite, port 5173) and the eval backend (Express, port 3200) concurrently. Navigate to [http://localhost:5173](http://localhost:5173).
 
-### 4. Start the eval backend (Phase 1+)
+To run either one on its own: `npm run dev:client` (frontend only) or `npm run dev:server` (backend only, port 3200).
 
-```bash
-npm run dev:server
-# or: bun run dev:server
-```
+---
 
-The eval API runs on [http://localhost:3200](http://localhost:3200).
+## Standalone vs. hosted (HomeBase)
+
+LMEval runs two ways from this same repository:
+
+- **Standalone** (above) — `npm run dev` for development. For production, `npm run build`
+  produces `dist/` (serve it with `npm run preview` or any static host) and `npx tsx server/index.ts`
+  runs the backend on its own (port 3200 by default).
+- **Hosted under [HomeBase](https://github.com/illogical/HomeBase)** — LMEval can run as one of
+  several applications inside HomeBase's single Node process, beneath `/lmeval/`, sharing
+  HomeBase's `http.Server`. This is driven by `server/host/` (the `HostedApplication` adapter
+  HomeBase dynamically imports) rather than `server/index.ts`'s standalone entry point.
+  - `npm run build:hosted` builds the frontend with `/lmeval/`-prefixed asset paths (instead of
+    `npm run build`'s root-relative ones) — re-run this before HomeBase serves the app, since both
+    scripts write to the same `dist/` directory.
+  - `npm run build:host` bundles `server/host/index.ts` into `dist/host/index.js`, the compiled
+    entry point HomeBase's registry (`adapterPath`) points at.
+  - See `docs/plans/2026-08-23-homebase-integration.md` for the full integration plan.
 
 ---
 
@@ -259,9 +270,10 @@ LMEval/
 │   │   └── session.ts                  # Session management types
 │   ├── test/                           # Vitest unit + component tests (83 tests)
 │   └── index.css                       # CSS custom properties, dark theme
-├── server/                     # Eval backend (Hono)
-│   ├── index.ts                # Server entry point (port 3200)
-│   ├── ws.ts                   # WebSocket server (ws package) + event broadcasting
+├── server/                     # Eval backend (Express 5)
+│   ├── index.ts                # Composition root (buildApp) + standalone entry point (port 3200)
+│   ├── ws.ts                   # WebSocket server (ws package), base-path-namespaced, + event broadcasting
+│   ├── host/                   # HomeBase HostedApplication adapter (hosted-mode entry point)
 │   ├── routes/
 │   │   ├── templates.ts        # Template CRUD + auto-generate endpoint
 │   │   ├── prompts.ts          # Prompt CRUD + history endpoint

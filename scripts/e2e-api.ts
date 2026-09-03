@@ -6,10 +6,10 @@
  * deleted in the finally block.
  *
  * Prerequisites: server must be running (port from PORT env var, default 3200)
- *   bun run dev:server
+ *   npm run dev:server
  *
  * Run:
- *   bun scripts/e2e-api.ts
+ *   npx tsx scripts/e2e-api.ts
  */
 
 import { LMEvalClient } from './lib/LMEvalClient';

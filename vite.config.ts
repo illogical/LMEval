@@ -14,6 +14,9 @@ export default defineConfig(({ mode }) => {
   const evalWsUrl = `ws://localhost:${evalPort}`
 
   return {
+    // "/" standalone, "/lmeval/" when built for HomeBase hosting (npm run
+    // build:hosted sets VITE_BASE_PATH) — see docs/plans/2026-08-23-homebase-integration.md §4.
+    base: env.VITE_BASE_PATH || '/',
     plugins: [react()],
     server: {
       historyApiFallback: true,

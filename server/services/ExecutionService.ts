@@ -9,7 +9,7 @@ import { PromptService } from './PromptService';
 import { TestSuiteService } from './TestSuiteService';
 import type {
   EvaluationConfig, EvalMatrixCell, EvaluationSummary, TestCase, ToolCallResult,
-  EvalTemplate, PairwiseRanking,
+  EvalTemplate, PairwiseRanking, EvalStreamEvent,
 } from '../../src/types/eval';
 
 class Semaphore {
@@ -38,12 +38,7 @@ class Semaphore {
 
 const CONCURRENCY_LIMIT = Math.max(1, parseInt(process.env.EVAL_CONCURRENCY ?? '8', 10) || 8);
 
-type BroadcastFn = (event: {
-  type: string;
-  evalId: string;
-  data: Record<string, unknown>;
-  timestamp: number;
-}) => void;
+type BroadcastFn = (event: EvalStreamEvent) => void;
 
 let broadcast: BroadcastFn = () => {};
 
@@ -55,6 +50,11 @@ const activeControllers = new Map<string, AbortController>();
 const cancelledEvals = new Set<string>();
 
 export const ExecutionService = {
+  /** In-flight eval ids — lets the hosted adapter's getActiveWork() honor HomeBase's shutdown grace window. */
+  getActiveEvalIds(): string[] {
+    return [...activeControllers.keys()];
+  },
+
   buildMatrix(config: EvaluationConfig, testCases: TestCase[]): EvalMatrixCell[] {
     const cells: EvalMatrixCell[] = [];
     const runsPerCell = config.runsPerCell ?? 1;

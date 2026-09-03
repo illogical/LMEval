@@ -5,7 +5,7 @@ import {
   deleteFile,
   listDir,
   generateId,
-  TEMPLATES_DIR,
+  BUILT_IN_TEMPLATES_DIR,
   CUSTOM_TEMPLATES_DIR,
   ensureDir,
 } from './FileService';
@@ -20,15 +20,15 @@ const BUILT_IN_IDS = new Set([
 
 export const TemplateService = {
   list(): EvalTemplate[] {
-    ensureDir(TEMPLATES_DIR);
+    ensureDir(BUILT_IN_TEMPLATES_DIR);
     ensureDir(CUSTOM_TEMPLATES_DIR);
 
     const builtIn: EvalTemplate[] = [];
     const custom: EvalTemplate[] = [];
 
-    for (const file of listDir(TEMPLATES_DIR)) {
+    for (const file of listDir(BUILT_IN_TEMPLATES_DIR)) {
       if (!file.endsWith('.json')) continue;
-      const t = readJson<EvalTemplate>(join(TEMPLATES_DIR, file));
+      const t = readJson<EvalTemplate>(join(BUILT_IN_TEMPLATES_DIR, file));
       if (t) builtIn.push(t);
     }
 
@@ -43,7 +43,7 @@ export const TemplateService = {
 
   get(id: string): EvalTemplate | null {
     const path = BUILT_IN_IDS.has(id)
-      ? join(TEMPLATES_DIR, `${id}.json`)
+      ? join(BUILT_IN_TEMPLATES_DIR, `${id}.json`)
       : join(CUSTOM_TEMPLATES_DIR, `${id}.json`);
     return readJson<EvalTemplate>(path);
   },
@@ -87,9 +87,9 @@ export const TemplateService = {
   },
 
   seedBuiltIns(): void {
-    ensureDir(TEMPLATES_DIR);
+    ensureDir(BUILT_IN_TEMPLATES_DIR);
     for (const id of BUILT_IN_IDS) {
-      const path = join(TEMPLATES_DIR, `${id}.json`);
+      const path = join(BUILT_IN_TEMPLATES_DIR, `${id}.json`);
       if (!readJson(path)) {
         console.warn(`Built-in template not found at ${path} — run scripts/seed-templates.ts`);
       }
