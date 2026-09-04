@@ -31,9 +31,15 @@ function reducer(state: EvalWizardState, action: Action): EvalWizardState {
       return { ...state, ...action.payload, isDirty: true };
     case 'START_EVAL':
       return { ...state, evalId: action.payload.evalId, currentStep: 3, maxVisitedStep: Math.max(state.maxVisitedStep, 3), isDirty: false };
-    case 'LOAD_PRESET':
+    case 'LOAD_PRESET': {
+      const selectedModels = (action.payload.modelIds ?? []).map(id => {
+        const [serverName, modelName] = id.split('::');
+        return { serverName, modelName };
+      });
       return {
         ...state,
+        selectedModels,
+        comparisonMode: action.payload.comparisonMode ?? state.comparisonMode,
         templateId: action.payload.templateId ?? null,
         testSuiteId: action.payload.testSuiteId ?? null,
         judgeModelId: action.payload.judgeModelId ?? null,
@@ -41,6 +47,7 @@ function reducer(state: EvalWizardState, action: Action): EvalWizardState {
         runsPerCell: action.payload.runsPerCell,
         isDirty: true,
       };
+    }
     case 'LOAD_PURPOSE_TEMPLATE':
       return { ...state, ...purposeTemplateToState(action.payload), isDirty: true };
     case 'RESET':

@@ -254,6 +254,7 @@ export interface EvalPreset {
   name: string;
   description?: string;
   modelIds: string[];
+  comparisonMode?: EvalComparisonMode;
   templateId?: string;
   testSuiteId?: string;
   judgeModelId?: string;

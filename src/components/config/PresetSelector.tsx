@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { listPresets, createPreset, deletePreset } from '../../api/eval';
-import type { EvalPreset } from '../../types/eval';
+import type { EvalPreset, EvalComparisonMode } from '../../types/eval';
 import './PresetSelector.css';
 
 interface PresetSelectorProps {
@@ -11,6 +11,7 @@ interface PresetSelectorProps {
     enablePairwise: boolean;
     runsPerCell: number;
     modelIds: string[];
+    comparisonMode: EvalComparisonMode;
   };
   onLoad: (preset: EvalPreset) => void;
 }
@@ -32,6 +33,7 @@ export function PresetSelector({ currentState, onLoad }: PresetSelectorProps) {
       const preset = await createPreset({
         name: newName.trim(),
         modelIds: currentState.modelIds,
+        comparisonMode: currentState.comparisonMode,
         templateId: currentState.templateId ?? undefined,
         testSuiteId: currentState.testSuiteId ?? undefined,
         judgeModelId: currentState.judgeModelId ?? undefined,
