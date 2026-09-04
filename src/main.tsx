@@ -5,6 +5,7 @@ import './index.css'
 import App from './App.tsx'
 import { ComparePage } from './pages/ComparePage.tsx'
 import { SessionHubPage } from './pages/SessionHubPage.tsx'
+import { TemplateGalleryPage } from './pages/TemplateGalleryPage.tsx'
 import { PromptsPage } from './pages/PromptsPage.tsx'
 import { ConfigPage } from './pages/ConfigPage.tsx'
 import { DashboardPage } from './pages/DashboardPage.tsx'
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route path="/" element={<SessionHubPage />} />
+        <Route path="/eval/templates" element={<TemplateGalleryPage />} />
         <Route path="/compare" element={<ComparePage />} />
         <Route path="/app" element={<App />} />
         <Route path="/eval" element={<EvalLayout />}>

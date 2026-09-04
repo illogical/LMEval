@@ -1,0 +1,45 @@
+{
+  "id": "summarization",
+  "name": "Summarization",
+  "description": "Summarize memory content for use as a description in a vector database and semantic search — seeded from MemoryAPI's memory-summary prompt. Scored via LLM rubric (conciseness, faithfulness, coverage), not deterministic checks.",
+  "purposeCategory": "summarization",
+  "builtIn": true,
+  "seedPromptContent": "Summarize the following memory content for use as an effective content description in a vector database and semantic search. Return only the summary, with no preamble or explanation.\n\nThe memory content to summarize will be given in the next message.",
+  "defaultComparisonMode": "prompt",
+  "assertionStrategy": {
+    "type": "llm-rubric",
+    "config": {
+      "templateId": "summarization-quality",
+      "dimensions": ["conciseness", "faithfulness", "coverage"]
+    }
+  },
+  "starterTestCases": [
+    {
+      "id": "seed-sum-1",
+      "userMessage": "Meeting notes from the Q3 planning session: we agreed to prioritize the mobile redesign over the API v2 migration this quarter, since customer support tickets show the mobile UI is the top complaint. Sarah will own the redesign spec, due in two weeks. The API migration is pushed to Q4. We also discussed hiring a contractor for QA but decided to wait until budget is confirmed in the next finance review.",
+      "description": "Meeting notes with a decision, an owner, and a deferred item"
+    },
+    {
+      "id": "seed-sum-2",
+      "userMessage": "I've been reading about transformer architectures and how attention mechanisms let models weigh the relevance of different tokens in a sequence, rather than processing everything sequentially like RNNs did. The key insight is self-attention: every token can directly attend to every other token in a single layer, which is why transformers parallelize so much better on GPUs than recurrent models ever did.",
+      "description": "Technical learning note explaining a concept"
+    },
+    {
+      "id": "seed-sum-3",
+      "userMessage": "Doctor appointment recap: blood pressure was slightly elevated at 138/88, doctor recommended cutting back on sodium and doing 30 minutes of cardio 4x a week. Follow-up bloodwork scheduled in 6 weeks to check cholesterol. No new medications prescribed for now.",
+      "description": "Medical appointment recap with follow-up actions"
+    },
+    {
+      "id": "seed-sum-4",
+      "userMessage": "Idea for a side project: a browser extension that automatically summarizes long Slack threads into a 3-bullet TL;DR using a local LLM, so you don't have to scroll through 200 messages to catch up after being out for a day. Could start with just Slack, but Discord and Teams would be natural extensions later.",
+      "description": "Project idea with a core concept and possible extensions"
+    },
+    {
+      "id": "seed-sum-5",
+      "userMessage": "Traveled to Lisbon for a work conference in March 2025. Gave a talk on distributed tracing at the main track, met two engineers from a company doing similar observability work who we're now considering as integration partners. Also spent a day exploring the city — really enjoyed the food scene, especially the seafood near Cais do Sodré.",
+      "description": "Travel/event memory mixing work outcomes and personal experience"
+    }
+  ],
+  "createdAt": "2026-09-03T00:00:00.000Z",
+  "updatedAt": "2026-09-03T00:00:00.000Z"
+}

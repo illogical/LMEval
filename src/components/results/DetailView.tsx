@@ -24,7 +24,27 @@ export function DetailView({ cell }: DetailViewProps) {
         <pre className="dv-response">{cell.response ?? cell.error ?? 'No response'}</pre>
       </section>
 
-      {cell.deterministicMetrics && (
+      {cell.assertionResults && cell.assertionResults.length > 0 && (
+        <section className="dv-section">
+          <h4 className="dv-section-title">Assertions</h4>
+          <table className="dv-table">
+            <tbody>
+              {cell.assertionResults.map((ar, i) => (
+                <tr key={`${ar.type}-${ar.metric ?? i}`}>
+                  <td>{ar.metric ?? ar.type}</td>
+                  <td className={ar.pass ? 'dv-ok' : 'dv-err'}>
+                    {ar.pass ? '✓' : '✗'} {ar.type}
+                    {ar.score != null && ` (${ar.score.toFixed(2)})`}
+                    {ar.reason && <span className="dv-judge-just"> — {ar.reason}</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {!cell.assertionResults && cell.deterministicMetrics && (
         <section className="dv-section">
           <h4 className="dv-section-title">Deterministic Checks</h4>
           <table className="dv-table">
@@ -60,7 +80,7 @@ export function DetailView({ cell }: DetailViewProps) {
         </section>
       )}
 
-      {cell.judgeResults && cell.judgeResults.length > 0 && (
+      {!cell.assertionResults && cell.judgeResults && cell.judgeResults.length > 0 && (
         <section className="dv-section">
           <h4 className="dv-section-title">Judge Scores</h4>
           {cell.judgeResults.map(jr => (

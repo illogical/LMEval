@@ -46,6 +46,15 @@ export const SummaryService = {
           perspectiveScores[jr.perspectiveId] = (perspectiveScores[jr.perspectiveId] ?? 0) + jr.score;
           perspectiveCounts[jr.perspectiveId] = (perspectiveCounts[jr.perspectiveId] ?? 0) + 1;
         }
+        // New engine: llm-rubric assertionResults carry a 0-1 score under `metric`
+        // (the perspective name) — rescale to the same 1-5 scale judgeResults used
+        // so old and new evals aggregate onto one comparable range.
+        for (const ar of cell.assertionResults ?? []) {
+          if (ar.type !== 'llm-rubric' || ar.score == null || !ar.metric) continue;
+          const rescaled = 1 + Math.max(0, Math.min(1, ar.score)) * 4;
+          perspectiveScores[ar.metric] = (perspectiveScores[ar.metric] ?? 0) + rescaled;
+          perspectiveCounts[ar.metric] = (perspectiveCounts[ar.metric] ?? 0) + 1;
+        }
       }
       const avgPerspectiveScores: Record<string, number> = {};
       for (const [id, total] of Object.entries(perspectiveScores)) {

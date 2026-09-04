@@ -79,6 +79,7 @@ export function slugify(text: string): string {
 export let DATA_ROOT = join(process.cwd(), 'data');
 export let DATA_DIR = join(DATA_ROOT, 'evals');
 export let CUSTOM_TEMPLATES_DIR = join(DATA_DIR, 'templates', 'custom');
+export let CUSTOM_PURPOSE_TEMPLATES_DIR = join(DATA_DIR, 'purpose-templates', 'custom');
 export let PROMPTS_DIR = join(DATA_DIR, 'prompts');
 export let TEST_SUITES_DIR = join(DATA_DIR, 'test-suites');
 export let EVALUATIONS_DIR = join(DATA_DIR, 'evaluations');
@@ -88,6 +89,7 @@ export let SESSIONS_DIR = join(DATA_ROOT, 'sessions');
 
 export let REPO_ROOT = process.cwd();
 export let BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');
+export let BUILT_IN_PURPOSE_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'purpose-templates');
 export let REPORT_TEMPLATE_PATH = join(REPO_ROOT, 'data', 'evals', 'templates', 'report-template.html');
 export let JUDGE_PROMPTS_DIR = join(REPO_ROOT, 'data', 'prompts', 'judge');
 
@@ -100,6 +102,7 @@ export function configurePaths(options: { dataRoot: string; repoRoot: string }):
   DATA_ROOT = options.dataRoot;
   DATA_DIR = join(DATA_ROOT, 'evals');
   CUSTOM_TEMPLATES_DIR = join(DATA_DIR, 'templates', 'custom');
+  CUSTOM_PURPOSE_TEMPLATES_DIR = join(DATA_DIR, 'purpose-templates', 'custom');
   PROMPTS_DIR = join(DATA_DIR, 'prompts');
   TEST_SUITES_DIR = join(DATA_DIR, 'test-suites');
   EVALUATIONS_DIR = join(DATA_DIR, 'evaluations');
@@ -109,6 +112,7 @@ export function configurePaths(options: { dataRoot: string; repoRoot: string }):
 
   REPO_ROOT = options.repoRoot;
   BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');
+  BUILT_IN_PURPOSE_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'purpose-templates');
   REPORT_TEMPLATE_PATH = join(REPO_ROOT, 'data', 'evals', 'templates', 'report-template.html');
   JUDGE_PROMPTS_DIR = join(REPO_ROOT, 'data', 'prompts', 'judge');
 }

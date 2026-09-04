@@ -1,0 +1,115 @@
+.tg-page {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.tg-content {
+  width: 100%;
+  max-width: 900px;
+}
+
+.tg-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 32px;
+  transition: color 0.15s;
+}
+
+.tg-back:hover {
+  color: var(--accent);
+}
+
+.tg-hero {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.tg-title {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--accent);
+  margin: 0 0 10px;
+  letter-spacing: -0.02em;
+}
+
+.tg-subtitle {
+  font-size: 15px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.tg-loading {
+  text-align: center;
+  color: var(--muted);
+  padding: 40px;
+}
+
+.tg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.tg-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--accent);
+}
+
+.tg-card:hover {
+  background: var(--card-hover);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.tg-card--blank {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+.tg-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.tg-card-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.tg-card-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  background: rgba(79, 193, 255, 0.1);
+  border-radius: 4px;
+  padding: 2px 6px;
+}

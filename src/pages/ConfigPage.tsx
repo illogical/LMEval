@@ -8,7 +8,7 @@ import { ExecutionPreview } from '../components/config/ExecutionPreview';
 import { PresetSelector } from '../components/config/PresetSelector';
 import { useEvalWizard } from '../contexts/EvalWizardContext';
 import { useEvalHeaderAction } from '../contexts/EvalHeaderActionContext';
-import { createEvaluation, createPrompt } from '../api/eval';
+import { createEvaluation, createPrompt, createPurposeTemplate, getPurposeTemplate } from '../api/eval';
 import './ConfigPage.css';
 
 export function ConfigPage() {
@@ -17,6 +17,47 @@ export function ConfigPage() {
   const { setHeaderAction } = useEvalHeaderAction();
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [judgeRequired, setJudgeRequired] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [showSaveTemplateForm, setShowSaveTemplateForm] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
+
+  useEffect(() => {
+    if (!state.purposeTemplateId) { setJudgeRequired(false); return; }
+    let cancelled = false;
+    getPurposeTemplate(state.purposeTemplateId)
+      .then(t => { if (!cancelled) setJudgeRequired(t.assertionStrategy.type === 'llm-rubric'); })
+      .catch(() => { if (!cancelled) setJudgeRequired(false); });
+    return () => { cancelled = true; };
+  }, [state.purposeTemplateId]);
+
+  async function handleSaveAsTemplate() {
+    if (!newTemplateName.trim()) return;
+    setSavingTemplate(true);
+    try {
+      const strategyType = state.judgeModelId && state.templateId ? 'llm-rubric' as const : 'custom' as const;
+      await createPurposeTemplate({
+        name: newTemplateName.trim(),
+        description: '',
+        seedPromptContent: state.promptA.content,
+        defaultComparisonMode: state.comparisonMode,
+        assertionStrategy: {
+          type: strategyType,
+          config: strategyType === 'llm-rubric' ? { templateId: state.templateId } : {},
+        },
+        starterTestCases: state.inlineTestCases,
+      });
+      setNewTemplateName('');
+      setShowSaveTemplateForm(false);
+      setTemplateSaved(true);
+      setTimeout(() => setTemplateSaved(false), 2500);
+    } catch (err) {
+      console.error('Failed to save template:', err);
+    } finally {
+      setSavingTemplate(false);
+    }
+  }
 
   const promptCount = [state.promptA, state.promptB].filter(p => p.content.trim()).length;
   const modelCount = state.selectedModels.length;
@@ -57,6 +98,8 @@ export function ConfigPage() {
         name: `Eval ${new Date().toLocaleString()}`,
         promptIds,
         modelIds,
+        comparisonMode: state.comparisonMode,
+        purposeTemplateId: state.purposeTemplateId ?? undefined,
         templateId: state.templateId ?? undefined,
         testSuiteId: state.testSuiteId ?? undefined,
         inlineTestCases: state.inlineTestCases.length > 0 ? state.inlineTestCases : undefined,
@@ -116,7 +159,10 @@ export function ConfigPage() {
           </div>
 
           <div className="cp-card">
-            <h3 className="cp-section-title">Judge Configuration</h3>
+            <h3 className="cp-section-title">
+              Judge Configuration
+              {judgeRequired && <span className="cp-required-badge">Required for this template</span>}
+            </h3>
             <JudgeConfig
               judgeModelId={state.judgeModelId}
               onJudgeModelChange={id => dispatch({ type: 'SET_CONFIG', payload: { judgeModelId: id } })}
@@ -152,6 +198,35 @@ export function ConfigPage() {
               }}
               onLoad={preset => dispatch({ type: 'LOAD_PRESET', payload: preset })}
             />
+          </div>
+
+          <div className="cp-card">
+            <h3 className="cp-section-title">Save as Template</h3>
+            <div className="cp-save-template">
+              {!showSaveTemplateForm ? (
+                <button
+                  className="cp-save-template-btn"
+                  onClick={() => setShowSaveTemplateForm(true)}
+                  disabled={!state.promptA.content.trim()}
+                >
+                  {templateSaved ? '✓ Saved' : '📋 Save as Template'}
+                </button>
+              ) : (
+                <div className="cp-save-template-form">
+                  <input
+                    className="cp-save-template-input"
+                    value={newTemplateName}
+                    onChange={e => setNewTemplateName(e.target.value)}
+                    placeholder="Template name…"
+                    onKeyDown={e => e.key === 'Enter' && handleSaveAsTemplate()}
+                  />
+                  <button onClick={handleSaveAsTemplate} disabled={savingTemplate || !newTemplateName.trim()}>
+                    {savingTemplate ? 'Saving…' : 'Save'}
+                  </button>
+                  <button onClick={() => setShowSaveTemplateForm(false)}>Cancel</button>
+                </div>
+              )}
+            </div>
           </div>
 
           {error && <p className="cp-error">{error}</p>}

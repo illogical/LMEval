@@ -189,3 +189,24 @@ Reference screenshots used for inspiration:
 - [ ] Conditional Tags column in inline table when any case has tags
 - [ ] Tags editable inline as comma-separated text input
 - [ ] Verify `server/services/TestSuiteService.ts` passes through `expectedOutput` and `tags`
+
+---
+
+## Feature: Evaluation Mode Strip + Purpose Template Gallery
+
+> Full implementation plan: [`../../plans/2026-09-03-promptfoo-adoption-and-purpose-templates.md`](../../plans/2026-09-03-promptfoo-adoption-and-purpose-templates.md) (Phases 11–12); backend execution-engine half tracked in [`../../prompt-eval-system/TASK.md`](../../prompt-eval-system/TASK.md) Phase 10.
+
+**Evaluation Mode strip (Step 1):**
+- [x] `EvaluationModeStrip` component in `PromptsPage.tsx` — three cards (Model Comparison / Prompt Comparison / Full Matrix), radio-style selection, above the prompt selector bars
+- [x] Model Comparison mode swaps the A/B diff view for a single full-height textarea editor and hides the Prompt B selector bar entirely
+- [x] Mode-aware "Next" validation: Model Comparison hard-blocks below 2 models; Prompt Comparison allows 1 with a non-blocking cyan nudge line ("add another model to see if this holds up across models too")
+- [ ] Optional: N-prompt-slot UI for Full Matrix mode (currently behaves like Prompt Comparison's 2 slots — deferred as lowest priority per the source plan)
+
+**Purpose Template Gallery (pre-Step 1 entry point):**
+- [x] `TemplateGalleryPage.tsx` at `/eval/templates` — card grid (Classification / Tagging / Summarization / any custom templates / Start Blank), styled after `SessionHubPage`'s session-card grid
+- [x] Session Hub's "New Evaluation" button now routes to `/eval/templates` instead of directly to `/eval/prompts`
+- [x] Selecting a card pre-fills prompt content, comparison mode, inline test cases, and (for the Summarization template) the judge template — via `applyPurposeTemplateToStorage()` in `src/contexts/purposeTemplateStorage.ts`, since the gallery page renders outside `EvalWizardProvider`'s tree and can't dispatch directly
+- [x] Provenance badge ("from template: X") shown on Step 1 when arrived via a template
+- [x] Judge Configuration card on Step 2 shows a "Required for this template" badge when the loaded purpose template's assertion strategy is `llm-rubric` (soft indicator, not a hard block on Run)
+- [x] "Save as Template" button on Step 2, alongside "Save as Preset"
+- [ ] **Verification**: full browser walkthrough (blocked on none of the above being tested against a running dev server in this pass — `npm run build`, `tsc -b`, and `vitest` all pass, and the purpose-templates API was smoke-tested via a locally started server, but the actual gallery → wizard click-through hasn't been driven in a browser yet)

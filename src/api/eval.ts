@@ -1,4 +1,4 @@
-import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset } from '../types/eval';
+import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset, EvalPurposeTemplate } from '../types/eval';
 import type { ParseResult } from '../utils/testCaseIO';
 import type { SessionManifest, SessionSlot } from '../types/session';
 
@@ -78,6 +78,19 @@ export async function generateTemplate(promptContent: string, tools?: unknown[])
     method: 'POST',
     body: JSON.stringify({ promptContent, tools }),
   });
+}
+
+// Purpose templates
+export async function listPurposeTemplates(): Promise<EvalPurposeTemplate[]> {
+  return apiFetch('/purpose-templates');
+}
+export async function getPurposeTemplate(id: string): Promise<EvalPurposeTemplate> {
+  return apiFetch(`/purpose-templates/${id}`);
+}
+export async function createPurposeTemplate(
+  data: Omit<EvalPurposeTemplate, 'id' | 'builtIn' | 'createdAt' | 'updatedAt' | 'purposeCategory'>
+): Promise<EvalPurposeTemplate> {
+  return apiFetch('/purpose-templates', { method: 'POST', body: JSON.stringify(data) });
 }
 
 // Test Suites

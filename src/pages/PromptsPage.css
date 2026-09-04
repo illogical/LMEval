@@ -6,6 +6,107 @@
   overflow: hidden;
 }
 
+/* ── Evaluation mode strip ──────────────────────────────── */
+.pp-mode-strip {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.pp-mode-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.pp-mode-card:hover {
+  border-color: var(--accent);
+}
+
+.pp-mode-card--active {
+  border-color: var(--accent);
+  background: rgba(79, 193, 255, 0.08);
+}
+
+.pp-mode-card-label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.pp-mode-card--active .pp-mode-card-label {
+  color: var(--accent);
+}
+
+.pp-mode-card-desc {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── Provenance badge ───────────────────────────────────── */
+.pp-provenance-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 5px 12px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--accent);
+  background: rgba(79, 193, 255, 0.06);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Single-prompt editor (Model Comparison mode) ───────── */
+.pp-single-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.pp-single-editor-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 6px;
+}
+
+.pp-single-editor-textarea {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pp-hint--nudge {
+  color: var(--accent);
+}
+
 /* ── Selector bars ──────────────────────────────────────── */
 .pp-selectors {
   display: flex;

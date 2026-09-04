@@ -82,11 +82,15 @@ export interface TestSuite {
   updatedAt: string;
 }
 
+export type EvalComparisonMode = 'model' | 'prompt' | 'matrix';
+
 export interface EvaluationConfig {
   id: string;
   name: string;
   promptIds: string[];
   modelIds: string[];
+  comparisonMode?: EvalComparisonMode;
+  purposeTemplateId?: string;
   testSuiteId?: string;
   userMessage?: string;
   inlineTestCases?: TestCase[];
@@ -152,6 +156,13 @@ export interface EvalMatrixCell {
     toolCallResults?: ToolCallResult[];
   };
   judgeResults?: JudgeResult[];
+  assertionResults?: Array<{
+    type: string;
+    pass: boolean;
+    score?: number;
+    reason?: string;
+    metric?: string;
+  }>;
   compositeScore?: number;
   error?: string;
   retryAttempts?: Array<{
@@ -213,6 +224,29 @@ export interface EvalStreamEvent {
   evalId: string;
   data: Record<string, unknown>;
   timestamp: number;
+}
+
+export type PurposeCategory = 'classification' | 'tagging' | 'summarization' | 'custom';
+
+export type AssertionStrategyType = 'exact-label' | 'label-overlap' | 'llm-rubric' | 'custom';
+
+export interface AssertionStrategy {
+  type: AssertionStrategyType;
+  config: Record<string, unknown>;
+}
+
+export interface EvalPurposeTemplate {
+  id: string;
+  name: string;
+  description: string;
+  purposeCategory: PurposeCategory;
+  builtIn: boolean;
+  seedPromptContent?: string;
+  defaultComparisonMode: EvalComparisonMode;
+  assertionStrategy: AssertionStrategy;
+  starterTestCases: TestCase[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface EvalPreset {

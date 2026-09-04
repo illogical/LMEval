@@ -4,6 +4,7 @@ import { createServer } from 'http';
 import { pathToFileURL } from 'url';
 import { join } from 'path';
 import { templatesRouter } from './routes/templates';
+import { purposeTemplatesRouter } from './routes/purposeTemplates';
 import { promptsRouter } from './routes/prompts';
 import { testSuitesRouter } from './routes/testSuites';
 import { modelsRouter } from './routes/models';
@@ -12,6 +13,7 @@ import { evaluationsRouter } from './routes/evaluations';
 import { gitRouter } from './routes/git';
 import { presetsRouter } from './routes/presets';
 import { TemplateService } from './services/TemplateService';
+import { PurposeTemplateService } from './services/PurposeTemplateService';
 import { GitService } from './services/GitService';
 import { configurePaths } from './services/FileService';
 import { setupWebSocket } from './ws';
@@ -34,6 +36,7 @@ export function buildApp(): { router: Router; dispose: () => Promise<void> } {
   router.use(express.json());
 
   router.use('/api/eval/templates', templatesRouter);
+  router.use('/api/eval/purpose-templates', purposeTemplatesRouter);
   router.use('/api/eval/prompts', promptsRouter);
   router.use('/api/eval/test-suites', testSuitesRouter);
   router.use('/api/eval/models', modelsRouter);
@@ -60,6 +63,7 @@ export function buildApp(): { router: Router; dispose: () => Promise<void> } {
 
   // Seed built-in templates on startup
   TemplateService.seedBuiltIns();
+  PurposeTemplateService.seedBuiltIns();
 
   // Check if data dir is a git repo on startup
   GitService.isInitialized().then(initialized => {

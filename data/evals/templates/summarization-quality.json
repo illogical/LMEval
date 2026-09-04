@@ -1,0 +1,34 @@
+{
+  "id": "summarization-quality",
+  "name": "Summarization Quality",
+  "description": "Evaluates summaries on conciseness, faithfulness to the source, and coverage of key points. Backs the built-in Summarization purpose template.",
+  "builtIn": true,
+  "perspectives": [
+    {
+      "id": "conciseness",
+      "name": "Conciseness",
+      "description": "The summary is appropriately brief for the source content",
+      "weight": 0.3,
+      "criteria": "Is the summary concise, avoiding restating the source verbatim or padding with filler?",
+      "scoringGuide": "1=As long as or longer than the source, 2=Barely condensed, 3=Reasonably condensed, 4=Concise, 5=Optimally concise"
+    },
+    {
+      "id": "faithfulness",
+      "name": "Faithfulness",
+      "description": "No hallucinated facts not present in the source",
+      "weight": 0.4,
+      "criteria": "Does the summary avoid introducing facts, entities, or claims not present in the source content?",
+      "scoringGuide": "1=Multiple fabrications, 2=Some fabrication, 3=Minor unsupported claims, 4=Faithful, 5=Perfectly faithful to source"
+    },
+    {
+      "id": "coverage",
+      "name": "Coverage",
+      "description": "The summary retains the source's key points",
+      "weight": 0.3,
+      "criteria": "Does the summary retain the key points and salient details of the source content?",
+      "scoringGuide": "1=Misses the point entirely, 2=Misses major points, 3=Covers most key points, 4=Covers key points well, 5=Captures all salient points"
+    }
+  ],
+  "createdAt": "2026-09-03T00:00:00.000Z",
+  "updatedAt": "2026-09-03T00:00:00.000Z"
+}

@@ -82,11 +82,17 @@ export function HeatmapMatrix({ cells, onCellClick }: HeatmapMatrixProps) {
           {tooltip.cell.durationMs != null && (
             <div className="hmt-lat">Latency: {formatLatency(tooltip.cell.durationMs)}</div>
           )}
-          {tooltip.cell.judgeResults?.map(jr => (
-            <div key={jr.perspectiveId} className="hmt-perspective">
-              {jr.perspectiveId}: {jr.score.toFixed(1)}
-            </div>
-          ))}
+          {tooltip.cell.assertionResults
+            ? tooltip.cell.assertionResults.map((ar, i) => (
+              <div key={`${ar.type}-${ar.metric ?? i}`} className="hmt-perspective">
+                {ar.pass ? '✓' : '✗'} {ar.metric ?? ar.type}{ar.score != null && `: ${ar.score.toFixed(2)}`}
+              </div>
+            ))
+            : tooltip.cell.judgeResults?.map(jr => (
+              <div key={jr.perspectiveId} className="hmt-perspective">
+                {jr.perspectiveId}: {jr.score.toFixed(1)}
+              </div>
+            ))}
         </div>
       )}
     </div>

@@ -1,0 +1,99 @@
+{
+  "id": "classification",
+  "name": "Classification",
+  "description": "Classify short text snippets into a fixed label set — seeded from MemoryAPI's memory-categorization prompt (8 categories: Preference, Reminder, Snippet, Event, Note, Prompt, Idea, History).",
+  "purposeCategory": "classification",
+  "builtIn": true,
+  "seedPromptContent": "You are an AI assistant specialized in categorizing short text snippets that represent user memories. The input text may be a preference, reminder, code snippet, history, note, or prompt. Classify the input into one of these categories:\n\n# Categories:\n- Preference\n- Reminder\n- Snippet\n- Event\n- Note\n- Prompt\n- Idea\n- History\n\n# Examples:\nInput: \"Remember to buy groceries tomorrow\"\nCategory: Reminder\n\nInput: \"My favorite programming language is C#\"\nCategory: Preference\n\nInput: \"foreach(int i = 0; i < count; i++) { }\"\nCategory: Snippet\n\nInput: \"Met John at the conference last June\"\nCategory: Event\n\nInput: \"Meeting notes from 2024-11-09\"\nCategory: Note\n\nInput: \"Create an AI prompt that will ...\"\nCategory: Prompt\n\nInput: \"I want to make a ...\"\nCategory: Idea\n\nInput: \"Traveled to Orlando in 2025 for a conference\"\nCategory: History\n\n# Instructions:\nReturn exactly one of the eight category words listed above — no punctuation, no explanation, and never a synonym or variant (e.g. return \"Snippet\", not \"Code snippet\").\n\nClassify the memory given in the next message and respond with only the category word.",
+  "defaultComparisonMode": "prompt",
+  "assertionStrategy": {
+    "type": "exact-label",
+    "config": {
+      "categories": ["Preference", "Reminder", "Snippet", "Event", "Note", "Prompt", "Idea", "History"]
+    }
+  },
+  "starterTestCases": [
+    {
+      "id": "seed-cls-1",
+      "userMessage": "I prefer dark roast coffee over light roast",
+      "description": "Preference - simple stated preference",
+      "expectedKeywords": ["Preference"],
+      "expectedOutput": "Preference",
+      "tags": ["classification"]
+    },
+    {
+      "id": "seed-cls-2",
+      "userMessage": "Don't forget to call the dentist on Monday",
+      "description": "Reminder - task with deadline",
+      "expectedKeywords": ["Reminder"],
+      "expectedOutput": "Reminder",
+      "tags": ["classification"]
+    },
+    {
+      "id": "seed-cls-3",
+      "userMessage": "def add(a, b): return a + b",
+      "description": "Snippet - Python function",
+      "expectedKeywords": ["Snippet"],
+      "expectedOutput": "Snippet",
+      "tags": ["classification"]
+    },
+    {
+      "id": "seed-cls-4",
+      "userMessage": "Attended my cousin's wedding in Austin last October",
+      "description": "Event - past personal event",
+      "expectedKeywords": ["Event"],
+      "expectedOutput": "Event",
+      "tags": ["classification"]
+    },
+    {
+      "id": "seed-cls-5",
+      "userMessage": "Notes from today's standup: blocked on API access",
+      "description": "Note - meeting recap",
+      "expectedKeywords": ["Note"],
+      "expectedOutput": "Note",
+      "tags": ["classification"]
+    },
+    {
+      "id": "seed-cls-6",
+      "userMessage": "Write a prompt that generates a haiku about the ocean",
+      "description": "Prompt - AI prompt request",
+      "expectedKeywords": ["Prompt"],
+      "expectedOutput": "Prompt",
+      "tags": ["classification"]
+    },
+    {
+      "id": "seed-cls-7",
+      "userMessage": "I want to build a browser extension that blocks ads",
+      "description": "Idea - product idea",
+      "expectedKeywords": ["Idea"],
+      "expectedOutput": "Idea",
+      "tags": ["classification"]
+    },
+    {
+      "id": "seed-cls-8",
+      "userMessage": "In 2019 I worked as a backend engineer at a fintech startup",
+      "description": "History - past job",
+      "expectedKeywords": ["History"],
+      "expectedOutput": "History",
+      "tags": ["classification"]
+    },
+    {
+      "id": "seed-cls-9",
+      "userMessage": "const sum = (a, b) => a + b;",
+      "description": "Edge case — label-mismatch regression probe (correct label is 'Snippet', not 'Code snippet')",
+      "expectedKeywords": ["Snippet"],
+      "expectedOutput": "Snippet",
+      "tags": ["classification", "edge-case"]
+    },
+    {
+      "id": "seed-cls-10",
+      "userMessage": "Buy milk",
+      "description": "Edge case — ambiguous Reminder vs Note",
+      "expectedKeywords": ["Reminder"],
+      "expectedOutput": "Reminder",
+      "tags": ["classification", "edge-case"]
+    }
+  ],
+  "createdAt": "2026-09-03T00:00:00.000Z",
+  "updatedAt": "2026-09-03T00:00:00.000Z"
+}

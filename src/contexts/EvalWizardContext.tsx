@@ -1,68 +1,19 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
-import type { PromptManifest, TestCase, EvalPreset } from '../types/eval';
+import type { EvalPreset, EvalComparisonMode, EvalPurposeTemplate } from '../types/eval';
+import { type EvalWizardState, type SelectedModel, type PromptSlot, initialState, loadFromStorage, STORAGE_KEY } from './wizardState';
+import { purposeTemplateToState } from './purposeTemplateStorage';
 
-export interface SelectedModel {
-  serverName: string;
-  modelName: string;
-}
-
-interface PromptSlot {
-  id: string | null;
-  version: number;
-  content: string;
-  manifest: PromptManifest | null;
-}
-
-export interface EvalWizardState {
-  promptA: PromptSlot;
-  promptB: PromptSlot;
-  selectedModels: SelectedModel[];
-  templateId: string | null;
-  testSuiteId: string | null;
-  inlineTestCases: TestCase[];
-  userMessage: string;
-  judgeModelId: string | null;
-  enablePairwise: boolean;
-  runsPerCell: number;
-  evalId: string | null;
-  sessionId: string | null;
-  currentStep: 1 | 2 | 3 | 4 | 5;
-  maxVisitedStep: number;
-  isDirty: boolean;
-}
-
-const defaultPromptSlot = (): PromptSlot => ({
-  id: null,
-  version: 1,
-  content: '',
-  manifest: null,
-});
-
-const initialState: EvalWizardState = {
-  promptA: defaultPromptSlot(),
-  promptB: defaultPromptSlot(),
-  selectedModels: [],
-  templateId: null,
-  testSuiteId: null,
-  inlineTestCases: [],
-  userMessage: '',
-  judgeModelId: null,
-  enablePairwise: false,
-  runsPerCell: 1,
-  evalId: null,
-  sessionId: null,
-  currentStep: 1,
-  maxVisitedStep: 1,
-  isDirty: false,
-};
+export type { EvalWizardState, SelectedModel };
 
 type Action =
   | { type: 'SET_PROMPT_A'; payload: Partial<PromptSlot> }
   | { type: 'SET_PROMPT_B'; payload: Partial<PromptSlot> }
   | { type: 'SET_MODELS'; payload: SelectedModel[] }
+  | { type: 'SET_COMPARISON_MODE'; payload: EvalComparisonMode }
   | { type: 'SET_CONFIG'; payload: Partial<Pick<EvalWizardState, 'templateId' | 'testSuiteId' | 'inlineTestCases' | 'userMessage' | 'judgeModelId' | 'enablePairwise' | 'runsPerCell'>> }
   | { type: 'START_EVAL'; payload: { evalId: string } }
   | { type: 'LOAD_PRESET'; payload: EvalPreset }
+  | { type: 'LOAD_PURPOSE_TEMPLATE'; payload: EvalPurposeTemplate }
   | { type: 'RESET' }
   | { type: 'SET_STEP'; payload: 1 | 2 | 3 | 4 | 5 };
 
@@ -74,6 +25,8 @@ function reducer(state: EvalWizardState, action: Action): EvalWizardState {
       return { ...state, promptB: { ...state.promptB, ...action.payload }, isDirty: true };
     case 'SET_MODELS':
       return { ...state, selectedModels: action.payload, isDirty: true };
+    case 'SET_COMPARISON_MODE':
+      return { ...state, comparisonMode: action.payload, isDirty: true };
     case 'SET_CONFIG':
       return { ...state, ...action.payload, isDirty: true };
     case 'START_EVAL':
@@ -88,6 +41,8 @@ function reducer(state: EvalWizardState, action: Action): EvalWizardState {
         runsPerCell: action.payload.runsPerCell,
         isDirty: true,
       };
+    case 'LOAD_PURPOSE_TEMPLATE':
+      return { ...state, ...purposeTemplateToState(action.payload), isDirty: true };
     case 'RESET':
       return { ...initialState };
     case 'SET_STEP': {
@@ -96,18 +51,6 @@ function reducer(state: EvalWizardState, action: Action): EvalWizardState {
     }
     default:
       return state;
-  }
-}
-
-const STORAGE_KEY = 'lmeval:wizard:state';
-
-function loadFromStorage(): EvalWizardState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return initialState;
-    return { ...initialState, ...JSON.parse(raw) };
-  } catch {
-    return initialState;
   }
 }
 

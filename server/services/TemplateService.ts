@@ -16,6 +16,7 @@ const BUILT_IN_IDS = new Set([
   'tool-calling',
   'code-generation',
   'instruction-following',
+  'summarization-quality',
 ]);
 
 export const TemplateService = {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, FolderOpen } from 'lucide-react';
+import { ArrowRight, FolderOpen, Sparkles } from 'lucide-react';
 import { PromptVersionSelector } from '../components/prompt/PromptVersionSelector';
 import { PromptDiffView } from '../components/prompt/PromptDiffView';
 import { useEvalWizard } from '../contexts/EvalWizardContext';
@@ -9,11 +9,50 @@ import { useModelsByServer } from '../hooks/useModelsByServer';
 import { ModelSelector } from '../components/model/ModelSelector';
 import { createPrompt, addPromptVersion } from '../api/eval';
 import type { SelectedModel } from '../contexts/EvalWizardContext';
-import type { PromptManifest } from '../types/eval';
+import type { PromptManifest, EvalComparisonMode } from '../types/eval';
 import './PromptsPage.css';
 
 // ── Types ─────────────────────────────────────────────────
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+interface ModeOption {
+  mode: EvalComparisonMode;
+  label: string;
+  description: string;
+}
+
+const MODE_OPTIONS: ModeOption[] = [
+  { mode: 'model', label: 'Model Comparison', description: 'Which model is best for this fixed prompt?' },
+  { mode: 'prompt', label: 'Prompt Comparison', description: 'Did my prompt edit actually make it better?' },
+  { mode: 'matrix', label: 'Full Matrix', description: 'Vary both prompts and models freely.' },
+];
+
+// ── EvaluationModeStrip ───────────────────────────────────
+function EvaluationModeStrip({
+  mode,
+  onChange,
+}: {
+  mode: EvalComparisonMode;
+  onChange: (mode: EvalComparisonMode) => void;
+}) {
+  return (
+    <div className="pp-mode-strip" role="radiogroup" aria-label="Evaluation mode">
+      {MODE_OPTIONS.map(opt => (
+        <button
+          key={opt.mode}
+          type="button"
+          role="radio"
+          aria-checked={mode === opt.mode}
+          className={`pp-mode-card${mode === opt.mode ? ' pp-mode-card--active' : ''}`}
+          onClick={() => onChange(opt.mode)}
+        >
+          <span className="pp-mode-card-label">{opt.label}</span>
+          <span className="pp-mode-card-desc">{opt.description}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 interface SelectorBarProps {
   label: string;
@@ -102,14 +141,32 @@ export function PromptsPage() {
     navigate('/eval/config');
   }, [dispatch, navigate]);
 
-  const canProceed = state.promptA.content.trim().length > 0 && state.selectedModels.length > 0;
+  const isModelComparison = state.comparisonMode === 'model';
+  const hasEnoughModels = isModelComparison
+    ? state.selectedModels.length >= 2
+    : state.selectedModels.length > 0;
+  const canProceed = state.promptA.content.trim().length > 0 && hasEnoughModels;
+  const showPromptComparisonNudge =
+    !isModelComparison && state.selectedModels.length === 1;
+
+  let blockedHint: string | null = null;
+  if (!canProceed) {
+    if (state.promptA.content.trim().length === 0) {
+      blockedHint = 'Enter at least one prompt and select a model to continue';
+    } else if (isModelComparison && state.selectedModels.length < 2) {
+      blockedHint = 'Model Comparison needs at least 2 models selected';
+    } else {
+      blockedHint = 'Select a model to continue';
+    }
+  }
 
   // Header action: Next button
   useEffect(() => {
     setHeaderAction(
       <div className="pp-header-action">
-        {!canProceed && (
-          <p className="pp-hint">Enter at least one prompt and select a model to continue</p>
+        {blockedHint && <p className="pp-hint">{blockedHint}</p>}
+        {!blockedHint && showPromptComparisonNudge && (
+          <p className="pp-hint pp-hint--nudge">Add another model to see if this holds up across models too</p>
         )}
         <button className="pp-next-btn" onClick={handleNext} disabled={!canProceed}>
           Next: Prepare <ArrowRight size={16} />
@@ -117,7 +174,7 @@ export function PromptsPage() {
       </div>
     );
     return () => setHeaderAction(null);
-  }, [canProceed, handleNext, setHeaderAction]);
+  }, [canProceed, blockedHint, showPromptComparisonNudge, handleNext, setHeaderAction]);
 
   async function handleSaveCopy() {
     setSaveStatus('saving');
@@ -145,6 +202,18 @@ export function PromptsPage() {
 
   return (
     <div className="prompts-page">
+      {/* Evaluation mode */}
+      <EvaluationModeStrip
+        mode={state.comparisonMode}
+        onChange={mode => dispatch({ type: 'SET_COMPARISON_MODE', payload: mode })}
+      />
+
+      {state.purposeTemplateName && (
+        <div className="pp-provenance-badge">
+          <Sparkles size={12} /> from template: {state.purposeTemplateName}
+        </div>
+      )}
+
       {/* Selector bars */}
       <div className="pp-selectors">
         <SelectorBar
@@ -156,24 +225,26 @@ export function PromptsPage() {
           })}
           onFileContent={val => dispatch({ type: 'SET_PROMPT_A', payload: { content: val } })}
         />
-        <SelectorBar
-          label="B"
-          showControls={showLoadControls}
-          onLoad={(manifest, content, version) => dispatch({
-            type: 'SET_PROMPT_B',
-            payload: { id: manifest.id, content, version, manifest },
-          })}
-          onFileContent={val => { dispatch({ type: 'SET_PROMPT_B', payload: { content: val } }); setDraftB(val); }}
-        >
-          {hasUnsavedEdits && <span className="pp-editor-unsaved">unsaved</span>}
-          <button
-            className="pp-save-btn"
-            onClick={handleSaveCopy}
-            disabled={saveStatus === 'saving' || !draftB.trim()}
+        {!isModelComparison && (
+          <SelectorBar
+            label="B"
+            showControls={showLoadControls}
+            onLoad={(manifest, content, version) => dispatch({
+              type: 'SET_PROMPT_B',
+              payload: { id: manifest.id, content, version, manifest },
+            })}
+            onFileContent={val => { dispatch({ type: 'SET_PROMPT_B', payload: { content: val } }); setDraftB(val); }}
           >
-            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'error' ? 'Error' : 'Save copy'}
-          </button>
-        </SelectorBar>
+            {hasUnsavedEdits && <span className="pp-editor-unsaved">unsaved</span>}
+            <button
+              className="pp-save-btn"
+              onClick={handleSaveCopy}
+              disabled={saveStatus === 'saving' || !draftB.trim()}
+            >
+              {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'error' ? 'Error' : 'Save copy'}
+            </button>
+          </SelectorBar>
+        )}
 
         {/* Single toggle for load controls (both A & B) */}
         <button
@@ -186,17 +257,31 @@ export function PromptsPage() {
         </button>
       </div>
 
-      {/* Main content: diff with inline editable right column */}
+      {/* Main content: single editor in Model Comparison mode, diff otherwise */}
       <div className="pp-content">
-        <div className="pp-diff">
-          <PromptDiffView
-            contentA={state.promptA.content}
-            contentB={debouncedB}
-            editableB
-            draftB={draftB}
-            onChangeB={setDraftB}
-          />
-        </div>
+        {isModelComparison ? (
+          <div className="pp-single-editor">
+            <span className="pp-single-editor-label">Prompt</span>
+            <textarea
+              className="pp-single-editor-textarea"
+              value={state.promptA.content}
+              onChange={e => dispatch({ type: 'SET_PROMPT_A', payload: { content: e.target.value } })}
+              spellCheck={false}
+              aria-label="Prompt content"
+              placeholder="Enter the system prompt to evaluate across models…"
+            />
+          </div>
+        ) : (
+          <div className="pp-diff">
+            <PromptDiffView
+              contentA={state.promptA.content}
+              contentB={debouncedB}
+              editableB
+              draftB={draftB}
+              onChangeB={setDraftB}
+            />
+          </div>
+        )}
       </div>
 
       {/* Models */}

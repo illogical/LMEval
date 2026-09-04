@@ -56,7 +56,11 @@ async function main() {
       name: 'Execution Test',
       promptIds: [promptId],
       modelIds: [modelId],
-      userMessage: 'Say hello in one word.',
+      inlineTestCases: [{
+        id: 'exec-test-tc-1',
+        userMessage: 'Say the word hello in one word.',
+        expectedKeywords: ['hello'],
+      }],
       runsPerCell: 1,
     });
     evalId = evalConfig.id;
@@ -81,6 +85,17 @@ async function main() {
     if (results.length === 0) throw new Error('Results should not be empty');
     const cell = results[0] as { id?: string; modelId?: string };
     if (!cell.id || !cell.modelId) throw new Error('Cell missing id or modelId');
+  });
+
+  await check('Cell has promptfoo-engine assertionResults', async () => {
+    const results = await request('GET', `/api/eval/evaluations/${evalId}/results`);
+    const cell = results[0] as { status?: string; assertionResults?: Array<{ type: string; pass: boolean }> };
+    if (cell.status !== 'completed') throw new Error(`Expected completed cell, got status=${cell.status}`);
+    if (!cell.assertionResults || cell.assertionResults.length === 0) {
+      throw new Error('Expected assertionResults from the icontains keyword check');
+    }
+    const icontains = cell.assertionResults.find(a => a.type === 'icontains');
+    if (!icontains) throw new Error('Expected an icontains assertionResult for expectedKeywords');
   });
 
   await check('Summary has model rankings', async () => {

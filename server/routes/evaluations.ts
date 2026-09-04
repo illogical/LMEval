@@ -69,6 +69,8 @@ evaluationsRouter.post('/', (req, res) => {
     name: body.name,
     promptIds: body.promptIds,
     modelIds: body.modelIds,
+    comparisonMode: body.comparisonMode,
+    purposeTemplateId: body.purposeTemplateId,
     testSuiteId: body.testSuiteId,
     userMessage: body.userMessage,
     inlineTestCases: body.inlineTestCases,

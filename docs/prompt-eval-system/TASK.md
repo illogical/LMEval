@@ -535,3 +535,50 @@ This evaluation should be saved as a preset and re-run whenever the generation p
 - [ ] Generated cases respect the extended `TestCase` type (include `tags` and `expectedOutput` where appropriate)
 - [ ] Malformed LLM output (non-JSON, wrong shape) handled gracefully with error banner
 - [ ] Generation prompt has been validated using LMEval before the feature ships (see Dogfood Eval Setup above)
+
+---
+
+## Phase 10 — Promptfoo Engine Migration
+
+> Plan: [`../plans/2026-09-03-promptfoo-adoption-and-purpose-templates.md`](../plans/2026-09-03-promptfoo-adoption-and-purpose-templates.md)
+>
+> Replaces the hand-rolled `runCompletions()`/`runJudging()` dispatch loop with promptfoo's `evaluate()`. `MetricsService.ts` and `JudgeService.ts` are retired from `ExecutionService`'s call path but kept in the repo, untouched and unimported by it (JudgeService's template-generation functions are still used by `POST /api/eval/templates/generate`, unrelated to execution).
+
+- [x] Add `promptfoo` as a dependency (pinned to `0.122.2`, the version validated in the `promptfoo-poc` spike)
+- [x] Create `server/services/PromptfooAdapter.ts` — translates `EvaluationConfig` + prompt content + `TestCase[]` into a promptfoo `TestSuite`: deterministic checks → `icontains`/`not-icontains`/custom `javascript` (JSON schema via ajv, tool-call matching, tagging Jaccard overlap), judge template perspectives → one `llm-rubric` assertion per perspective with `weight`/`metric` set
+- [x] Custom `ApiProvider` (`buildLmapiProvider`) wraps `LmapiClient.chatCompletionOnServer()`/`chatCompletion()` — preserves retry tracking (`retryAttempts`) and per-server dispatch instead of trusting promptfoo's own provider retry semantics
+- [x] Rewrite `ExecutionService.run()` to call `evaluate(testSuite, { progressCallback, maxConcurrency, abortSignal })`; map `EvaluateResult[]` (from `evalRecord.toEvaluateSummary()`) back into `EvalMatrixCell[]`
+- [x] Update `EvalMatrixCell` — added `assertionResults: AssertionResult[]` in `src/types/eval.ts`; **kept** `deterministicMetrics`/`judgeResults` fields (not removed) so old evaluations keep rendering via their original fields — no migration script, per the plan's resolved open question #1
+- [x] Update `DetailView.tsx`, `HeatmapMatrix.tsx` tooltip to render `assertionResults` when present, falling back to the old fields otherwise (`CompareView.tsx` didn't render either field before, so left as-is)
+- [x] `SummaryService.computeSummary()` — perspective-score aggregation now also reads `assertionResults` (llm-rubric entries, rescaled 0-1 → 1-5 to match the old judge scale), alongside the existing `judgeResults` path
+- [x] Retired `MetricsService.ts`/`JudgeService.ts`'s rubric/pairwise code from `ExecutionService` — replaced by promptfoo's `llm-rubric` assertion
+- [x] **Pairwise/`select-best` — confirmed NOT viable in this pass.** Live-tested against the installed promptfoo 0.122.2 (fake providers, no LMApi needed): `select-best` throws `Invalid provider definition` from both a function-valued `ApiProvider` and a plain serializable `{ id, config }` provider reference — looks like a genuine bug in this version's `select-best`/`getAndCheckProvider` path when used via the programmatic Node API, not a config mistake (see `buildSelectBestAssertion`'s doc comment in `PromptfooAdapter.ts`, left unused). `config.enablePairwise` is currently a no-op under the new engine. **Needs a decision**: try a newer/older promptfoo version, or reintroduce a bespoke pairwise judge call outside promptfoo's assertion system.
+- [x] Historical eval data — resolved via graceful degradation (above), no migration script needed
+- [x] Update `scripts/test-execution.ts` for the new engine — asserts `assertionResults` (`icontains`) present on the completed cell
+- [ ] **Verification**: re-run `scripts/test-execution.ts` end-to-end against a live LMApi + model (not available in the environment this phase was implemented in — server boot, purpose-template seeding, and the promptfoo pipeline itself were verified via `npm run build`/`vitest`/a live-fake-provider smoke test instead; a real model round-trip is still needed before calling this phase done)
+- [ ] Decide the `select-best`/pairwise follow-up (see above) — blocks re-enabling `enablePairwise` in the UI with working behavior
+
+---
+
+## Phase 11 — Evaluation Mode
+
+- [x] Add `comparisonMode: 'model' | 'prompt' | 'matrix'` to `EvaluationConfig` in `src/types/eval.ts` and `EvalWizardContext` state (default `'prompt'`)
+- [x] Add the Evaluation Mode strip component to `PromptsPage.tsx`, above the prompt editors
+- [x] Wire mode-aware conditional rendering: Model Comparison hides the Prompt B slot and shows a single-prompt editor; mode-aware "Next" validation (≥2 models required for Model Comparison, hard block; Prompt Comparison shows a non-blocking nudge at exactly 1 model)
+- [x] Full Matrix mode — selectable card, currently behaves like Prompt Comparison (2 slots); N-prompt-slot UI not built (lowest priority per the plan, deferred)
+- [ ] **Verification**: browser walkthrough — select Model Comparison → only one prompt editor renders, "Next" stays disabled until 2+ models chosen; select Prompt Comparison → both editors render as today, 1 model is enough to proceed with a visible nudge toward adding more
+
+---
+
+## Phase 12 — Purpose Templates
+
+- [x] Add `EvalPurposeTemplate` type to `src/types/eval.ts`
+- [x] Create `server/services/PurposeTemplateService.ts` — list/get/create/update/delete/isBuiltIn/seedBuiltIns (mirrors `TemplateService.ts`); built-ins in `data/evals/purpose-templates/`, custom in `data/evals/purpose-templates/custom/` (both configurable via `FileService.configurePaths()`, matching the existing template dirs' hosted-mode pattern)
+- [x] Create `server/routes/purposeTemplates.ts` — CRUD at `/api/eval/purpose-templates`; wired into `server/index.ts`, seeded on startup
+- [x] Seeded the 3 built-in templates (Classification, Tagging, Summarization) from MemoryAPI's `src/prompts/` + `src/samples/` — tagging's example #16 tag list fixed (`Personal` → `Favorite`, since `Personal` isn't in `allTags.json`); classification's few-shot examples already said `Snippet` (not `Code snippet`) in the current MemoryAPI source, so no fix was needed there, but a "never a synonym" instruction line was still added as a regression guard
+- [x] Summarization's `llm-rubric` strategy is backed by a new built-in judge template, `data/evals/templates/summarization-quality.json` (conciseness/faithfulness/coverage), referenced via `assertionStrategy.config.templateId`
+- [x] Create `TemplateGalleryPage.tsx` at `/eval/templates` — card grid of purpose templates + "Start Blank"; Session Hub's "New Evaluation" now points here instead of straight to `/eval/prompts`
+- [x] Selecting a card writes directly to wizard localStorage (`applyPurposeTemplateToStorage`, since the gallery renders outside `EvalWizardProvider`) and navigates to `/eval/prompts`; "Start Blank" navigates with no storage write, unchanged from before
+- [x] Wire "Save as Template" action on `ConfigPage.tsx`, alongside "Save as Preset"
+- [x] `EvaluationConfig.purposeTemplateId` threads the selected purpose template through to `ExecutionService.run()`, which loads its `assertionStrategy` for `PromptfooAdapter` (tagging's label-overlap assertion, in particular, only fires for evals that came from a purpose template — not for arbitrary Suite-mode test cases that happen to have a `tags` field)
+- [ ] **Verification**: browser walkthrough — Session Hub → New Evaluation → gallery shows 3 built-ins + Start Blank → selecting Classification lands on Step 1 with Prompt A pre-filled, Prompt Comparison mode selected, provenance badge shown, and Step 2's assertion card + test cases already populated → Start Blank behaves exactly like today's wizard
