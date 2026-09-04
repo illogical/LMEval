@@ -6,6 +6,9 @@ import type {
   RegressionResult,
   MetricRegression,
   PairwiseRanking,
+  TestCaseSummary,
+  TestCaseModelResult,
+  AssertionSummary,
 } from '../../src/types/eval';
 
 // Minimum relative change required before a metric is considered regressed or improved
@@ -13,7 +16,12 @@ const SCORE_REGRESSION_THRESHOLD = 0.02; // 2% change in composite score
 const LATENCY_REGRESSION_THRESHOLD = 0.05; // 5% change in latency
 
 export const SummaryService = {
-  computeSummary(evalId: string, cells: EvalMatrixCell[], pairwiseRankings?: PairwiseRanking[]): EvaluationSummary {
+  computeSummary(
+    evalId: string,
+    cells: EvalMatrixCell[],
+    pairwiseRankings?: PairwiseRanking[],
+    options?: { runsPerCell?: number; perspectiveOrder?: string[] }
+  ): EvaluationSummary {
     const completed = cells.filter(c => c.status === 'completed');
     const failed = cells.filter(c => c.status === 'failed');
 
@@ -113,6 +121,96 @@ export const SummaryService = {
       });
     }
 
+    // Per-test-case pass rate and per-model breakdown — answers "which inputs
+    // break this prompt" (surfaced in the Breakdown tab's "Hardest test cases").
+    const testCaseMap = new Map<string, EvalMatrixCell[]>();
+    for (const cell of cells) {
+      const list = testCaseMap.get(cell.testCaseId) ?? [];
+      list.push(cell);
+      testCaseMap.set(cell.testCaseId, list);
+    }
+    const testCaseSummaries: TestCaseSummary[] = [];
+    for (const [testCaseId, tcCells] of testCaseMap) {
+      const byModel: Record<string, TestCaseModelResult> = {};
+      const modelIdsForTc = [...new Set(tcCells.map(c => c.modelId))];
+      for (const modelId of modelIdsForTc) {
+        const modelCells = tcCells.filter(c => c.modelId === modelId);
+        const completedModelCells = modelCells.filter(c => c.status === 'completed');
+        const passedModelCells = completedModelCells.filter(
+          c => c.assertionResults == null || c.assertionResults.every(a => a.pass)
+        );
+        const scored = completedModelCells.filter(c => c.compositeScore != null);
+        byModel[modelId] = {
+          avgCompositeScore: scored.length > 0
+            ? scored.reduce((s, c) => s + (c.compositeScore ?? 0), 0) / scored.length
+            : undefined,
+          passRate: modelCells.length > 0 ? passedModelCells.length / modelCells.length : 0,
+          completedRuns: completedModelCells.length,
+          totalRuns: modelCells.length,
+        };
+      }
+      const allCompleted = tcCells.filter(c => c.status === 'completed');
+      const allPassed = allCompleted.filter(
+        c => c.assertionResults == null || c.assertionResults.every(a => a.pass)
+      );
+      const scoredTc = allCompleted.filter(c => c.compositeScore != null);
+      testCaseSummaries.push({
+        testCaseId,
+        totalRuns: tcCells.length,
+        passRate: tcCells.length > 0 ? allPassed.length / tcCells.length : 0,
+        avgCompositeScore: scoredTc.length > 0
+          ? scoredTc.reduce((s, c) => s + (c.compositeScore ?? 0), 0) / scoredTc.length
+          : undefined,
+        byModel,
+      });
+    }
+    testCaseSummaries.sort((a, b) => a.passRate - b.passRate);
+
+    // Assertion-type failure breakdown — the most directly actionable prompt
+    // feedback: which checks fail most often, with one concrete example each.
+    const assertionMap = new Map<string, AssertionSummary>();
+    for (const cell of cells) {
+      for (const ar of cell.assertionResults ?? []) {
+        const key = `${ar.type}::${ar.metric ?? ''}`;
+        const entry = assertionMap.get(key) ?? {
+          type: ar.type,
+          metric: ar.metric,
+          total: 0,
+          passed: 0,
+          failed: 0,
+        };
+        entry.total++;
+        if (ar.pass) entry.passed++;
+        else {
+          entry.failed++;
+          if (!entry.sampleReason && ar.reason) {
+            entry.sampleReason = ar.reason;
+            entry.sampleCellId = cell.id;
+          }
+        }
+        assertionMap.set(key, entry);
+      }
+    }
+    const assertionSummary = [...assertionMap.values()].sort((a, b) => b.failed - a.failed);
+
+    // Perspective axis order — prefer the template's declared order so the
+    // Breakdown tab's grouped-bar chart matches the rubric, not object-key order.
+    const seenPerspectives = new Set<string>();
+    const perspectiveIds: string[] = [];
+    for (const id of options?.perspectiveOrder ?? []) {
+      if (!seenPerspectives.has(id)) { seenPerspectives.add(id); perspectiveIds.push(id); }
+    }
+    for (const m of modelSummaries) {
+      for (const id of Object.keys(m.perspectiveScores ?? {})) {
+        if (!seenPerspectives.has(id)) { seenPerspectives.add(id); perspectiveIds.push(id); }
+      }
+    }
+
+    // Consistency (run-to-run std-dev) is only meaningful with repeated runs.
+    const consistency = (options?.runsPerCell ?? 1) > 1
+      ? this.computeConsistency(cells)
+      : undefined;
+
     return {
       evalId,
       totalCells: cells.length,
@@ -122,6 +220,10 @@ export const SummaryService = {
       promptSummaries,
       pairwiseRankings: pairwiseRankings && pairwiseRankings.length > 0 ? pairwiseRankings : undefined,
       completedAt: new Date().toISOString(),
+      testCaseSummaries: testCaseSummaries.length > 0 ? testCaseSummaries : undefined,
+      assertionSummary: assertionSummary.length > 0 ? assertionSummary : undefined,
+      consistency,
+      perspectiveIds: perspectiveIds.length > 0 ? perspectiveIds : undefined,
     };
   },
 

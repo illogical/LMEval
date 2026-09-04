@@ -39,6 +39,85 @@
   font-weight: 600;
 }
 
+.dv-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dv-nav {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.dv-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 11px;
+}
+
+.dv-nav-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.dv-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dv-compare-btn {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.dv-retries {
+  margin-top: 8px;
+}
+
+.dv-retries-title {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.dv-retry-row {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.dv-retry-num {
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.dv-retry-err {
+  color: var(--error);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dv-retry-ts {
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
 .dv-section {}
 
 .dv-section-title {

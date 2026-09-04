@@ -208,6 +208,31 @@ export interface RegressionResult {
   hasImprovements: boolean;
 }
 
+export interface TestCaseModelResult {
+  avgCompositeScore?: number;
+  passRate: number;
+  completedRuns: number;
+  totalRuns: number;
+}
+
+export interface TestCaseSummary {
+  testCaseId: string;
+  totalRuns: number;
+  passRate: number;
+  avgCompositeScore?: number;
+  byModel: Record<string, TestCaseModelResult>;
+}
+
+export interface AssertionSummary {
+  type: string;
+  metric?: string;
+  total: number;
+  passed: number;
+  failed: number;
+  sampleReason?: string;
+  sampleCellId?: string;
+}
+
 export interface EvaluationSummary {
   evalId: string;
   totalCells: number;
@@ -218,6 +243,25 @@ export interface EvaluationSummary {
   pairwiseRankings?: PairwiseRanking[];
   completedAt?: string;
   regression?: RegressionResult;
+  testCaseSummaries?: TestCaseSummary[];
+  assertionSummary?: AssertionSummary[];
+  consistency?: Record<string, number>;
+  perspectiveIds?: string[];
+}
+
+export interface EvaluationHistoryEntry {
+  evalId: string;
+  date: string;
+  modelScores: Record<string, number>;
+  promptScores: Record<string, number>;
+}
+
+export interface BaselineSummary {
+  slug: string;
+  evalId: string;
+  savedAt: string;
+  modelIds: string[];
+  avgCompositeScore?: number;
 }
 
 export interface EvalStreamEvent {

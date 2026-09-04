@@ -1,25 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, Download } from 'lucide-react';
 import { Scoreboard } from '../components/results/Scoreboard';
 import { CompareView } from '../components/results/CompareView';
 import { DetailView } from '../components/results/DetailView';
-import { MetricsView } from '../components/results/MetricsView';
-import { TimelineView } from '../components/results/TimelineView';
-import { RegressionBanner } from '../components/results/RegressionBanner';
-import { getEvaluationResults, getEvaluationSummary, exportEvaluation, saveBaseline } from '../api/eval';
-import type { EvalMatrixCell, EvaluationSummary } from '../types/eval';
+import { BreakdownView } from '../components/results/BreakdownView';
+import { TrendView } from '../components/results/TrendView';
+import { VerdictHeader } from '../components/results/VerdictHeader';
+import {
+  getEvaluation, getEvaluationResults, getEvaluationSummary, getEvaluationTestCases,
+  getEvaluationHistory, getEvaluationRegression, listBaselines, exportEvaluation, saveBaseline,
+} from '../api/eval';
+import type {
+  EvalMatrixCell, EvaluationSummary, EvaluationConfig, TestCase, EvaluationHistoryEntry,
+  BaselineSummary, RegressionResult,
+} from '../types/eval';
 import './ResultsPage.css';
 
-type Tab = 'scoreboard' | 'compare' | 'detail' | 'metrics' | 'timeline';
+type Tab = 'scoreboard' | 'breakdown' | 'compare' | 'detail' | 'trend';
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'scoreboard', label: 'Scoreboard' },
+  { id: 'breakdown', label: 'Breakdown' },
+  { id: 'compare', label: 'Compare' },
+  { id: 'detail', label: 'Detail' },
+  { id: 'trend', label: 'Trend' },
+];
 
 export function ResultsPage() {
   const { evalId } = useParams<{ evalId: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('scoreboard');
+  const [config, setConfig] = useState<EvaluationConfig | null>(null);
   const [cells, setCells] = useState<EvalMatrixCell[]>([]);
   const [summary, setSummary] = useState<EvaluationSummary | null>(null);
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [history, setHistory] = useState<EvaluationHistoryEntry[]>([]);
+  const [baselines, setBaselines] = useState<BaselineSummary[]>([]);
+  const [selectedBaselineSlug, setSelectedBaselineSlug] = useState('');
+  const [regression, setRegression] = useState<RegressionResult | undefined>(undefined);
   const [selectedCell, setSelectedCell] = useState<EvalMatrixCell | null>(null);
+  const [compareDeepLink, setCompareDeepLink] = useState<{ cellId: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,16 +47,36 @@ export function ResultsPage() {
     if (!evalId) return;
     setLoading(true);
     Promise.all([
+      getEvaluation(evalId),
       getEvaluationResults(evalId),
       getEvaluationSummary(evalId),
+      getEvaluationTestCases(evalId),
+      getEvaluationHistory(evalId),
+      listBaselines(),
     ])
-      .then(([resultsData, summaryData]) => {
-        setCells(resultsData.cells);
+      .then(([configData, resultsData, summaryData, testCasesData, historyData, baselinesData]) => {
+        setConfig(configData);
+        setCells(resultsData);
         setSummary(summaryData);
+        setTestCases(testCasesData);
+        setHistory(historyData);
+        setBaselines(baselinesData);
       })
       .catch(err => setError((err as Error).message))
       .finally(() => setLoading(false));
   }, [evalId]);
+
+  useEffect(() => {
+    if (!evalId || !selectedBaselineSlug) return;
+    getEvaluationRegression(evalId, selectedBaselineSlug)
+      .then(setRegression)
+      .catch(() => setRegression(undefined));
+  }, [evalId, selectedBaselineSlug]);
+
+  function handleSelectBaseline(slug: string) {
+    setSelectedBaselineSlug(slug);
+    if (!slug) setRegression(undefined);
+  }
 
   async function handleExport(format: 'html' | 'md') {
     if (!evalId) return;
@@ -49,71 +89,99 @@ export function ResultsPage() {
     URL.revokeObjectURL(url);
   }
 
-  async function handleBaseline() {
+  const handleSaveBaseline = useCallback(async (slug: string) => {
     if (!evalId) return;
-    const slug = prompt('Enter a name for this baseline:');
-    if (!slug) return;
-    await saveBaseline(evalId, slug).catch(console.error);
-    alert('Baseline saved!');
+    await saveBaseline(evalId, slug);
+    const refreshed = await listBaselines();
+    setBaselines(refreshed);
+    setSelectedBaselineSlug(slug);
+  }, [evalId]);
+
+  function handleHeatmapCellClick(cell: EvalMatrixCell) {
+    setCompareDeepLink({ cellId: cell.id });
+    setActiveTab('compare');
   }
 
-  function handleCellClick(cell: EvalMatrixCell) {
+  function handleViewCellInDetail(cellId: string) {
+    const cell = cells.find(c => c.id === cellId);
+    if (!cell) return;
     setSelectedCell(cell);
     setActiveTab('detail');
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'scoreboard', label: 'Scoreboard' },
-    { id: 'compare', label: 'Compare' },
-    { id: 'detail', label: 'Detail' },
-    { id: 'metrics', label: 'Metrics' },
-    { id: 'timeline', label: 'Timeline' },
-  ];
+  function handleCompareFromDetail(cellId: string) {
+    setCompareDeepLink({ cellId });
+    setActiveTab('compare');
+  }
 
   if (loading) return <div className="rp-loading">Loading results…</div>;
   if (error) return <div className="rp-error">{error}</div>;
-  if (!summary) return <div className="rp-error">No results found</div>;
+  if (!summary || !config) return <div className="rp-error">No results found</div>;
+
+  const selectedBaseline = baselines.find(b => b.slug === selectedBaselineSlug);
 
   return (
     <div className="results-page">
-      <div className="rp-header">
-        <div className="rp-tabs">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              className={`rp-tab${activeTab === tab.id ? ' rp-tab-active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <div className="rp-actions">
-          <button className="rp-action-btn" onClick={() => handleExport('md')} title="Export Markdown">
-            <Download size={14} /> MD
-          </button>
-          <button className="rp-action-btn" onClick={() => handleExport('html')} title="Export HTML">
-            <Download size={14} /> HTML
-          </button>
-          <button className="rp-action-btn rp-baseline-btn" onClick={handleBaseline}>
-            Save Baseline
-          </button>
-          <button className="rp-summary-btn" onClick={() => navigate(`/eval/summary/${evalId}`)}>
-            Summary & Suggestions <ArrowRight size={14} />
-          </button>
-        </div>
-      </div>
+      <VerdictHeader
+        config={config}
+        summary={summary}
+        regression={regression}
+        baselines={baselines}
+        selectedBaselineSlug={selectedBaselineSlug}
+        onSelectBaseline={handleSelectBaseline}
+        onExport={handleExport}
+        onSaveBaseline={handleSaveBaseline}
+        onOpenSummary={() => navigate(`/eval/summary/${evalId}`)}
+      />
 
-      {summary.regression && <div className="rp-banner"><RegressionBanner regression={summary.regression} /></div>}
+      <div className="rp-tabs">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            className={`rp-tab${activeTab === tab.id ? ' rp-tab-active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <div className="rp-content">
         {activeTab === 'scoreboard' && (
-          <Scoreboard summary={summary} cells={cells} onCellClick={handleCellClick} />
+          <Scoreboard summary={summary} cells={cells} onCellClick={handleHeatmapCellClick} />
         )}
-        {activeTab === 'compare' && <CompareView cells={cells} />}
-        {activeTab === 'detail' && <DetailView cell={selectedCell} />}
-        {activeTab === 'metrics' && <MetricsView summary={summary} />}
-        {activeTab === 'timeline' && <TimelineView summary={summary} />}
+        {activeTab === 'breakdown' && (
+          <BreakdownView summary={summary} testCases={testCases} onViewCell={handleViewCellInDetail} />
+        )}
+        {activeTab === 'compare' && (
+          <CompareView
+            cells={cells}
+            testCases={testCases}
+            config={config}
+            summary={summary}
+            deepLink={compareDeepLink}
+            onConsumeDeepLink={() => setCompareDeepLink(null)}
+          />
+        )}
+        {activeTab === 'detail' && (
+          <DetailView
+            cell={selectedCell}
+            cells={cells}
+            testCases={testCases}
+            onSelectCell={setSelectedCell}
+            onCompareCell={handleCompareFromDetail}
+          />
+        )}
+        {activeTab === 'trend' && (
+          <TrendView
+            history={history}
+            evalId={evalId!}
+            summary={summary}
+            config={config}
+            selectedBaseline={selectedBaseline}
+            onSaveBaseline={handleSaveBaseline}
+          />
+        )}
       </div>
     </div>
   );

@@ -65,6 +65,21 @@ export const ExecutionService = {
     return [...activeControllers.keys()];
   },
 
+  /** Resolves an EvaluationConfig's test cases (suite / inline / single userMessage), shared by run() and the /:id/testcases route. */
+  resolveTestCases(config: EvaluationConfig): TestCase[] {
+    if (config.testSuiteId) {
+      const suite = TestSuiteService.get(config.testSuiteId);
+      return suite?.testCases ?? [];
+    }
+    if (config.inlineTestCases && config.inlineTestCases.length > 0) {
+      return config.inlineTestCases;
+    }
+    if (config.userMessage) {
+      return [{ id: generateId('tc'), userMessage: config.userMessage }];
+    }
+    return [];
+  },
+
   buildMatrix(config: EvaluationConfig, testCases: TestCase[]): EvalMatrixCell[] {
     const cells: EvalMatrixCell[] = [];
     const runsPerCell = config.runsPerCell ?? 1;
@@ -307,9 +322,10 @@ export const ExecutionService = {
   async aggregate(
     evalId: string,
     cells: EvalMatrixCell[],
-    pairwiseRankings?: PairwiseRanking[]
+    pairwiseRankings?: PairwiseRanking[],
+    options?: { runsPerCell?: number; perspectiveOrder?: string[] }
   ): Promise<EvaluationSummary> {
-    const summary = SummaryService.computeSummary(evalId, cells, pairwiseRankings);
+    const summary = SummaryService.computeSummary(evalId, cells, pairwiseRankings, options);
     const evalDir = join(EVALUATIONS_DIR, evalId);
     writeJson(join(evalDir, 'results.json'), cells);
     writeJson(join(evalDir, 'summary.json'), summary);
@@ -343,22 +359,16 @@ export const ExecutionService = {
     writeJson(join(evalDir, 'config.json'), config);
 
     try {
-      let testCases: TestCase[] = [];
-      if (config.testSuiteId) {
-        const suite = TestSuiteService.get(config.testSuiteId);
-        testCases = suite?.testCases ?? [];
-      } else if (config.inlineTestCases && config.inlineTestCases.length > 0) {
-        testCases = config.inlineTestCases;
-      } else if (config.userMessage) {
-        testCases = [{
-          id: generateId('tc'),
-          userMessage: config.userMessage,
-        }];
-      }
+      const testCases = this.resolveTestCases(config);
 
       if (testCases.length === 0) {
         throw new Error('No test cases found for evaluation');
       }
+
+      // Persisted so /:id/testcases can label rows with the real user message
+      // later — resolveTestCases() alone isn't safe to re-call for that because
+      // the userMessage quick-mode branch mints a fresh id each call.
+      writeJson(join(evalDir, 'testcases.json'), testCases);
 
       const cells = this.buildMatrix(config, testCases);
       writeJson(join(evalDir, 'cells.json'), cells);
@@ -383,7 +393,10 @@ export const ExecutionService = {
         ? this.buildPairwiseRankings(finalCells)
         : undefined;
 
-      await this.aggregate(evalId, finalCells, pairwiseRankings);
+      await this.aggregate(evalId, finalCells, pairwiseRankings, {
+        runsPerCell: config.runsPerCell,
+        perspectiveOrder: template?.perspectives.map(p => p.name),
+      });
 
       const wasCancelled = cancelledEvals.has(evalId);
       cancelledEvals.delete(evalId);

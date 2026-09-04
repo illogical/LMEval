@@ -6,7 +6,10 @@ import {
 import { ExecutionService } from '../services/ExecutionService';
 import { SessionService } from '../services/SessionService';
 import { ReportService } from '../services/ReportService';
-import type { EvaluationConfig } from '../../src/types/eval';
+import { SummaryService } from '../services/SummaryService';
+import type {
+  EvaluationConfig, EvaluationSummary, TestCase, EvaluationHistoryEntry, BaselineSummary,
+} from '../../src/types/eval';
 
 export const evaluationsRouter = Router();
 
@@ -28,6 +31,33 @@ evaluationsRouter.get('/', (req, res) => {
   res.json(evals.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
 });
 
+// Saved baselines, newest first — lets the Results UI offer a "compare
+// against" picker instead of requiring the user to already know a slug.
+// Registered before /:id so it isn't shadowed by that param route.
+evaluationsRouter.get('/baselines', (req, res) => {
+  ensureDir(BASELINES_DIR);
+  const baselines: BaselineSummary[] = [];
+  for (const file of listDir(BASELINES_DIR)) {
+    if (!file.endsWith('.json')) continue;
+    const slug = file.replace(/\.json$/, '');
+    const record = readJson<{ evalId: string; savedAt: string; summary: EvaluationSummary }>(
+      join(BASELINES_DIR, file)
+    );
+    if (!record) continue;
+    const scored = record.summary.modelSummaries.filter(m => m.avgCompositeScore != null);
+    baselines.push({
+      slug,
+      evalId: record.evalId,
+      savedAt: record.savedAt,
+      modelIds: record.summary.modelSummaries.map(m => m.modelId),
+      avgCompositeScore: scored.length > 0
+        ? scored.reduce((s, m) => s + (m.avgCompositeScore ?? 0), 0) / scored.length
+        : undefined,
+    });
+  }
+  res.json(baselines.sort((a, b) => b.savedAt.localeCompare(a.savedAt)));
+});
+
 evaluationsRouter.get('/:id', (req, res) => {
   const { id } = req.params;
   const config = readJson<EvaluationConfig>(join(EVALUATIONS_DIR, id, 'config.json'));
@@ -47,6 +77,75 @@ evaluationsRouter.get('/:id/summary', (req, res) => {
   const summary = readJson(join(EVALUATIONS_DIR, id, 'summary.json'));
   if (!summary) return void res.status(404).json({ error: 'Summary not found' });
   res.json(summary);
+});
+
+// The resolved test cases actually run for this eval, persisted at run time
+// (server/services/ExecutionService.ts) so the Results UI can label rows with
+// the real user message instead of the generated testCaseId slug.
+evaluationsRouter.get('/:id/testcases', (req, res) => {
+  const { id } = req.params;
+  const testCases = readJson<TestCase[]>(join(EVALUATIONS_DIR, id, 'testcases.json'));
+  res.json(testCases ?? []);
+});
+
+// Per-eval history of composite scores over time for every prompt this eval
+// used, across all completed evaluations that share at least one of those
+// prompt ids — generalizes the per-prompt logic in routes/prompts.ts to an
+// eval's whole prompt set, so the Trend tab can plot real multi-run history.
+evaluationsRouter.get('/:id/history', (req, res) => {
+  const { id } = req.params;
+  const config = readJson<EvaluationConfig>(join(EVALUATIONS_DIR, id, 'config.json'));
+  if (!config) return void res.status(404).json({ error: 'Evaluation not found' });
+
+  ensureDir(EVALUATIONS_DIR);
+  const history: EvaluationHistoryEntry[] = [];
+
+  for (const evalId of listDir(EVALUATIONS_DIR)) {
+    const otherConfig = readJson<EvaluationConfig>(join(EVALUATIONS_DIR, evalId, 'config.json'));
+    if (!otherConfig || otherConfig.status !== 'completed') continue;
+    if (!otherConfig.promptIds.some(p => config.promptIds.includes(p))) continue;
+
+    const summary = readJson<EvaluationSummary>(join(EVALUATIONS_DIR, evalId, 'summary.json'));
+    if (!summary) continue;
+
+    const modelScores: Record<string, number> = {};
+    for (const m of summary.modelSummaries) {
+      if (m.avgCompositeScore != null) modelScores[m.modelId] = m.avgCompositeScore;
+    }
+    const promptScores: Record<string, number> = {};
+    for (const p of summary.promptSummaries) {
+      if (p.avgCompositeScore != null) promptScores[`${p.promptId}:${p.promptVersion}`] = p.avgCompositeScore;
+    }
+
+    history.push({
+      evalId,
+      date: summary.completedAt ?? otherConfig.createdAt,
+      modelScores,
+      promptScores,
+    });
+  }
+
+  history.sort((a, b) => a.date.localeCompare(b.date));
+  res.json(history);
+});
+
+// Regression of this eval's summary against a saved baseline — computed on
+// read rather than at run time, so any baseline (not just the one active when
+// the eval was originally run) can be selected from the Results UI.
+evaluationsRouter.get('/:id/regression', (req, res) => {
+  const { id } = req.params;
+  const baselineSlug = req.query.baselineSlug as string | undefined;
+  if (!baselineSlug) return void res.status(400).json({ error: 'baselineSlug query param is required' });
+
+  const summary = readJson<EvaluationSummary>(join(EVALUATIONS_DIR, id, 'summary.json'));
+  if (!summary) return void res.status(404).json({ error: 'Summary not found' });
+
+  const baseline = readJson<{ evalId: string; savedAt: string; summary: EvaluationSummary }>(
+    join(BASELINES_DIR, `${baselineSlug}.json`)
+  );
+  if (!baseline) return void res.status(404).json({ error: 'Baseline not found' });
+
+  res.json(SummaryService.computeRegression(summary, baseline.summary));
 });
 
 evaluationsRouter.post('/', (req, res) => {
@@ -190,7 +289,7 @@ evaluationsRouter.post('/:id/baseline', (req, res) => {
   const body = (req.body ?? {}) as { slug?: string };
   if (!body.slug) return void res.status(400).json({ error: 'slug is required' });
 
-  const summary = readJson(join(EVALUATIONS_DIR, id, 'summary.json'));
+  const summary = readJson<EvaluationSummary>(join(EVALUATIONS_DIR, id, 'summary.json'));
   if (!summary) return void res.status(404).json({ error: 'Summary not found — run eval first' });
 
   ensureDir(BASELINES_DIR);
@@ -198,3 +297,6 @@ evaluationsRouter.post('/:id/baseline', (req, res) => {
   writeJson(baselinePath, { evalId: id, savedAt: new Date().toISOString(), summary });
   res.json({ success: true, slug: body.slug, path: baselinePath });
 });
+
+// Saved baselines, newest first — lets the Results UI offer a "compare
+// against" picker instead of requiring the user to already know a slug.

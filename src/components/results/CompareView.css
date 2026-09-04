@@ -113,3 +113,120 @@
   font-style: italic;
   padding: 40px;
 }
+
+.cv-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.cv-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cv-control .cv-select {
+  min-width: 160px;
+}
+
+.cv-view-toggle {
+  display: flex;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cv-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 6px 12px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cv-toggle-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cv-toggle-btn.cv-toggle-active {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.cv-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.cv-ribbon-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 60px;
+}
+
+.cv-ribbon-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.cv-ribbon-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cv-ribbon-good .cv-ribbon-value { color: var(--ok); }
+.cv-ribbon-bad .cv-ribbon-value { color: var(--error); }
+
+.cv-ribbon-assertions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.cv-pairwise {
+  font-size: 12px;
+  color: var(--text);
+  border-left: 1px solid var(--border);
+  padding-left: 16px;
+}
+
+.cv-pairwise-winner {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.cv-pairwise-just {
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.cv-nup-grid {
+  display: grid;
+  gap: 12px;
+}

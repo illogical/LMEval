@@ -1,21 +1,49 @@
-import type { EvalMatrixCell } from '../../types/eval';
+import { ChevronLeft, ChevronRight, GitCompare } from 'lucide-react';
+import type { EvalMatrixCell, TestCase } from '../../types/eval';
 import { formatLatency } from '../../lib/scoring';
+import { testCaseLabel } from '../../lib/labels';
 import './DetailView.css';
 
 interface DetailViewProps {
   cell: EvalMatrixCell | null;
+  cells: EvalMatrixCell[];
+  testCases: TestCase[];
+  onSelectCell: (cell: EvalMatrixCell) => void;
+  onCompareCell?: (cellId: string) => void;
 }
 
-export function DetailView({ cell }: DetailViewProps) {
-  if (!cell) return <div className="dv-empty">Click a cell in the heatmap to view details</div>;
+export function DetailView({ cell, cells, testCases, onSelectCell, onCompareCell }: DetailViewProps) {
+  if (!cell) return <div className="dv-empty">Click a cell in the heatmap, or a failure in Breakdown, to view details</div>;
+
+  const index = cells.findIndex(c => c.id === cell.id);
+  const prev = index > 0 ? cells[index - 1] : undefined;
+  const next = index >= 0 && index < cells.length - 1 ? cells[index + 1] : undefined;
 
   return (
     <div className="detail-view">
       <div className="dv-header">
-        <div className="dv-model">{cell.modelId}</div>
-        <div className="dv-meta">
-          <span>Test: {cell.testCaseId}</span>
-          {cell.status === 'failed' && <span className="dv-failed">FAILED</span>}
+        <div className="dv-header-top">
+          <div>
+            <div className="dv-model">{cell.modelId}</div>
+            <div className="dv-meta">
+              <span>{testCaseLabel(cell.testCaseId, testCases)}</span>
+              <span>run {cell.run}</span>
+              {cell.status === 'failed' && <span className="dv-failed">FAILED</span>}
+            </div>
+          </div>
+          <div className="dv-nav">
+            {onCompareCell && (
+              <button className="dv-nav-btn dv-compare-btn" onClick={() => onCompareCell(cell.id)}>
+                <GitCompare size={13} /> Compare this cell
+              </button>
+            )}
+            <button className="dv-nav-btn" disabled={!prev} onClick={() => prev && onSelectCell(prev)} title="Previous cell">
+              <ChevronLeft size={14} />
+            </button>
+            <button className="dv-nav-btn" disabled={!next} onClick={() => next && onSelectCell(next)} title="Next cell">
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -23,6 +51,30 @@ export function DetailView({ cell }: DetailViewProps) {
         <h4 className="dv-section-title">Response</h4>
         <pre className="dv-response">{cell.response ?? cell.error ?? 'No response'}</pre>
       </section>
+
+      {cell.status === 'failed' && (cell.error || cell.errorType || cell.retryAttempts?.length) && (
+        <section className="dv-section">
+          <h4 className="dv-section-title">Failure</h4>
+          <table className="dv-table">
+            <tbody>
+              {cell.errorType && <tr><td>Error Type</td><td className="dv-err">{cell.errorType}</td></tr>}
+              {cell.error && <tr><td>Error</td><td className="dv-err">{cell.error}</td></tr>}
+            </tbody>
+          </table>
+          {cell.retryAttempts && cell.retryAttempts.length > 0 && (
+            <div className="dv-retries">
+              <div className="dv-retries-title">{cell.retryAttempts.length} retry attempt{cell.retryAttempts.length === 1 ? '' : 's'}</div>
+              {cell.retryAttempts.map(r => (
+                <div key={r.attemptNumber} className="dv-retry-row">
+                  <span className="dv-retry-num">#{r.attemptNumber}</span>
+                  <span className="dv-retry-err">{r.error}</span>
+                  <span className="dv-retry-ts">{new Date(r.timestamp).toLocaleTimeString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {cell.assertionResults && cell.assertionResults.length > 0 && (
         <section className="dv-section">
@@ -44,7 +96,7 @@ export function DetailView({ cell }: DetailViewProps) {
         </section>
       )}
 
-      {!cell.assertionResults && cell.deterministicMetrics && (
+      {cell.deterministicMetrics && (
         <section className="dv-section">
           <h4 className="dv-section-title">Deterministic Checks</h4>
           <table className="dv-table">
@@ -80,7 +132,7 @@ export function DetailView({ cell }: DetailViewProps) {
         </section>
       )}
 
-      {!cell.assertionResults && cell.judgeResults && cell.judgeResults.length > 0 && (
+      {cell.judgeResults && cell.judgeResults.length > 0 && (
         <section className="dv-section">
           <h4 className="dv-section-title">Judge Scores</h4>
           {cell.judgeResults.map(jr => (
@@ -104,6 +156,7 @@ export function DetailView({ cell }: DetailViewProps) {
             {cell.outputTokens != null && <tr><td>Output Tokens</td><td>{cell.outputTokens}</td></tr>}
             {cell.tokensPerSecond != null && <tr><td>Tokens/sec</td><td>{cell.tokensPerSecond.toFixed(1)}</td></tr>}
             {cell.finishReason && <tr><td>Finish Reason</td><td>{cell.finishReason}</td></tr>}
+            {cell.serverName && <tr><td>Server</td><td>{cell.serverName}</td></tr>}
           </tbody>
         </table>
       </section>

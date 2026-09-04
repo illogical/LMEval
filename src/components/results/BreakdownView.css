@@ -1,0 +1,188 @@
+.breakdown-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.bv-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.bv-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bv-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  margin: 0;
+}
+
+.bv-section-subtitle {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.bv-stat-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.bv-stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 100px;
+}
+
+.bv-stat-value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.bv-stat-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.bv-all-pass {
+  color: var(--ok);
+  font-size: 13px;
+  padding: 12px 0;
+}
+
+.bv-tc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bv-tc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.bv-tc-label {
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bv-tc-bar-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.bv-tc-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.bv-tc-pct {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.bv-assert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bv-assert-row {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.bv-assert-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.bv-assert-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.bv-assert-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bv-assert-count {
+  color: var(--error);
+  font-family: var(--font-mono);
+}
+
+.bv-assert-reason {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: italic;
+  cursor: pointer;
+  padding: 0;
+}
+
+.bv-assert-reason:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.bv-collapse-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 12px;
+}
+
+.bv-collapse-toggle:hover .bv-section-title {
+  color: var(--accent);
+}
+
+.bv-perf-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .bv-perf-charts {
+    grid-template-columns: 1fr;
+  }
+}

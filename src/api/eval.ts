@@ -1,4 +1,4 @@
-import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset, EvalPurposeTemplate } from '../types/eval';
+import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset, EvalPurposeTemplate, EvaluationHistoryEntry, BaselineSummary, RegressionResult } from '../types/eval';
 import type { ParseResult } from '../utils/testCaseIO';
 import type { SessionManifest, SessionSlot } from '../types/session';
 
@@ -122,7 +122,7 @@ export async function createEvaluation(
 export async function getEvaluation(id: string): Promise<EvaluationConfig> {
   return apiFetch(`/evaluations/${id}`);
 }
-export async function getEvaluationResults(id: string): Promise<{ cells: EvalMatrixCell[] }> {
+export async function getEvaluationResults(id: string): Promise<EvalMatrixCell[]> {
   return apiFetch(`/evaluations/${id}/results`);
 }
 export async function getEvaluationSummary(id: string): Promise<EvaluationSummary> {
@@ -135,6 +135,18 @@ export async function exportEvaluation(id: string, format: 'html' | 'md'): Promi
 }
 export async function saveBaseline(id: string, slug: string): Promise<void> {
   await apiFetch(`/evaluations/${id}/baseline`, { method: 'POST', body: JSON.stringify({ slug }) });
+}
+export async function listBaselines(): Promise<BaselineSummary[]> {
+  return apiFetch('/evaluations/baselines');
+}
+export async function getEvaluationTestCases(id: string): Promise<TestCase[]> {
+  return apiFetch(`/evaluations/${id}/testcases`);
+}
+export async function getEvaluationHistory(id: string): Promise<EvaluationHistoryEntry[]> {
+  return apiFetch(`/evaluations/${id}/history`);
+}
+export async function getEvaluationRegression(id: string, baselineSlug: string): Promise<RegressionResult> {
+  return apiFetch(`/evaluations/${id}/regression?baselineSlug=${encodeURIComponent(baselineSlug)}`);
 }
 
 // Models

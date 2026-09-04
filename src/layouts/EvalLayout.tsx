@@ -2,7 +2,12 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { EvalWizardProvider } from '../contexts/EvalWizardContext';
 import { EvalHeaderActionProvider, useEvalHeaderAction } from '../contexts/EvalHeaderActionContext';
 import { EvalStepIndicator } from '../components/layout/EvalStepIndicator';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import './EvalLayout.css';
+
+const STEP_LABELS: Record<number, string> = {
+  1: 'Prompts', 2: 'Prepare', 3: 'Run', 4: 'Results', 5: 'Summary',
+};
 
 function EvalLayoutInner() {
   const location = useLocation();
@@ -28,7 +33,9 @@ function EvalLayoutInner() {
       </header>
       <EvalStepIndicator activeStep={getActiveStep()} rightSlot={headerAction} />
       <main className="eval-main">
-        <Outlet />
+        <ErrorBoundary label={STEP_LABELS[getActiveStep()]} resetKey={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   );

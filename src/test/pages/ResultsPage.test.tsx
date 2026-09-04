@@ -4,7 +4,16 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ResultsPage } from '../../pages/ResultsPage';
 
 vi.mock('../../api/eval', () => ({
-  getEvaluationResults: vi.fn().mockResolvedValue({ cells: [] }),
+  getEvaluation: vi.fn().mockResolvedValue({
+    id: 'eval-1',
+    name: 'Test eval',
+    promptIds: ['p1'],
+    modelIds: ['m1'],
+    status: 'completed',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  }),
+  getEvaluationResults: vi.fn().mockResolvedValue([]),
   getEvaluationSummary: vi.fn().mockResolvedValue({
     evalId: 'eval-1',
     totalCells: 0,
@@ -13,6 +22,10 @@ vi.mock('../../api/eval', () => ({
     modelSummaries: [],
     promptSummaries: [],
   }),
+  getEvaluationTestCases: vi.fn().mockResolvedValue([]),
+  getEvaluationHistory: vi.fn().mockResolvedValue([]),
+  getEvaluationRegression: vi.fn().mockResolvedValue({ metrics: [], hasRegressions: false, hasImprovements: false }),
+  listBaselines: vi.fn().mockResolvedValue([]),
   exportEvaluation: vi.fn(),
   saveBaseline: vi.fn(),
 }));
@@ -38,10 +51,10 @@ describe('ResultsPage', () => {
     renderResultsPage();
     // Loading state initially shown, wait for it
     await screen.findByText('Scoreboard');
+    expect(screen.getByText('Breakdown')).toBeInTheDocument();
     expect(screen.getByText('Compare')).toBeInTheDocument();
     expect(screen.getByText('Detail')).toBeInTheDocument();
-    expect(screen.getByText('Metrics')).toBeInTheDocument();
-    expect(screen.getByText('Timeline')).toBeInTheDocument();
+    expect(screen.getByText('Trend')).toBeInTheDocument();
   });
 
   it('renders export buttons', async () => {
@@ -55,5 +68,11 @@ describe('ResultsPage', () => {
     renderResultsPage();
     await screen.findByText('Scoreboard');
     expect(screen.getByText('Save Baseline')).toBeInTheDocument();
+  });
+
+  it('renders a verdict headline', async () => {
+    renderResultsPage();
+    await screen.findByText('Scoreboard');
+    expect(screen.getByText(/Evaluation complete|is the best fit|Best model/)).toBeInTheDocument();
   });
 });
