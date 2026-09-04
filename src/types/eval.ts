@@ -102,6 +102,7 @@ export interface EvaluationConfig {
   sessionVersion?: number;
   baselineId?: string;
   status: EvalStatus;
+  startedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -30,7 +30,11 @@ export function useEvalSocket(evalId: string | null): EvalSocketState {
 
     const proto = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = typeof window !== 'undefined' ? window.location.host : 'localhost:5173';
-    const url = `${proto}//${host}/ws/eval`;
+    // Namespaced under BASE_URL to match the server's basePath-scoped
+    // upgrade path (server/ws.ts) — see WebSocketContext.tsx for the same
+    // pattern.
+    const path = `${import.meta.env.BASE_URL}ws/eval`.replace(/\/\/+/g, '/');
+    const url = `${proto}//${host}${path}`;
 
     try {
       const ws = new WebSocket(url);
@@ -67,16 +71,18 @@ export function useEvalSocket(evalId: string | null): EvalSocketState {
         } catch (e) { console.debug('[useEvalSocket] Failed to parse WS message', e); }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (evt) => {
         if (unmountedRef.current) return;
-        setState(s => ({ ...s, status: 'closed' }));
+        console.warn(`[useEvalSocket] closed (code=${evt.code}, reason=${evt.reason || 'none'}, clean=${evt.wasClean})`);
+        setState(s => ({ ...s, status: 'closed', error: `Connection closed (code ${evt.code}${evt.reason ? `: ${evt.reason}` : ''})` }));
         wsRef.current = null;
         const delay = Math.min(reconnectDelayRef.current * 2, 5000);
         reconnectDelayRef.current = delay;
         reconnectTimerRef.current = setTimeout(connect, delay);
       };
 
-      ws.onerror = () => {
+      ws.onerror = (evt) => {
+        console.warn('[useEvalSocket] error event', evt);
         setState(s => ({ ...s, status: 'error', error: 'WebSocket connection error' }));
         ws.close();
       };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { ElapsedTimer } from '../components/dashboard/ElapsedTimer';
@@ -7,8 +7,9 @@ import { EvalSummaryBar } from '../components/dashboard/EvalSummaryBar';
 import { PromptRunCard } from '../components/dashboard/PromptRunCard';
 import { ErrorPanel } from '../components/dashboard/ErrorPanel';
 import { WsStatusDot } from '../components/dashboard/WsStatusDot';
+import { ConnectionLostBanner } from '../components/dashboard/ConnectionLostBanner';
 import { useEvalSocket } from '../hooks/useEvalSocket';
-import { getEvaluation, getEvaluationResults } from '../api/eval';
+import { getEvaluation, getEvaluationResults, cancelEvaluation } from '../api/eval';
 import type { EvalMatrixCell, EvaluationConfig } from '../types/eval';
 import type { ModelCellInfo } from '../components/dashboard/ModelStatusRow';
 import type { CellFailure } from '../components/dashboard/ErrorPanel';
@@ -18,53 +19,78 @@ export function DashboardPage() {
   const { evalId } = useParams<{ evalId: string }>();
   const navigate = useNavigate();
   const { events, isCompleted: wsCompleted, status: wsStatus } = useEvalSocket(evalId ?? null);
-  const startTimeRef = useRef(Date.now());
 
   const [evalConfig, setEvalConfig] = useState<EvaluationConfig | null>(null);
   const [completedCells, setCompletedCells] = useState<EvalMatrixCell[]>([]);
   const [failures, setFailures] = useState<CellFailure[]>([]);
   const [isCompleted, setIsCompleted] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [refreshingStatus, setRefreshingStatus] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   // Map from "promptId::modelId" → ModelCellInfo for tracking status per cell
   const [cellStatusMap, setCellStatusMap] = useState<Map<string, ModelCellInfo>>(new Map());
 
+  // Re-fetches eval config + (if finished) results from the server. Used on
+  // mount and by the "Refresh Status" recovery action so state can resync
+  // without depending on the WebSocket being connected.
+  const refreshStatus = useCallback(async () => {
+    if (!evalId) return;
+    const cfg = await getEvaluation(evalId);
+    setEvalConfig(cfg);
+
+    if (cfg.status === 'completed' || cfg.status === 'failed' || cfg.status === 'cancelled') {
+      setIsCompleted(cfg.status === 'completed');
+      const r = await getEvaluationResults(evalId).catch(() => null);
+      if (r) {
+        const cells = Array.isArray(r) ? r : (r as { cells?: EvalMatrixCell[] }).cells ?? [];
+        setCompletedCells(cells);
+        const failed: CellFailure[] = cells
+          .filter(c => c.status === 'failed')
+          .map(c => ({ cellId: c.id, modelId: c.modelId, promptId: c.promptId, error: c.error ?? 'Unknown error' }));
+        setFailures(failed);
+        // Build cell status map from REST results
+        const map = new Map<string, ModelCellInfo>();
+        for (const cell of cells) {
+          const key = `${cell.promptId}::${cell.modelId}`;
+          map.set(key, {
+            modelId: cell.modelId,
+            serverName: cell.serverName,
+            status: cell.status === 'completed' ? 'completed' : cell.status === 'failed' ? 'failed' : 'pending',
+            durationMs: cell.durationMs,
+            tokensPerSecond: cell.tokensPerSecond,
+            error: cell.error,
+          });
+        }
+        setCellStatusMap(map);
+      }
+    }
+  }, [evalId]);
+
   // Fetch eval config on mount
   useEffect(() => {
-    if (!evalId) return;
-    getEvaluation(evalId).then(cfg => {
-      setEvalConfig(cfg);
+    refreshStatus().catch(() => {});
+  }, [refreshStatus]);
 
-      // If already done, load results from REST and skip WS
-      if (cfg.status === 'completed' || cfg.status === 'failed') {
-        setIsCompleted(cfg.status === 'completed');
-        getEvaluationResults(evalId)
-          .then(r => {
-            const cells = Array.isArray(r) ? r : (r as { cells?: EvalMatrixCell[] }).cells ?? [];
-            setCompletedCells(cells);
-            const failed: CellFailure[] = cells
-              .filter(c => c.status === 'failed')
-              .map(c => ({ cellId: c.id, modelId: c.modelId, promptId: c.promptId, error: c.error ?? 'Unknown error' }));
-            setFailures(failed);
-            // Build cell status map from REST results
-            const map = new Map<string, ModelCellInfo>();
-            for (const cell of cells) {
-              const key = `${cell.promptId}::${cell.modelId}`;
-              map.set(key, {
-                modelId: cell.modelId,
-                serverName: cell.serverName,
-                status: cell.status === 'completed' ? 'completed' : cell.status === 'failed' ? 'failed' : 'pending',
-                durationMs: cell.durationMs,
-                tokensPerSecond: cell.tokensPerSecond,
-                error: cell.error,
-              });
-            }
-            setCellStatusMap(map);
-          })
-          .catch(() => {});
-      }
-    }).catch(() => {});
-  }, [evalId]);
+  const handleRefreshStatus = useCallback(async () => {
+    setRefreshingStatus(true);
+    try {
+      await refreshStatus();
+    } finally {
+      setRefreshingStatus(false);
+    }
+  }, [refreshStatus]);
+
+  const handleCancel = useCallback(async () => {
+    if (!evalId) return;
+    setCancelling(true);
+    try {
+      await cancelEvaluation(evalId);
+      await refreshStatus();
+    } finally {
+      setCancelling(false);
+    }
+  }, [evalId, refreshStatus]);
 
   // Process WS events
   useEffect(() => {
@@ -212,7 +238,10 @@ export function DashboardPage() {
       <div className="dp-header">
         <div className="dp-header-left">
           <h2 className="dp-title">{isCompleted ? 'Evaluation Complete' : 'Evaluation Running'}</h2>
-          <ElapsedTimer startTime={startTimeRef.current} stopped={isCompleted} />
+          <ElapsedTimer
+            startTime={evalConfig?.startedAt ? new Date(evalConfig.startedAt).getTime() : Date.now()}
+            stopped={isCompleted}
+          />
           <WsStatusDot status={wsStatus} />
         </div>
         <div className="dp-header-right">
@@ -223,6 +252,16 @@ export function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Connection lost recovery banner */}
+      {!isCompleted && (wsStatus === 'closed' || wsStatus === 'error') && (
+        <ConnectionLostBanner
+          onRefreshStatus={handleRefreshStatus}
+          onCancel={handleCancel}
+          refreshing={refreshingStatus}
+          cancelling={cancelling}
+        />
+      )}
 
       {/* Eval summary */}
       {evalId && <EvalSummaryBar evalId={evalId} />}

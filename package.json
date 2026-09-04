@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n api,web -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "tsx watch server/index.ts",
+    "dev:server": "tsx watch --ignore \"data/**\" server/index.ts",
     "dev:client": "vite",
     "build": "tsc -b && vite build",
     "build:hosted": "tsc -b && cross-env VITE_BASE_PATH=/lmeval/ vite build",

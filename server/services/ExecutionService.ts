@@ -338,6 +338,7 @@ export const ExecutionService = {
     const startMs = Date.now();
 
     config.status = 'running';
+    config.startedAt = new Date(startMs).toISOString();
     config.updatedAt = new Date().toISOString();
     writeJson(join(evalDir, 'config.json'), config);
 

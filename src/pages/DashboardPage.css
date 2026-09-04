@@ -402,6 +402,68 @@
   flex: 1;
 }
 
+/* ── Connection Lost Banner ──────────────────────────────── */
+.connection-lost-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, #f59e0b 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, #f59e0b 40%, transparent);
+  border-radius: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.clb-icon { color: #f59e0b; flex-shrink: 0; }
+
+.clb-text {
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+  min-width: 200px;
+}
+
+.clb-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clb-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.clb-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.clb-btn--danger {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.clb-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--error) 15%, transparent);
+}
+
+.clb-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ── Live Feed Section ───────────────────────────────────── */
 .dp-feed-section {
   display: flex;
