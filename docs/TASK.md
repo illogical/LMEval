@@ -124,7 +124,8 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 - [ ] Add `inference?: { temperature: number; maxTokens: number; seed?: number }` to `EvaluationConfig`
 - [ ] Thread it through `PromptfooAdapter.buildLmapiProvider()` into the LMApi request body — today it posts only `model`, `messages`, `stream`, `groupId`, so every cell runs at the provider default temperature
 - [ ] Resolution order: per-run config → purpose template defaults → LMApi default; persist the resolved values on every result
-- [ ] Built-in purpose templates declare MemoryApi's production values: classification `t=0`/`max=50`, tagging `t=0`/`max=100`, summarization `t=0.1`/`max=150`
+- [ ] Built-in purpose templates default to `temperature 0.3` for all three tasks (classification, tagging, summarization) — matches MemoryApi's actual production temperature, read from `memoryTextProcessor.ts` (an earlier pass of this plan assumed `t=0`/`t=0`/`t=0.1`, which was wrong; only the unrelated `extractEntities` call uses `0.1`)
+- [ ] Built-in purpose templates default `maxTokens` to **1000** for all three tasks — deliberately *not* mirrored from MemoryApi's tight production ceilings (50 / 100 / 150), since LMEval is a general tool and a thin default ceiling turns an ordinary long response into a silent truncation that reads as a quality failure. A strict MemoryApi production-parity run overrides `maxTokens` per-run to match production exactly; the generous default is for LMEval's own tuning and model-selection runs, and for any other prompt/task run through LMEval
 - [ ] Mark results that ran without explicit parameters `inferenceParametersUnspecified` — unusable as a baseline or promotion input
 - [ ] Record `finishReason` per cell and report a **truncation rate** — a summarization model that scores well only because it was cut off at 150 tokens has not passed *(the per-cell display half of this shipped in §3; the aggregate rate has not)*
 - [ ] Record the LMApi endpoint path and message shape in each evaluation's provenance; refuse to treat a run as a promotion input when a snapshot declares a transport LMEval did not use
@@ -163,7 +164,7 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 - [ ] Report the point estimate, the case count behind it, and **one case's worth of movement in pp** alongside every primary metric
 - [ ] Express gates against the interval, not the point estimate; emit `inconclusive` with a needed-case-count rather than a false pass
 - [ ] State regression-slice gates in **cases** ("at most one regression-slice case may flip"), not points — a 16-case slice moves in 6.25 pp steps, so a bare 2 pp rule reduces to "any single case flipped" and rejects good candidates on noise
-- [ ] Default classification/tagging runs: t=0, ≥3 runs per prompt/model/case
+- [ ] Default classification/tagging runs: production temperature (`t=0.3`, not `t=0`), ≥3 runs per prompt/model/case — `0.3` is noisier run-to-run than `0` would be, which is exactly why the repeated-run and run-to-run-agreement metrics can't be skipped here
 
 **A8 — Judge qualification**
 - [ ] `JudgeQualification` record: judge model id, calibration-set hash, date, measured statistics

@@ -27,7 +27,7 @@ Success means that a prompt or model can be ranked by task-appropriate quality m
 - `data/evals/test-suites/` contains no reusable built-in suites. Purpose templates carry editable starter cases, conflating a quick-start example with a regression benchmark.
 - MemoryApi has eight categories and 61 tags. Its 26 production seed memories cover only Preference (17), Note (8), and Event (1). Its 48 sample memories cover all eight categories. Across both files, ten tags remain uncovered: Family, Plan, Summary, To Do, Watch Later, Test, Improve, Design, Shopping, and Video Game.
 - MemoryApi output filtering and fallback can make the stored result look valid even when the raw model response violated the prompt contract. LMEval must measure the raw response; MemoryApi separately measures the complete production pipeline.
-- LMEval sends no inference parameters. `buildLmapiProvider` in `server/services/PromptfooAdapter.ts` posts only `model`, `messages`, `stream`, and `groupId`, so every cell runs at the provider default temperature. MemoryApi runs these tasks at explicit temperatures and output-token ceilings. Until LMEval can set and record `temperature` and `maxTokens` per evaluation, a result cannot be claimed to measure the production configuration, and this plan's promise to persist inference parameters is unsatisfiable.
+- **Resolved by A1 on 2026-09-04:** this review originally found that LMEval sent no inference parameters. `buildLmapiProvider` now sends resolved `temperature`, `max_tokens`, and optional `seed`; the values and transport provenance persist with the result, and unspecified runs are barred from baseline/promotion use. LMApi now accepts and forwards `seed` to Ollama. Transport parity with MemoryApi remains unresolved separately below.
 - LMEval and MemoryApi do not call LMApi the same way. LMEval posts `messages: [system, user]` to `/api/chat/completions/any`; MemoryApi's `LMApiClient` joins the messages into one `ROLE: content` string and posts it as `prompt` to `/api/generate/any`. A prompt that wins in LMEval is therefore not the prompt MemoryApi executes. Transport parity is a precondition for this workflow, not a detail.
 - The shipped built-ins already use different config keys than this plan's union. `data/evals/purpose-templates/classification.json` uses `config.categories`; `tagging.json` uses `config.tagVocabulary` and `config.threshold`. Migration must accept these as aliases rather than assume a clean field set.
 - `EvaluationConfig.comparisonMode` already distinguishes `model`, `prompt`, and `matrix`, but nothing downstream produces a model-selection verdict. Model ranking today means reading an average composite score off the leaderboard, which is the wrong statistic for these three tasks.
@@ -132,7 +132,9 @@ Use separate locations:
 
 ## Execution Fidelity
 
-A benchmark result is only transferable if LMEval executes the task the way MemoryApi executes it. Three things must match, and today none of them do.
+A benchmark result is only transferable if LMEval executes the task the way MemoryApi executes it.
+Inference parameter control and recording landed in A1 on 2026-09-04; transport and prompt-shape
+parity remain open.
 
 ### Inference parameters
 
@@ -146,7 +148,17 @@ inference?: {
 };
 ```
 
-Resolution order is per-run config, then the purpose template's declared defaults, then LMApi's default. Built-in purpose templates declare the values MemoryApi uses in production: classification `temperature 0` / `maxTokens 50`, tagging `temperature 0` / `maxTokens 100`, summarization `temperature 0.1` / `maxTokens 150`. Persist the resolved values on every result, and mark any result that ran without explicit parameters as `inferenceParametersUnspecified` so it cannot be used as a baseline or a promotion input.
+**Implementation status (2026-09-04): complete.** LMEval resolves these fields from per-run config,
+then purpose-template defaults, sends them through LMApi, and persists the resolved values and
+transport provenance. LMApi accepts `seed` on its chat-completions schema and forwards it to
+Ollama's OpenAI-compatible endpoint. A live repeated-call seed check remains runtime verification
+debt, not an open implementation dependency.
+
+Resolution order is per-run config, then the purpose template's declared defaults, then LMApi's default. **Correction (2026-09-04): the temperatures below were previously assumed rather than read from source.** `server/services/memoryTextProcessor.ts` actually runs `classifyText`, `tagText`, and `summarizeText` at `temperature 0.3` (only `extractEntities`, which LMEval has no built-in template for, uses `0.1`). Built-in purpose templates declare `temperature 0.3` for all three tasks, matching production.
+
+`maxTokens` is deliberately **not** mirrored from MemoryApi's tight production ceilings (50 / 100 / 150). LMEval is a general evaluation tool, not just a MemoryApi harness, and a small default ceiling turns "the model ran a bit long" into a silent truncation that looks like a quality failure — exactly the failure mode this section exists to catch. Built-in purpose templates default `maxTokens` to `1000` for all three tasks, generous enough that truncation is rare regardless of what MemoryApi's production ceiling is today or becomes later, and generous enough to support prompts and tasks beyond MemoryApi's three. The truncation-rate metric (below) is what tells you whether 1000 was still too tight for a given model/prompt — the default's job is to make that the rare, diagnosable case rather than the default outcome.
+
+A run intended as a strict MemoryApi **production-parity** check (as opposed to LMEval's own tuning/model-selection runs) should still override `maxTokens` to MemoryApi's actual per-task values via per-run config, since parity requires measuring the exact deployed configuration, not a generous approximation of it. Persist the resolved values on every result, and mark any result that ran without explicit parameters as `inferenceParametersUnspecified` so it cannot be used as a baseline or a promotion input.
 
 The output-token ceiling is itself a measured variable, not a constant: record `finishReason` per cell and report a truncation rate. A summarization model that scores well only because it was cut off at 150 tokens has not passed.
 
@@ -246,7 +258,7 @@ A candidate fails promotion when a primary metric regresses against the approved
 
 Express gates against the confidence interval, not the point estimate. A candidate is a regression when the paired comparison is significant and the point drop exceeds the threshold; a candidate is a genuine improvement only when its interval's lower bound clears the floor. When the interval is too wide to decide, report `inconclusive` and say how many additional cases would be needed rather than issuing a pass. Regression slices smaller than the resolution a gate implies must either grow or have their gate restated in cases (for example, "no more than one regression-slice case may flip"), and this is the honest reading of the v1 slice sizes: the classification and tagging regression slices support case-count rules, not two-point rules.
 
-Default classification and tagging runs use temperature 0 and at least three runs per prompt/model/case to reveal instability. Summarization uses at least two candidate runs and three judge passes per response. Persist prompt, taxonomy, dataset, model, provider, inference parameters, and judge identity with every result.
+Default classification and tagging runs use the production temperature (`0.3`, corrected above — not `0`) and at least three runs per prompt/model/case to reveal instability; `0.3` is inherently noisier run-to-run than `0` would be, which is precisely why repeated runs and the run-to-run agreement metric matter here and cannot be skipped. Summarization uses at least two candidate runs and three judge passes per response. Persist prompt, taxonomy, dataset, model, provider, inference parameters, and judge identity with every result.
 
 ## Per-Task Model Selection
 

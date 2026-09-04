@@ -20,11 +20,18 @@ MemoryApi's plan builds its whole prompt architecture on separating a stable sys
 
 > MemoryApi `src/services/modelClients.ts:227–241` · LMEval `server/services/LmapiClient.ts:103`
 
-### 2 — LMEval sends no inference parameters (parity)
+### 2 — LMEval sent no inference parameters (resolved)
 
-`buildLmapiProvider` posts `model`, `messages`, `stream`, `groupId` — and nothing else. Every cell runs at the provider default temperature.
+At review time, `buildLmapiProvider` posted `model`, `messages`, `stream`, and `groupId` only, so
+every cell ran at the provider default temperature.
 
-MemoryApi prescribes temperature `0` for classification and tagging and `0.1` for summarization, with per-task token ceilings. LMEval cannot currently set those, so it cannot measure the configuration being promoted, and its stated promise to persist inference parameters has nothing to persist.
+**Status correction (2026-09-04, later pass):** MemoryApi actually runs `classifyText`, `tagText`,
+and `summarizeText` at `temperature 0.3` with `maxTokens` 50 / 100 / 150 respectively; only the
+unrelated `extractEntities` call uses `temperature 0.1`. A1 subsequently resolved the LMEval finding:
+`buildLmapiProvider` now sends resolved `temperature`, `max_tokens`, and optional `seed`, and LMEval
+persists the resolved inference values and transport provenance. LMApi added `seed` to its validated
+chat-completions schema and forwards it to Ollama. The separate structured-message transport mismatch
+in finding 1 remains the blocker to a transferable result.
 
 > LMEval `server/services/PromptfooAdapter.ts:31–40` · MemoryApi `src/services/memoryTextProcessor.ts:29, 45, 76`
 
