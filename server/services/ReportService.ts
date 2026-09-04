@@ -28,6 +28,12 @@ export const ReportService = {
       `**Eval ID:** \`${evalId}\`  `,
       `**Completed:** ${summary.completedAt ?? 'N/A'}  `,
       `**Total Cells:** ${summary.totalCells} | **Completed:** ${summary.completedCells} | **Failed:** ${summary.failedCells}`,
+      summary.resolvedInference
+        ? `**Inference:** temperature ${summary.resolvedInference.temperature}, maxTokens ${summary.resolvedInference.maxTokens}${summary.resolvedInference.seed != null ? `, seed ${summary.resolvedInference.seed}` : ''} (source: ${summary.resolvedInference.source})  `
+        : '**Inference:** unspecified — not usable as a baseline or promotion input  ',
+      summary.transportProvenance
+        ? `**Transport:** ${summary.transportProvenance.endpointPaths.join(', ')} (${summary.transportProvenance.messageShape})${summary.truncationRate != null ? ` | **Truncation rate:** ${(summary.truncationRate * 100).toFixed(1)}%` : ''}`
+        : '',
       '',
       '---',
       '',
@@ -98,6 +104,7 @@ export const ReportService = {
     return `<!DOCTYPE html><html><head><title>${safeName}</title></head><body>
 <h1>${safeName}</h1>
 <p>Completed: ${summary.completedAt ?? 'N/A'} | Cells: ${summary.totalCells}</p>
+<p>Inference: ${summary.resolvedInference ? `temperature ${summary.resolvedInference.temperature}, maxTokens ${summary.resolvedInference.maxTokens}` : 'unspecified — not usable as a baseline or promotion input'}</p>
 <script>const DATA = ${data};</script>
 </body></html>`;
   },

@@ -10,10 +10,42 @@ import { PromptService } from './PromptService';
 import { TestSuiteService } from './TestSuiteService';
 import type {
   EvaluationConfig, EvalMatrixCell, EvaluationSummary, TestCase,
-  EvalTemplate, PairwiseRanking, EvalStreamEvent, AssertionStrategy,
+  EvalTemplate, PairwiseRanking, EvalStreamEvent, AssertionStrategy, EvalPurposeTemplate,
 } from '../../src/types/eval';
 
 const CONCURRENCY_LIMIT = Math.max(1, parseInt(process.env.EVAL_CONCURRENCY ?? '8', 10) || 8);
+
+/**
+ * Resolution order: per-run config -> purpose template default -> none ("none" is
+ * today's status quo: omit temperature/max_tokens entirely and let LMApi/the model's
+ * own default apply). Exported standalone so the resolution logic is unit-testable
+ * without mocking ExecutionService.run()'s promptfoo/FileService dependencies.
+ */
+export function resolveInferenceAndProvenance(
+  config: EvaluationConfig,
+  purposeTemplate: EvalPurposeTemplate | null
+): Pick<EvaluationConfig, 'resolvedInference' | 'inferenceParametersUnspecified' | 'transportProvenance'> {
+  let resolvedInference: EvaluationConfig['resolvedInference'];
+  if (config.inference) {
+    resolvedInference = { ...config.inference, source: 'config' };
+  } else if (purposeTemplate?.inference) {
+    resolvedInference = { ...purposeTemplate.inference, source: 'purposeTemplate' };
+  }
+
+  const serverPinnedCount = config.modelIds.filter(id => id.includes('::')).length;
+  const endpointPaths: string[] = [];
+  if (serverPinnedCount > 0) endpointPaths.push('/api/chat/completions/server');
+  if (serverPinnedCount < config.modelIds.length) endpointPaths.push('/api/chat/completions/any');
+
+  return {
+    resolvedInference,
+    inferenceParametersUnspecified: resolvedInference == null,
+    // LMApi's ChatCompletionSchema added `seed` on 2026-09-04 (see
+    // LMApi/docs/plans/2026-09-04-sampling-parameter-support.md) — Ollama's compat
+    // endpoint already accepted it, so this is honored end-to-end as soon as it's sent.
+    transportProvenance: { endpointPaths, messageShape: 'chat-messages', seedHonored: true },
+  };
+}
 
 type BroadcastFn = (event: EvalStreamEvent) => void;
 
@@ -323,7 +355,12 @@ export const ExecutionService = {
     evalId: string,
     cells: EvalMatrixCell[],
     pairwiseRankings?: PairwiseRanking[],
-    options?: { runsPerCell?: number; perspectiveOrder?: string[] }
+    options?: {
+      runsPerCell?: number;
+      perspectiveOrder?: string[];
+      resolvedInference?: EvaluationConfig['resolvedInference'];
+      transportProvenance?: EvaluationConfig['transportProvenance'];
+    }
   ): Promise<EvaluationSummary> {
     const summary = SummaryService.computeSummary(evalId, cells, pairwiseRankings, options);
     const evalDir = join(EVALUATIONS_DIR, evalId);
@@ -375,15 +412,19 @@ export const ExecutionService = {
 
       let template: EvalTemplate | null = null;
       let purposeStrategy: AssertionStrategy | null = null;
+      let purposeTemplate: EvalPurposeTemplate | null = null;
       if (config.templateId) {
         const { TemplateService } = await import('./TemplateService');
         template = TemplateService.get(config.templateId);
       }
       if (config.purposeTemplateId) {
         const { PurposeTemplateService } = await import('./PurposeTemplateService');
-        const purposeTemplate = PurposeTemplateService.get(config.purposeTemplateId);
+        purposeTemplate = PurposeTemplateService.get(config.purposeTemplateId);
         purposeStrategy = purposeTemplate?.assertionStrategy ?? null;
       }
+
+      Object.assign(config, resolveInferenceAndProvenance(config, purposeTemplate));
+      writeJson(join(evalDir, 'config.json'), config);
 
       const finalCells = await this.runPromptfoo(
         evalId, config, cells, testCases, template, purposeStrategy, controller, startMs
@@ -396,6 +437,8 @@ export const ExecutionService = {
       await this.aggregate(evalId, finalCells, pairwiseRankings, {
         runsPerCell: config.runsPerCell,
         perspectiveOrder: template?.perspectives.map(p => p.name),
+        resolvedInference: config.resolvedInference,
+        transportProvenance: config.transportProvenance,
       });
 
       const wasCancelled = cancelledEvals.has(evalId);

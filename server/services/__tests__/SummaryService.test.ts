@@ -79,5 +79,42 @@ describe('SummaryService.computeSummary — new aggregations', () => {
     expect(summary.testCaseSummaries).toBeUndefined();
     expect(summary.assertionSummary).toBeUndefined();
     expect(summary.perspectiveIds).toBeUndefined();
+    expect(summary.truncationRate).toBeUndefined();
+  });
+});
+
+describe('SummaryService.computeSummary — truncation rate', () => {
+  it('excludes cells with no captured finishReason from the denominator', () => {
+    const cells: EvalMatrixCell[] = [
+      cell({ id: 'a', finishReason: 'stop' }),
+      cell({ id: 'b', status: 'failed' }), // no finishReason
+    ];
+    const summary = SummaryService.computeSummary('eval-1', cells);
+    expect(summary.truncationRate).toBe(0);
+  });
+
+  it('counts a non-stop finishReason as truncated', () => {
+    const cells: EvalMatrixCell[] = [
+      cell({ id: 'a', finishReason: 'stop' }),
+      cell({ id: 'b', finishReason: 'length' }),
+    ];
+    const summary = SummaryService.computeSummary('eval-1', cells);
+    expect(summary.truncationRate).toBe(0.5);
+  });
+
+  it('leaves truncationRate undefined when no cell has a finishReason', () => {
+    const cells: EvalMatrixCell[] = [cell({ id: 'a' })];
+    const summary = SummaryService.computeSummary('eval-1', cells);
+    expect(summary.truncationRate).toBeUndefined();
+  });
+
+  it('mirrors resolvedInference and transportProvenance from options', () => {
+    const cells: EvalMatrixCell[] = [cell({ id: 'a' })];
+    const summary = SummaryService.computeSummary('eval-1', cells, undefined, {
+      resolvedInference: { temperature: 0.3, maxTokens: 1000, source: 'purposeTemplate' },
+      transportProvenance: { endpointPaths: ['/api/chat/completions/any'], messageShape: 'chat-messages', seedHonored: false },
+    });
+    expect(summary.resolvedInference).toEqual({ temperature: 0.3, maxTokens: 1000, source: 'purposeTemplate' });
+    expect(summary.transportProvenance?.endpointPaths).toEqual(['/api/chat/completions/any']);
   });
 });

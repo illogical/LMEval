@@ -20,6 +20,9 @@ export interface LmapiChatCompletionRequest {
   }>;
   stream: false;
   groupId?: string;
+  temperature?: number;
+  max_tokens?: number;
+  seed?: number;
 }
 
 export interface LmapiChatCompletionResponse {

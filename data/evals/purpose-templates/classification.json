@@ -6,6 +6,7 @@
   "builtIn": true,
   "seedPromptContent": "You are an AI assistant specialized in categorizing short text snippets that represent user memories. The input text may be a preference, reminder, code snippet, history, note, or prompt. Classify the input into one of these categories:\n\n# Categories:\n- Preference\n- Reminder\n- Snippet\n- Event\n- Note\n- Prompt\n- Idea\n- History\n\n# Examples:\nInput: \"Remember to buy groceries tomorrow\"\nCategory: Reminder\n\nInput: \"My favorite programming language is C#\"\nCategory: Preference\n\nInput: \"foreach(int i = 0; i < count; i++) { }\"\nCategory: Snippet\n\nInput: \"Met John at the conference last June\"\nCategory: Event\n\nInput: \"Meeting notes from 2024-11-09\"\nCategory: Note\n\nInput: \"Create an AI prompt that will ...\"\nCategory: Prompt\n\nInput: \"I want to make a ...\"\nCategory: Idea\n\nInput: \"Traveled to Orlando in 2025 for a conference\"\nCategory: History\n\n# Instructions:\nReturn exactly one of the eight category words listed above — no punctuation, no explanation, and never a synonym or variant (e.g. return \"Snippet\", not \"Code snippet\").\n\nClassify the memory given in the next message and respond with only the category word.",
   "defaultComparisonMode": "prompt",
+  "inference": { "temperature": 0.3, "maxTokens": 1000 },
   "assertionStrategy": {
     "type": "exact-label",
     "config": {

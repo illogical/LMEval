@@ -4,7 +4,7 @@
 > [`features/eval-wizard/TASK.md`](features/eval-wizard/TASK.md) (wizard/UX track). Both remain in the
 > repository as historical records of completed work; **all open work lives here.**
 >
-> **Last reconciled against the working tree:** 2026-09-04
+> **Last reconciled against the working tree:** 2026-09-04 (A1 closed this pass)
 
 ---
 
@@ -71,11 +71,32 @@ and the cross-project review in [`plans/2026-09-04-ingestion-eval-alignment-revi
 | F5 | AI-generated test cases | ⛔ deferred (dogfood candidate) |
 | W1–W8 | Prepare wizard layout polish | ✅ complete |
 | I1–I4 | Test case import/export | ✅ complete (verified in tree 2026-09-04) |
-| PME | Professional memory evaluations | ⛔ planned — Track A, the critical path |
+| PME | Professional memory evaluations | ⚠️ Track A1 complete; A2–A11 remain — see §4 |
 
 ---
 
 ## 3 — Completed in this pass (2026-09-04)
+
+**Track A1 — Inference parameters and provenance**, in full (`npx vitest run` → 169 passing,
+29 files, up from 152/23; `tsc -b`, `npm run build`, `npm run lint` clean for the touched files):
+`EvaluationConfig.inference`/`resolvedInference`/`inferenceParametersUnspecified`/
+`transportProvenance` and `EvalPurposeTemplate.inference` added to `src/types/eval.ts`;
+`temperature`/`max_tokens`/`seed` added to `LmapiChatCompletionRequest`; resolution logic extracted
+as the standalone, unit-tested `ExecutionService.resolveInferenceAndProvenance()`
+(config → purpose template → none); all three built-in purpose template JSON files carry
+`inference: { temperature: 0.3, maxTokens: 1000 }`; `SummaryService.computeSummary()` computes an
+aggregate truncation rate; `VerdictHeader` surfaces both truncation rate and an
+"inference parameters unspecified" caveat; `ReportService`'s Markdown/basic-HTML exports carry
+resolved inference and transport provenance. Two cross-repo handoff docs filed (plain markdown,
+no code changes made by LMEval to either repo): `LMApi/docs/plans/2026-09-04-sampling-parameter-support.md`
+(the `seed` schema gap plus informational Ollama native-option constraints) and
+`MemoryApi/docs/plans/2026-09-04-lmeval-transport-parity-handoff.md` (an addendum to MemoryApi's
+own ingestion-prompt-refinement plan, not a competing one). **The LMApi sampling-options handoff
+closed the same day** — LMApi added `seed` to its chat-completions schema, so `seedHonored` ships
+`true`. Ollama's compatible endpoint also supports `top_p`; request-level `top_k`/`num_ctx` do not,
+but LMEval has no current consumer for them and can use Modelfile-derived model aliases if a fixed
+configuration is needed. See `docs/plans/2026-09-04-lmapi-native-options-available.md`. A2's actual
+transport fix remains open and cross-repo — see A2 below.
 
 Phase 7 items closed against the working tree, all covered by tests (`npx vitest run` → 152 passing,
 23 files; `tsc -b`, `npm run build`, and `npm run lint` clean for the touched files):
@@ -120,18 +141,19 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 > **Nothing else in this list produces a trustworthy number until A1 and A2 land.** LMEval currently
 > measures a configuration that MemoryApi does not run.
 
-**A1 — Inference parameters and provenance** *(first, because every later measurement is untrustworthy without it)*
-- [ ] Add `inference?: { temperature: number; maxTokens: number; seed?: number }` to `EvaluationConfig`
-- [ ] Thread it through `PromptfooAdapter.buildLmapiProvider()` into the LMApi request body — today it posts only `model`, `messages`, `stream`, `groupId`, so every cell runs at the provider default temperature
-- [ ] Resolution order: per-run config → purpose template defaults → LMApi default; persist the resolved values on every result
-- [ ] Built-in purpose templates default to `temperature 0.3` for all three tasks (classification, tagging, summarization) — matches MemoryApi's actual production temperature, read from `memoryTextProcessor.ts` (an earlier pass of this plan assumed `t=0`/`t=0`/`t=0.1`, which was wrong; only the unrelated `extractEntities` call uses `0.1`)
-- [ ] Built-in purpose templates default `maxTokens` to **1000** for all three tasks — deliberately *not* mirrored from MemoryApi's tight production ceilings (50 / 100 / 150), since LMEval is a general tool and a thin default ceiling turns an ordinary long response into a silent truncation that reads as a quality failure. A strict MemoryApi production-parity run overrides `maxTokens` per-run to match production exactly; the generous default is for LMEval's own tuning and model-selection runs, and for any other prompt/task run through LMEval
-- [ ] Mark results that ran without explicit parameters `inferenceParametersUnspecified` — unusable as a baseline or promotion input
-- [ ] Record `finishReason` per cell and report a **truncation rate** — a summarization model that scores well only because it was cut off at 150 tokens has not passed *(the per-cell display half of this shipped in §3; the aggregate rate has not)*
-- [ ] Record the LMApi endpoint path and message shape in each evaluation's provenance; refuse to treat a run as a promotion input when a snapshot declares a transport LMEval did not use
+**A1 — Inference parameters and provenance** *(first, because every later measurement is untrustworthy without it)* — ✅ **complete 2026-09-04**
+- [x] Add `inference?: { temperature: number; maxTokens: number; seed?: number }` to `EvaluationConfig`
+- [x] Thread it through `PromptfooAdapter.buildLmapiProvider()` into the LMApi request body — `chatReq` now sends `temperature`/`max_tokens`/`seed` when a resolved inference object is present, omitted entirely otherwise (unchanged behavior for unspecified runs)
+- [x] Resolution order: per-run config → purpose template defaults → LMApi default; persisted via `ExecutionService.resolveInferenceAndProvenance()` onto `config.resolvedInference` before `runPromptfoo` executes, mirrored onto `EvaluationSummary`
+- [x] Built-in purpose templates default to `temperature 0.3` for all three tasks (classification, tagging, summarization) — matches MemoryApi's actual production temperature, read from `memoryTextProcessor.ts`
+- [x] Built-in purpose templates default `maxTokens` to **1000** for all three tasks
+- [x] Mark results that ran without explicit parameters `inferenceParametersUnspecified` — surfaced as a `VerdictHeader` caveat and in Markdown/basic-HTML exports
+- [x] Record `finishReason` per cell and report a **truncation rate** — aggregate now computed in `SummaryService.computeSummary()` (excludes cells with no captured `finishReason` from the denominator) and surfaced as a `VerdictHeader` caveat and export line
+- [x] Record the LMApi endpoint path and message shape in each evaluation's provenance (`EvaluationConfig.transportProvenance` / mirrored on `EvaluationSummary`) — this is the recording half only; the A10 import-guard that *refuses* a mismatched transport is not built yet
+- [x] `seed` threaded through and honored end-to-end (`seedHonored: true` in provenance) — shipped inert-but-present first (LMApi didn't accept it yet), then LMApi added `seed` to `ChatCompletionSchema` the same day in response to the handoff doc filed at `LMApi/docs/plans/2026-09-04-sampling-parameter-support.md`. **LMApi handoff closed.** Ollama's compatible endpoint supports `top_p`, but not request-level `top_k`/`num_ctx`; neither is in A1's contract or needed by a current LMEval consumer. Use a provenance-recorded Modelfile-derived model alias for a fixed `top_k`/`num_ctx`, or revisit LMApi native `/api/chat` translation only when per-run control is required. See `docs/plans/2026-09-04-lmapi-native-options-available.md`
 
-**A2 — Transport parity with MemoryApi**
-- [ ] LMEval posts `messages: [system, user]` to `/api/chat/completions/any`; MemoryApi's `LMApiClient` flattens messages into one `ROLE: content` string and posts it as `prompt` to `/api/generate/any`. The plan assumes MemoryApi moves to structured chat messages. **Coordinate before benchmarking** — a prompt that wins in LMEval is otherwise not the prompt MemoryApi executes
+**A2 — Transport parity with MemoryApi** *(provenance recording landed in A1; the actual transport fix is still open and cross-repo)*
+- [ ] LMEval posts `messages: [system, user]` to `/api/chat/completions/any`; MemoryApi's `LMApiClient` flattens messages into one `ROLE: content` string and posts it as `prompt` to `/api/generate/any`. The plan assumes MemoryApi moves to structured chat messages. **Coordinate before benchmarking** — a prompt that wins in LMEval is otherwise not the prompt MemoryApi executes. Handoff doc filed at `MemoryApi/docs/plans/2026-09-04-lmeval-transport-parity-handoff.md`, an addendum to MemoryApi's own `2026-09-03-ingestion-prompt-refinement.md` plan (which already proposes the `TaskModelConfig` + structured-message fix) recording exactly what LMEval needs from it
 - [ ] Imported snapshot cases must carry the `<memory>` delimiter wrapper inside `userMessage` exactly as production sends it, including the escaping rule for a literal closing delimiter
 
 **A3 — Typed assertion strategies**
@@ -261,9 +283,11 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 
 ### Track E — Verification debt
 
-Three walkthroughs were deferred because no live server/browser was available in the implementing pass.
-None are code changes; all are owed before the phases they cover can be called done.
+The following live checks and walkthroughs were deferred because no live server/model/browser was
+available in the implementing pass. None are code changes; all are owed before their covered runtime
+behavior can be called verified.
 
+- [ ] **A1 seed runtime verification** — send repeated identical evaluations with the same explicit seed through a real LMApi + Ollama model and confirm reproducible output on the same model and Modelfile configuration; this verifies the closed handoff without reopening its implementation
 - [ ] **Phase 11** — Model Comparison renders one editor and blocks Next below 2 models; Prompt Comparison renders both and allows 1 model with a visible nudge
 - [ ] **Phase 12** — Session Hub → New Evaluation → gallery shows 3 built-ins + Start Blank → selecting Classification lands on Step 1 pre-filled with the provenance badge, and Step 2's assertion card and test cases populated → Start Blank behaves like today's wizard
 - [ ] **Phase 7 (this pass)** — blockers panel, Run tooltip, `Saving prompts…` label, judge-call count, error-boundary fallback, and Compare copy/stats confirmed in a running browser

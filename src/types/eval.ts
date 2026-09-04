@@ -84,6 +84,29 @@ export interface TestSuite {
 
 export type EvalComparisonMode = 'model' | 'prompt' | 'matrix';
 
+export interface InferenceParams {
+  temperature: number;
+  maxTokens: number;
+  seed?: number;
+}
+
+export interface ResolvedInferenceParams extends InferenceParams {
+  source: 'config' | 'purposeTemplate' | 'default';
+}
+
+export interface TransportProvenance {
+  /** Distinct LMApi endpoint paths actually used by this evaluation's model ids. */
+  endpointPaths: string[];
+  /**
+   * LMEval always sends structured system+user chat messages. The 'flattened-prompt'
+   * value exists only so an imported MemoryApi snapshot's declared shape can be compared
+   * against this one using the same vocabulary (see TASK.md Track A10).
+   */
+  messageShape: 'chat-messages' | 'flattened-prompt';
+  /** False until LMApi's chat-completions schema accepts and forwards `seed`. */
+  seedHonored: boolean;
+}
+
 export interface EvaluationConfig {
   id: string;
   name: string;
@@ -105,6 +128,17 @@ export interface EvaluationConfig {
   startedAt?: string;
   createdAt: string;
   updatedAt: string;
+  /** Per-run inference override; takes precedence over the purpose template's default. */
+  inference?: InferenceParams;
+  /**
+   * Resolved once at run start (config -> purpose template -> none) and persisted so the
+   * value used is never re-derived. Absence on an evaluation predating this field, or on one
+   * where neither tier declared parameters, is itself the "unspecified" signal.
+   */
+  resolvedInference?: ResolvedInferenceParams;
+  /** True when resolution found nothing at either tier — result is unusable as a baseline or promotion input. */
+  inferenceParametersUnspecified?: boolean;
+  transportProvenance?: TransportProvenance;
 }
 
 export interface ToolCallResult {
@@ -247,6 +281,12 @@ export interface EvaluationSummary {
   assertionSummary?: AssertionSummary[];
   consistency?: Record<string, number>;
   perspectiveIds?: string[];
+  /** Fraction of completed cells with a captured finishReason other than 'stop'; undefined when unmeasured. */
+  truncationRate?: number;
+  /** Mirrors EvaluationConfig.resolvedInference for display without a second fetch. */
+  resolvedInference?: ResolvedInferenceParams;
+  /** Mirrors EvaluationConfig.transportProvenance for display without a second fetch. */
+  transportProvenance?: TransportProvenance;
 }
 
 export interface EvaluationHistoryEntry {
@@ -290,6 +330,8 @@ export interface EvalPurposeTemplate {
   defaultComparisonMode: EvalComparisonMode;
   assertionStrategy: AssertionStrategy;
   starterTestCases: TestCase[];
+  /** Default inference parameters for evaluations using this template, absent per-run override. */
+  inference?: InferenceParams;
   createdAt: string;
   updatedAt: string;
 }

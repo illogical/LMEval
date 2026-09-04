@@ -3,7 +3,7 @@ import type { Assertion, ApiProvider } from 'promptfoo';
 import { LmapiClient } from './LmapiClient';
 import { config as serverConfig } from '../config';
 import type {
-  EvaluationConfig, TestCase, EvalTemplate, ToolDefinition, AssertionStrategy,
+  EvaluationConfig, TestCase, EvalTemplate, ToolDefinition, AssertionStrategy, InferenceParams,
 } from '../../src/types/eval';
 
 const ajv = new Ajv({ allErrors: true });
@@ -15,7 +15,7 @@ const ajv = new Ajv({ allErrors: true });
  * promptfoo's ProviderResponse has no dedicated fields for them (see
  * mapEvaluateResultToCell in ExecutionService, which reads this metadata back).
  */
-export function buildLmapiProvider(modelId: string, evalId: string): ApiProvider {
+export function buildLmapiProvider(modelId: string, evalId: string, inference?: InferenceParams): ApiProvider {
   const separatorIdx = modelId.indexOf('::');
   const serverName = separatorIdx !== -1 ? modelId.slice(0, separatorIdx) : undefined;
   const modelName = separatorIdx !== -1 ? modelId.slice(separatorIdx + 2) : modelId;
@@ -37,6 +37,11 @@ export function buildLmapiProvider(modelId: string, evalId: string): ApiProvider
         ],
         stream: false as const,
         groupId: evalId,
+        ...(inference && {
+          temperature: inference.temperature,
+          max_tokens: inference.maxTokens,
+          ...(inference.seed != null && { seed: inference.seed }),
+        }),
       };
       try {
         const response = serverName
@@ -268,7 +273,7 @@ export const PromptfooAdapter = {
   }): BuildTestSuiteResult {
     const { evalId, config, promptContents, testCases, template, purposeStrategy } = params;
 
-    const providers = config.modelIds.map(modelId => buildLmapiProvider(modelId, evalId));
+    const providers = config.modelIds.map(modelId => buildLmapiProvider(modelId, evalId, config.resolvedInference));
     const judgeProvider = config.judgeModelId ? buildJudgeProvider(config.judgeModelId, evalId) : null;
     const overlapThreshold =
       purposeStrategy?.type === 'label-overlap' && typeof purposeStrategy.config.threshold === 'number'

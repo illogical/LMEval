@@ -6,6 +6,7 @@
   "builtIn": true,
   "seedPromptContent": "Summarize the following memory content for use as an effective content description in a vector database and semantic search. Return only the summary, with no preamble or explanation.\n\nThe memory content to summarize will be given in the next message.",
   "defaultComparisonMode": "prompt",
+  "inference": { "temperature": 0.3, "maxTokens": 1000 },
   "assertionStrategy": {
     "type": "llm-rubric",
     "config": {

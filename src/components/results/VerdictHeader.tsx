@@ -77,6 +77,12 @@ export function VerdictHeader({
   const caveats: string[] = [];
   if ((config.runsPerCell ?? 1) <= 1) caveats.push('n=1 run per cell — differences under ±0.3 are noise');
   if (summary.failedCells > 0) caveats.push(`${summary.failedCells} of ${summary.totalCells} cells failed`);
+  if (summary.truncationRate != null && summary.truncationRate > 0) {
+    caveats.push(`${(summary.truncationRate * 100).toFixed(0)}% of responses were truncated (not "stop")`);
+  }
+  if (summary.resolvedInference == null) {
+    caveats.push('inference parameters unspecified — not usable as a baseline or promotion input');
+  }
 
   const scoreDelta = regression?.metrics.find(m => m.metric === 'compositeScore');
 

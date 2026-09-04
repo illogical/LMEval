@@ -20,10 +20,24 @@ export const SummaryService = {
     evalId: string,
     cells: EvalMatrixCell[],
     pairwiseRankings?: PairwiseRanking[],
-    options?: { runsPerCell?: number; perspectiveOrder?: string[] }
+    options?: {
+      runsPerCell?: number;
+      perspectiveOrder?: string[];
+      resolvedInference?: EvaluationSummary['resolvedInference'];
+      transportProvenance?: EvaluationSummary['transportProvenance'];
+    }
   ): EvaluationSummary {
     const completed = cells.filter(c => c.status === 'completed');
     const failed = cells.filter(c => c.status === 'failed');
+
+    // Truncation rate: cells with no captured finishReason (failed cells, or
+    // results from a run predating truncation capture) are excluded from both
+    // the numerator and denominator rather than counted as truncated.
+    const withFinishReason = completed.filter(c => c.finishReason);
+    const truncated = withFinishReason.filter(c => c.finishReason !== 'stop');
+    const truncationRate = withFinishReason.length > 0
+      ? truncated.length / withFinishReason.length
+      : undefined;
 
     const modelMap = new Map<string, EvalMatrixCell[]>();
     for (const cell of completed) {
@@ -224,6 +238,9 @@ export const SummaryService = {
       assertionSummary: assertionSummary.length > 0 ? assertionSummary : undefined,
       consistency,
       perspectiveIds: perspectiveIds.length > 0 ? perspectiveIds : undefined,
+      truncationRate,
+      resolvedInference: options?.resolvedInference,
+      transportProvenance: options?.transportProvenance,
     };
   },
 
