@@ -11,6 +11,11 @@ vi.mock('../../api/eval', () => ({
   listModels: vi.fn().mockResolvedValue({ servers: [] }),
   listPresets: vi.fn().mockResolvedValue([]),
   createEvaluation: vi.fn(),
+  createPrompt: vi.fn(),
+  createPurposeTemplate: vi.fn(),
+  getPurposeTemplate: vi.fn().mockResolvedValue({ assertionStrategy: { type: 'custom', config: {} } }),
+  getTemplate: vi.fn().mockResolvedValue({ perspectives: [] }),
+  createTestSuite: vi.fn(),
 }));
 
 const mockNavigate = vi.fn();
@@ -61,5 +66,19 @@ describe('ConfigPage', () => {
   it('renders execution preview', () => {
     renderConfigPage();
     expect(screen.getByLabelText('Execution preview')).toBeInTheDocument();
+  });
+
+  it('lists pre-run blockers when nothing is configured', () => {
+    renderConfigPage();
+    const panel = screen.getByRole('alert');
+    expect(panel).toHaveTextContent('At least one prompt is required');
+    expect(panel).toHaveTextContent('Select at least one model');
+  });
+
+  it('disables the Run button and explains why in its tooltip', () => {
+    renderConfigPage();
+    const btn = screen.getByText('Run Evaluation').closest('button')!;
+    expect(btn).toBeDisabled();
+    expect(btn.getAttribute('title')).toMatch(/At least one prompt is required/);
   });
 });

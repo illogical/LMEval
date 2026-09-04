@@ -1,5 +1,10 @@
 # Prepare Wizard — UX Improvement Tasks
 
+> ⚠️ **Superseded by [`docs/TASK.md`](../../TASK.md) (2026-09-04).** This file is kept as the
+> historical record of the Prepare-wizard layout pass and the import/export feature. All open work is
+> tracked in the unified list. Do not add new tasks here.
+
+
 > **Status**: In progress — all layout tasks complete, one optional item remains
 > **Goal**: Make the Prepare wizard step feel more spacious, readable, and visually organized — inspired by larger, card-based layouts without changing LMEval's color scheme.
 
@@ -154,41 +159,41 @@ Reference screenshots used for inspiration:
 
 ### Phase I1 — Data Model + Parser Utility
 
-- [ ] Extend `TestCase` in `src/types/eval.ts` — add `expectedOutput?: string` and `tags?: string[]`
-- [ ] Create `src/utils/testCaseIO.ts` with:
-  - [ ] `parseCSV(text, filename)` — maps columns by header name, semicolon-splits tags, returns `{ cases, warnings, errors }`
-  - [ ] `parseJSON(text)` — validates array shape, assigns fresh IDs
-  - [ ] `serializeCSV(cases)` — RFC 4180, semicolon-joined tags
-  - [ ] `serializeJSON(cases)` — clean array output, omits generated `id`
-  - [ ] `autoDetect(text, filename)` — routes to CSV or JSON parser by extension
+- [x] Extend `TestCase` in `src/types/eval.ts` — add `expectedOutput?: string` and `tags?: string[]`
+- [x] Create `src/utils/testCaseIO.ts` with:
+  - [x] `parseCSV(text)` — maps columns by header name, semicolon-splits tags, returns `{ cases, warnings, errors }`
+  - [x] `parseJSON(text)` — validates array shape, assigns fresh IDs
+  - [x] `serializeCSV(cases)` — RFC 4180, semicolon-joined tags
+  - [x] `serializeJSON(cases)` — clean array output, omits generated `id`
+  - [x] `autoDetect(text, filename)` — routes to CSV or JSON parser by extension
 
 ### Phase I2 — Import UI
 
-- [ ] Add toolbar row to Suite tab in `TestCaseEditor.tsx`: `[Import ▾]` dropdown + `[Export]` button
-- [ ] Hidden `<input type="file" accept=".csv,.json">` triggered from Import button
-- [ ] Drag-and-drop overlay on the Suite tab content area
-- [ ] Clipboard paste option via `navigator.clipboard.readText()`
-- [ ] Loading states: spinner in Import button while reading/parsing
-- [ ] Inline confirmation strip when cases already exist: `Replace all | Append | Cancel`
-- [ ] Success banner: `✓ N cases imported` (auto-dismisses after 3s)
-- [ ] Error banner: `⚠ Error: <reason>` (stays until dismissed)
-- [ ] Download CSV template (header-only `.csv` file)
+- [x] Add toolbar row to Suite tab in `TestCaseEditor.tsx`: `[Import ▾]` dropdown + `[Export]` button
+- [x] Hidden `<input type="file" accept=".csv,.json">` triggered from Import button
+- [x] Drag-and-drop overlay on the Suite tab content area
+- [x] Clipboard paste option via `navigator.clipboard.readText()`
+- [x] Loading states: spinner in Import button while reading/parsing
+- [x] Inline confirmation strip when cases already exist: `Replace all | Append | Cancel`
+- [x] Success banner: `✓ N cases imported` (auto-dismisses after 3s)
+- [x] Error banner: `⚠ Error: <reason>` (stays until dismissed)
+- [x] Download CSV template (header-only `.csv` file)
 
 ### Phase I3 — Export UI
 
-- [ ] Export button (default: JSON download) with format dropdown: `Download as CSV | Download as JSON`
-- [ ] Client-side serialize + `<a download>` trigger
-- [ ] Filename: `test-cases-YYYY-MM-DD.csv` or `.json`
-- [ ] Export button disabled when no inline cases exist
+- [x] Export button (default: JSON download) with format dropdown: `Download as CSV | Download as JSON`
+- [x] Client-side serialize + `<a download>` trigger
+- [x] Filename: `test-cases-YYYY-MM-DD.csv` or `.json`
+- [x] Export button disabled when no inline cases exist
 
 ### Phase I4 — Save as Suite + Tags Column
 
-- [ ] "Save as Suite…" button in toolbar (visible when 1+ inline cases exist)
-- [ ] Inline name input + Save action → calls `POST /api/eval/test-suites`
-- [ ] Suite selector auto-updates and selects the new suite after save
-- [ ] Conditional Tags column in inline table when any case has tags
-- [ ] Tags editable inline as comma-separated text input
-- [ ] Verify `server/services/TestSuiteService.ts` passes through `expectedOutput` and `tags`
+- [x] "Save as Suite…" button in toolbar (visible when 1+ inline cases exist)
+- [x] Inline name input + Save action → calls `POST /api/eval/test-suites`
+- [x] Suite selector auto-updates and selects the new suite after save
+- [x] Conditional Tags column in inline table when any case has tags
+- [x] Tags editable inline as comma-separated text input
+- [x] Verify `server/services/TestSuiteService.ts` passes through `expectedOutput` and `tags`
 
 ---
 

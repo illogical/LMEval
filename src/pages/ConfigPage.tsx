@@ -8,7 +8,7 @@ import { ExecutionPreview } from '../components/config/ExecutionPreview';
 import { PresetSelector } from '../components/config/PresetSelector';
 import { useEvalWizard } from '../contexts/EvalWizardContext';
 import { useEvalHeaderAction } from '../contexts/EvalHeaderActionContext';
-import { createEvaluation, createPrompt, createPurposeTemplate, getPurposeTemplate } from '../api/eval';
+import { createEvaluation, createPrompt, createPurposeTemplate, getPurposeTemplate, getTemplate } from '../api/eval';
 import './ConfigPage.css';
 
 export function ConfigPage() {
@@ -16,8 +16,10 @@ export function ConfigPage() {
   const { state, dispatch } = useEvalWizard();
   const { setHeaderAction } = useEvalHeaderAction();
   const [running, setRunning] = useState(false);
+  const [savingPrompts, setSavingPrompts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [judgeRequired, setJudgeRequired] = useState(false);
+  const [perspectiveCount, setPerspectiveCount] = useState(0);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [showSaveTemplateForm, setShowSaveTemplateForm] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -31,6 +33,16 @@ export function ConfigPage() {
       .catch(() => { if (!cancelled) setJudgeRequired(false); });
     return () => { cancelled = true; };
   }, [state.purposeTemplateId]);
+
+  // Perspective count drives the judge-call estimate in the Execution Preview.
+  useEffect(() => {
+    if (!state.templateId || !state.judgeModelId) { setPerspectiveCount(0); return; }
+    let cancelled = false;
+    getTemplate(state.templateId)
+      .then(t => { if (!cancelled) setPerspectiveCount(t.perspectives?.length ?? 0); })
+      .catch(() => { if (!cancelled) setPerspectiveCount(0); });
+    return () => { cancelled = true; };
+  }, [state.templateId, state.judgeModelId]);
 
   async function handleSaveAsTemplate() {
     if (!newTemplateName.trim()) return;
@@ -69,6 +81,27 @@ export function ConfigPage() {
   }
   const testCaseCount = calcTestCaseCount();
 
+  // Hard blockers stop the run; warnings let it proceed but flag a weak result.
+  const blockers: string[] = [];
+  if (promptCount === 0) blockers.push('At least one prompt is required — go back to Step 1 and enter a prompt.');
+  if (modelCount === 0) blockers.push('Select at least one model in Step 1.');
+  if (state.comparisonMode === 'model' && modelCount < 2) {
+    blockers.push('Model Comparison needs at least 2 models to compare.');
+  }
+  if (state.comparisonMode === 'prompt' && promptCount < 2) {
+    blockers.push('Prompt Comparison needs content in both Prompt A and Prompt B.');
+  }
+
+  const warnings: string[] = [];
+  if (blockers.length === 0 && judgeRequired && !state.judgeModelId) {
+    warnings.push('This template grades with an LLM judge, but no judge model is selected — only deterministic checks will run.');
+  }
+  if (blockers.length === 0 && !state.testSuiteId && state.inlineTestCases.length === 0 && !state.userMessage.trim()) {
+    warnings.push('No test cases defined — the run will send an empty user message.');
+  }
+
+  const runDisabled = running || blockers.length > 0;
+
   const handleRun = useCallback(async () => {
     if (running) return;
     setRunning(true);
@@ -79,16 +112,21 @@ export function ConfigPage() {
       let promptAId = state.promptA.id;
       let promptBId = state.promptB.id;
 
-      if (!promptAId && state.promptA.content.trim()) {
+      const needsSaveA = !promptAId && !!state.promptA.content.trim();
+      const needsSaveB = !promptBId && !!state.promptB.content.trim();
+      if (needsSaveA || needsSaveB) setSavingPrompts(true);
+
+      if (needsSaveA) {
         const manifest = await createPrompt(`Draft Prompt A`, state.promptA.content);
         promptAId = manifest.id;
         dispatch({ type: 'SET_PROMPT_A', payload: { id: manifest.id, manifest } });
       }
-      if (!promptBId && state.promptB.content.trim()) {
+      if (needsSaveB) {
         const manifest = await createPrompt(`Draft Prompt B`, state.promptB.content);
         promptBId = manifest.id;
         dispatch({ type: 'SET_PROMPT_B', payload: { id: manifest.id, manifest } });
       }
+      setSavingPrompts(false);
 
       const promptIds = [promptAId, promptBId].filter((id): id is string => id != null);
 
@@ -114,24 +152,28 @@ export function ConfigPage() {
     } catch (err) {
       setError((err as Error).message);
     } finally {
+      setSavingPrompts(false);
       setRunning(false);
     }
   }, [running, state, dispatch, navigate]);
 
   // Inject Run button into the step indicator header
+  const blockerTooltip = blockers.join(' ');
   useEffect(() => {
     setHeaderAction(
       <button
         className="cp-run-header-btn"
         onClick={handleRun}
-        disabled={running || modelCount === 0}
+        disabled={runDisabled}
+        title={blockerTooltip || 'Start the evaluation'}
+        aria-describedby={blockerTooltip ? 'cp-blockers' : undefined}
       >
         <Play size={15} />
-        {running ? 'Starting…' : 'Run Evaluation'}
+        {savingPrompts ? 'Saving prompts…' : running ? 'Starting…' : 'Run Evaluation'}
       </button>
     );
     return () => setHeaderAction(null);
-  }, [running, modelCount, handleRun, setHeaderAction]);
+  }, [running, savingPrompts, runDisabled, blockerTooltip, handleRun, setHeaderAction]);
 
   return (
     <div className="config-page">
@@ -147,7 +189,12 @@ export function ConfigPage() {
           </div>
 
           <div className="cp-card">
-            <h3 className="cp-section-title">Test Cases</h3>
+            <h3 className="cp-section-title">
+              Test Cases
+              {state.inlineTestCases.length > 0 && (
+                <span className="cp-count-badge">{state.inlineTestCases.length}</span>
+              )}
+            </h3>
             <TestCaseEditor
               userMessage={state.userMessage}
               onUserMessageChange={msg => dispatch({ type: 'SET_CONFIG', payload: { userMessage: msg } })}
@@ -211,8 +258,27 @@ export function ConfigPage() {
               modelCount={modelCount || 1}
               testCaseCount={testCaseCount}
               runsPerCell={state.runsPerCell}
+              judgePerspectiveCount={perspectiveCount}
             />
           </div>
+
+          {blockers.length > 0 && (
+            <div className="cp-card cp-blockers" id="cp-blockers" role="alert">
+              <h3 className="cp-section-title">Before you can run</h3>
+              <ul className="cp-issue-list">
+                {blockers.map(b => <li key={b}>{b}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {warnings.length > 0 && (
+            <div className="cp-card cp-warnings">
+              <h3 className="cp-section-title">Worth checking</h3>
+              <ul className="cp-issue-list">
+                {warnings.map(w => <li key={w}>{w}</li>)}
+              </ul>
+            </div>
+          )}
 
           <div className="cp-card">
             <h3 className="cp-section-title">Presets</h3>

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CompareView } from '../../components/results/CompareView';
@@ -59,5 +59,48 @@ describe('CompareView', () => {
     );
     expect(screen.getByText('Response A')).toBeInTheDocument();
     expect(screen.getByText('Response B')).toBeInTheDocument();
+  });
+
+  it('offers a copy button per response panel', () => {
+    render(
+      <CompareView cells={makeCells()} testCases={testCases} config={config} summary={summary} />
+    );
+    expect(screen.getAllByTitle('Copy response to clipboard')).toHaveLength(2);
+  });
+
+  it('copies the panel response to the clipboard', async () => {
+    const user = userEvent.setup();
+    // userEvent.setup() installs its own clipboard stub, so override it after.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
+    render(
+      <CompareView cells={makeCells()} testCases={testCases} config={config} summary={summary} />
+    );
+    await user.click(screen.getAllByTitle('Copy response to clipboard')[0]);
+
+    expect(writeText).toHaveBeenCalledWith('Response A');
+    expect(await screen.findByText('✓ Copied')).toBeInTheDocument();
+  });
+
+  it('shows latency and token counts below each response', () => {
+    const cells = makeCells();
+    cells[0] = { ...cells[0], durationMs: 1234, inputTokens: 50, outputTokens: 120, tokensPerSecond: 97.2 };
+    render(
+      <CompareView cells={cells} testCases={testCases} config={config} summary={summary} />
+    );
+    expect(screen.getByText('1.23s · 50 in / 120 out tok · 97.2 tok/s')).toBeInTheDocument();
+  });
+
+  it('flags a non-stop finish reason in the stats line', () => {
+    const cells = makeCells();
+    cells[0] = { ...cells[0], durationMs: 900, finishReason: 'length' };
+    render(
+      <CompareView cells={cells} testCases={testCases} config={config} summary={summary} />
+    );
+    expect(screen.getByText(/finish: length/)).toBeInTheDocument();
   });
 });

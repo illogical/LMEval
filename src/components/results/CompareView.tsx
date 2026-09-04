@@ -32,6 +32,63 @@ function promptKey(promptId: string, promptVersion: number) {
   return `${promptId}:${promptVersion}`;
 }
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard denied (insecure origin, permission) — leave the label alone
+      // rather than claiming a copy that did not happen.
+    }
+  }
+
+  return (
+    <button className="cv-copy-btn" onClick={copy} disabled={!text} title="Copy response to clipboard">
+      {copied ? '✓ Copied' : 'Copy'}
+    </button>
+  );
+}
+
+/** Latency and token accounting for one response, below the panel. */
+function ResponseStats({ cell }: { cell?: EvalMatrixCell }) {
+  if (!cell) return null;
+  const parts: string[] = [];
+  if (cell.durationMs != null) parts.push(`${(cell.durationMs / 1000).toFixed(2)}s`);
+  if (cell.inputTokens != null || cell.outputTokens != null) {
+    parts.push(`${cell.inputTokens ?? '?'} in / ${cell.outputTokens ?? '?'} out tok`);
+  }
+  if (cell.tokensPerSecond != null) parts.push(`${cell.tokensPerSecond.toFixed(1)} tok/s`);
+  if (cell.finishReason && cell.finishReason !== 'stop') parts.push(`finish: ${cell.finishReason}`);
+  if (parts.length === 0) return null;
+  return <div className="cv-stats">{parts.join(' · ')}</div>;
+}
+
+/** One response column: header, copy affordance, body, and stats footer. */
+function ResponsePanel({
+  headerClass, label, cell, emptyLabel = 'No response',
+}: {
+  headerClass?: string;
+  label: string;
+  cell?: EvalMatrixCell;
+  emptyLabel?: string;
+}) {
+  const response = cell?.response ?? '';
+  return (
+    <div className="cv-panel">
+      <div className={`cv-panel-header${headerClass ? ` ${headerClass}` : ''}`}>
+        <span className="cv-panel-title">{label}</span>
+        <CopyButton text={response} />
+      </div>
+      <pre className="cv-response">{response || (cell ? emptyLabel : 'No completed cell')}</pre>
+      <ResponseStats cell={cell} />
+    </div>
+  );
+}
+
 export function CompareView({ cells, testCases, config, summary, deepLink, onConsumeDeepLink }: CompareViewProps) {
   const completed = useMemo(() => cells.filter(c => c.status === 'completed'), [cells]);
 
@@ -248,14 +305,8 @@ export function CompareView({ cells, testCases, config, summary, deepLink, onCon
         <>
           {renderDeltaRibbon()}
           <div className="cv-panels">
-            <div className="cv-panel">
-              <div className="cv-panel-header cv-panel-a">A: {axisValueLabel(selA)}</div>
-              <pre className="cv-response">{cellA.response ?? 'No response'}</pre>
-            </div>
-            <div className="cv-panel">
-              <div className="cv-panel-header cv-panel-b">B: {axisValueLabel(selB)}</div>
-              <pre className="cv-response">{cellB.response ?? 'No response'}</pre>
-            </div>
+            <ResponsePanel headerClass="cv-panel-a" label={`A: ${axisValueLabel(selA)}`} cell={cellA} />
+            <ResponsePanel headerClass="cv-panel-b" label={`B: ${axisValueLabel(selB)}`} cell={cellB} />
           </div>
           {showDiff && <PromptDiffView contentA={cellA.response ?? ''} contentB={cellB.response ?? ''} />}
         </>
@@ -267,15 +318,9 @@ export function CompareView({ cells, testCases, config, summary, deepLink, onCon
 
       {nUp && (
         <div className="cv-nup-grid" style={{ gridTemplateColumns: `repeat(${axisValues.length}, minmax(220px, 1fr))` }}>
-          {axisValues.map(v => {
-            const c = cellFor(v);
-            return (
-              <div key={v} className="cv-panel">
-                <div className="cv-panel-header">{axisValueLabel(v)}</div>
-                <pre className="cv-response">{c?.response ?? (c ? 'No response' : 'No completed cell')}</pre>
-              </div>
-            );
-          })}
+          {axisValues.map(v => (
+            <ResponsePanel key={v} label={axisValueLabel(v)} cell={cellFor(v)} />
+          ))}
         </div>
       )}
     </div>

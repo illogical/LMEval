@@ -142,3 +142,46 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* Inline row-count badge next to a section title */
+.cp-count-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--accent);
+  background: rgba(79, 193, 255, 0.12);
+  border-radius: 10px;
+  padding: 1px 8px;
+  vertical-align: middle;
+}
+
+/* Pre-run validation panels */
+.cp-blockers {
+  border-color: var(--error);
+}
+
+.cp-warnings {
+  border-color: var(--heatmap-mid);
+}
+
+.cp-issue-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.cp-blockers .cp-issue-list li::marker {
+  color: var(--error);
+}
+
+.cp-warnings .cp-issue-list li::marker {
+  color: var(--heatmap-mid);
+}

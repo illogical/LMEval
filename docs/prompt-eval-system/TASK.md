@@ -1,5 +1,10 @@
 # Prompt & Model Evaluation System — Task List
 
+> ⚠️ **Superseded by [`docs/TASK.md`](../TASK.md) (2026-09-04).** This file is kept as the historical
+> record of Phases 0–12. All open work — including the remaining items below — is tracked in the
+> unified list. Do not add new tasks here.
+
+
 > MVP plan: [`../features/prompt-eval-system/MVP_PROMPT_COMPARISON.md`](../features/prompt-eval-system/MVP_PROMPT_COMPARISON.md)
 > Full implementation plan: [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md)
 > Original design spec: [`prompt-eval-system-plan.md`](prompt-eval-system-plan.md)
@@ -344,9 +349,9 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
 > Goal: Review and refine the **Prepare page** (Step 2 — `/eval/config`) and the **Results page** (Step 4 — `/eval/results/:id`) to improve usability, completeness, and feedback quality. This phase also adds the failure detail panel for the Results page, which is directly useful now that the run dashboard can surface cell failures.
 
 **Prepare Page (ConfigPage) Improvements:**
-- [ ] Add validation feedback before Run: if no prompts have content, show inline error ("At least one prompt is required"); if no models selected, show tooltip on disabled Run button
-- [ ] Show auto-save status on the Run button when prompts are being saved (e.g., spinner + "Saving prompts…" while `createPrompt()` calls are in-flight)
-- [ ] Add a "Cell count" summary below the Execution Preview that shows the total matrix: `promptCount × modelCount × testCaseCount × runsPerCell` with a plain-English label ("X total LLM calls")
+- [x] Add validation feedback before Run: if no prompts have content, show inline error ("At least one prompt is required"); if no models selected, show tooltip on disabled Run button
+- [x] Show auto-save status on the Run button when prompts are being saved (e.g., spinner + "Saving prompts…" while `createPrompt()` calls are in-flight)
+- [x] Add a "Cell count" summary below the Execution Preview that shows the total matrix: `promptCount × modelCount × testCaseCount × runsPerCell` with a plain-English label ("X total LLM calls")
 - [ ] Improve `TestCaseEditor` inline test case UX: add drag-to-reorder for inline test case rows; show row count badge next to section title; add "Import from test suite" shortcut
 
 **Results Page (ResultsPage) Improvements:**
@@ -357,12 +362,12 @@ This project is a standalone Bun + Vite + React + TypeScript application that co
   - [ ] Deterministic check breakdown (keywords found/missing, JSON schema errors)
   - [ ] "↻ Retry this cell" button — calls `POST /api/eval/evaluations/:id/retry` with `{ failedCellsOnly: true }` → navigates to new run dashboard
 - [ ] Add `rawJudgeResponse?: string` field to `JudgeResult` in `src/types/eval.ts`; store it in `JudgeService` parse fallback chain; display it in the failure detail panel when available
-- [ ] Improve the Compare view tab: add a "Copy response" button for each side; show token counts and latency below each response panel
-- [ ] Improve the Metrics tab: add a "Success rate by model" bar chart; show a table of failed cells grouped by model
+- [x] Improve the Compare view tab: add a "Copy response" button for each side; show token counts and latency below each response panel
+- [x] ~~Improve the Metrics tab~~ — **superseded** by the Results Page Redesign: the Metrics tab was replaced by `BreakdownView`, which carries success rate as scatter point size + a stat tile, hardest-test-cases pass-rate bars, and an assertion-failure breakdown that deep-links into Detail
 - [ ] Add eval run selector when session has multiple runs: a tab bar at the top of ResultsPage showing run number + completion status; clicking a tab loads that run's results from the session's run history
 
 **Shared / Infra:**
-- [ ] Error boundary: React error boundary wrapping `DashboardPage`, `ResultsPage`, and `ConfigPage` so one panel crash doesn't take down the whole wizard flow
+- [x] Error boundary: React error boundary wrapping `DashboardPage`, `ResultsPage`, and `ConfigPage` so one panel crash doesn't take down the whole wizard flow
 - [ ] Loading states: skeleton loaders for heatmap cells while results are fetching; spinner in model leaderboard while data loads
 
 - [ ] **Verification**: ConfigPage — try to run with empty prompts → inline error shown; run button shows "Saving prompts…" while auto-save is in flight; cell count shows correct math. ResultsPage — click a failed heatmap cell → failure detail drawer opens with error, retry history, and "Retry" button; clicking "Retry" navigates to new run dashboard. Compare view has copy buttons and shows token counts. Session with 2+ runs shows run tab bar in ResultsPage.

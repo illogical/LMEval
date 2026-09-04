@@ -44,3 +44,44 @@
   color: var(--heatmap-mid);
   margin: 0;
 }
+
+.ep-plain {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.ep-legend {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.ep-legend > div {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.ep-legend dt {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ep-legend dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+.ep-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
