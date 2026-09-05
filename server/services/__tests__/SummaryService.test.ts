@@ -335,3 +335,63 @@ describe('SummaryService.computeSummary — R6 summarization taskMetrics', () =>
     expect(tm.gate.pass).toBe(false);
   });
 });
+
+describe('SummaryService.computeSummary — A9 perModelTaskMetrics', () => {
+  const labels = ['Preference', 'Reminder'];
+  function tc(id: string, expectedOutput: string): TestCase {
+    return { id, userMessage: 'x', expectedOutput };
+  }
+
+  it('computes a per-model breakdown for comparisonMode: "model" with more than one model', () => {
+    const testCases = [tc('t1', 'Preference'), tc('t2', 'Reminder')];
+    const cells: EvalMatrixCell[] = [
+      cell({ id: 'a', modelId: 'm1', testCaseId: 't1', response: 'Preference' }),
+      cell({ id: 'b', modelId: 'm1', testCaseId: 't2', response: 'Preference' }), // wrong
+      cell({ id: 'c', modelId: 'm2', testCaseId: 't1', response: 'Preference' }),
+      cell({ id: 'd', modelId: 'm2', testCaseId: 't2', response: 'Reminder' }),
+    ];
+    const summary = SummaryService.computeSummary('eval-1', cells, undefined, {
+      testCases,
+      purposeCategory: 'classification',
+      assertionStrategy: { type: 'exact-label', config: { labels } },
+      comparisonMode: 'model',
+    });
+
+    expect(summary.perModelTaskMetrics).toBeDefined();
+    const m1 = summary.perModelTaskMetrics!['m1'];
+    const m2 = summary.perModelTaskMetrics!['m2'];
+    if (m1.taskType !== 'classification' || m2.taskType !== 'classification') throw new Error('expected classification metrics');
+    expect(m1.accuracy).toBeCloseTo(0.5);
+    expect(m2.accuracy).toBe(1);
+
+    // The whole-run taskMetrics field is unaffected — still computed the same way it always has been.
+    expect(summary.taskMetrics).toBeDefined();
+  });
+
+  it('is absent for a single-model run', () => {
+    const testCases = [tc('t1', 'Preference')];
+    const cells: EvalMatrixCell[] = [cell({ id: 'a', modelId: 'm1', testCaseId: 't1', response: 'Preference' })];
+    const summary = SummaryService.computeSummary('eval-1', cells, undefined, {
+      testCases,
+      purposeCategory: 'classification',
+      assertionStrategy: { type: 'exact-label', config: { labels } },
+      comparisonMode: 'model',
+    });
+    expect(summary.perModelTaskMetrics).toBeUndefined();
+  });
+
+  it('is absent for a prompt-comparison run even with multiple models present', () => {
+    const testCases = [tc('t1', 'Preference')];
+    const cells: EvalMatrixCell[] = [
+      cell({ id: 'a', modelId: 'm1', testCaseId: 't1', response: 'Preference' }),
+      cell({ id: 'b', modelId: 'm2', testCaseId: 't1', response: 'Preference' }),
+    ];
+    const summary = SummaryService.computeSummary('eval-1', cells, undefined, {
+      testCases,
+      purposeCategory: 'classification',
+      assertionStrategy: { type: 'exact-label', config: { labels } },
+      comparisonMode: 'prompt',
+    });
+    expect(summary.perModelTaskMetrics).toBeUndefined();
+  });
+});

@@ -88,6 +88,12 @@ export let BASELINES_DIR = join(DATA_DIR, 'baselines');
 export let PRESETS_DIR = join(DATA_DIR, 'presets');
 export let SESSIONS_DIR = join(DATA_ROOT, 'sessions');
 export let JUDGE_QUALIFICATIONS_DIR = join(DATA_DIR, 'judge-qualifications');
+// A9: one {campaignId}/campaign.json per model-selection campaign.
+export let MODEL_SELECTION_DIR = join(DATA_DIR, 'model-selection');
+// A9: one {campaignId}-{task}.json per recommendation, durable independent of the campaign record.
+export let RECOMMENDATIONS_DIR = join(DATA_DIR, 'recommendations');
+// A9: externally-supplied per-task share of MemoryApi's whole-ingestion latency target.
+export let LATENCY_BUDGETS_PATH = join(DATA_DIR, 'config', 'latency-budgets.json');
 
 export let REPO_ROOT = process.cwd();
 export let BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');
@@ -118,6 +124,9 @@ export function configurePaths(options: { dataRoot: string; repoRoot: string }):
   PRESETS_DIR = join(DATA_DIR, 'presets');
   SESSIONS_DIR = join(DATA_ROOT, 'sessions');
   JUDGE_QUALIFICATIONS_DIR = join(DATA_DIR, 'judge-qualifications');
+  MODEL_SELECTION_DIR = join(DATA_DIR, 'model-selection');
+  RECOMMENDATIONS_DIR = join(DATA_DIR, 'recommendations');
+  LATENCY_BUDGETS_PATH = join(DATA_DIR, 'config', 'latency-budgets.json');
 
   REPO_ROOT = options.repoRoot;
   BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');

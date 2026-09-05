@@ -4,7 +4,7 @@
 > [`features/eval-wizard/TASK.md`](features/eval-wizard/TASK.md) (wizard/UX track). Both remain in the
 > repository as historical records of completed work; **all open work lives here.**
 >
-> **Last reconciled against the working tree:** 2026-09-04 (A1, A3, A6, MemoryApi's A2, A7, and A8 closed)
+> **Last reconciled against the working tree:** 2026-09-05 (A1, A3, A6, MemoryApi's A2, A7, A8, A9, and A10 closed)
 
 ---
 
@@ -80,7 +80,7 @@ and the cross-project review in [`plans/2026-09-04-ingestion-eval-alignment-revi
 | F5 | AI-generated test cases | ⛔ deferred (dogfood candidate) |
 | W1–W8 | Prepare wizard layout polish | ✅ complete |
 | I1–I4 | Test case import/export | ✅ complete (verified in tree 2026-09-04) |
-| PME | Professional memory evaluations | ⚠️ A1, A3, A4, A5, A6, A7, A8 complete (2026-09-04/05) and MemoryApi's A2 transport implementation complete; A2 verification work, A9-A11 remain — see §4; A3/A4/A5/A6/A7/A8 owe live model verification and/or human review-ledger approval, tracked in Track E |
+| PME | Professional memory evaluations | ⚠️ A1, A3, A4, A5, A6, A7, A8, A9, A10 complete (2026-09-04/05) and MemoryApi's A2 transport implementation complete; A2's snapshot-import step remains — see §4; A3/A4/A5/A6/A7/A8/A9/A10 owe live model verification and/or human review-ledger approval, tracked in Track E |
 
 ---
 
@@ -302,12 +302,15 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 
 > Plan: [`plans/2026-09-03-professional-memory-evaluations.md`](plans/2026-09-03-professional-memory-evaluations.md)
 >
-> **A1, A3, A6, A7, and A8 have landed.** MemoryApi's A2 transport implementation has also landed.
-> Promotion evidence still requires the exact imported MemoryApi snapshot contract plus a live
-> cross-project parity check; neither is implied by documentation or unit tests. A3/A6/A7/A8's logic
-> is unit-tested (`npx vitest run` is now clean, 204/28 — see §3) but **not yet live-verified** against
-> a real LMApi + Ollama round trip — see the Track E entries below. A9-A11 remain and are now
-> unblocked by A7's confidence intervals and A8's qualification flag.
+> **A1, A3, A6, A7, A8, A9, and A10 have landed.** MemoryApi's A2 transport implementation has also
+> landed. Promotion evidence still requires the exact imported MemoryApi snapshot contract plus a live
+> cross-project parity check; neither is implied by documentation or unit tests. A3/A6/A7/A8/A9/A10's
+> logic is unit-tested (`npx vitest run` is now clean, 266/35 — see §3) but **not yet live-verified**
+> against a real LMApi + Ollama round trip — see the Track E entries below. Track A's numbered items
+> (A1-A10) are now closed except A2's snapshot-import step. Earlier passes' scoping notes mention an
+> "A11" for finding-level unsupported-claim extraction and a genuine multi-model gate-comparison
+> panel — that was never given its own numbered section here and remains uncommitted future scope
+> (see Track F), not a tracked open item.
 
 **A1 — Inference parameters and provenance** *(first, because every later measurement is untrustworthy without it)* — ✅ **complete 2026-09-04**
 - [x] Add `inference?: { temperature: number; maxTokens: number; seed?: number }` to `EvaluationConfig`
@@ -370,21 +373,32 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 - **Calibration set**: `data/evals/calibration/summarization-v0.json` is a **temporary, in-repo, 22-case hand-scored fixture** (LMEval-authored, not MemoryApi data), distinct from A5's now-landed `memory-summarization-v1` benchmark suite. `POST /api/eval/judges/:modelId/qualify` (optional `{ calibrationSetId }` body) runs it; `GET /api/eval/judges/:modelId/qualification` reads the persisted record.
 - **Not built**: any Prepare-page UI surfacing qualification status (the plan's "reuses the self-judge-guard warning pattern" badge) — route + gating logic only this pass, no frontend surfacing yet.
 
-**A9 — Two-phase model selection**
-- [ ] Phase 1: vary prompt, fix incumbent production model, calibration split only
-- [ ] Phase 2: vary model across the declared candidate slate, fix the promoted prompt, both splits
-- [ ] Phase 3: re-run a short phase-1 confirmation on the phase-2 winner; on failure recommend the runner-up and record why
-- [ ] Selection rule, in order and recorded with the verdict: **gate** (discard any model failing the quality floor or emitting invalid output) → **quality** (primary metric with CIs; overlapping intervals are a tie group, not a ranking) → **budget** (p95 latency as a share of a whole-ingestion target) → **stability** (run-to-run agreement, then token efficiency)
-- [ ] Report the full ordering, the tie groups, and the discarded-by-gate list
-- [ ] Report the best **single** model across all three tasks alongside the per-task winners, with the quality delta — three per-task winners means three resident models or a swap per memory, and LMEval structurally cannot see that cost
-- [ ] Emit `ModelRecommendation` per task as a first-class artifact to LMEval's own export directory
+**A9 — Two-phase model selection** — ✅ **complete 2026-09-05, per [`plans/2026-09-05-a9-a10-model-selection-reporting-plan.md`](plans/2026-09-05-a9-a10-model-selection-reporting-plan.md)** (data/service/export layer only, no UI — see that plan's scope boundary)
+- [x] Phase 1: vary prompt, fix incumbent production model, calibration split only — `ModelSelectionService.runPhase1()` runs `comparisonMode: 'prompt'` against `[incumbentModelId]` with `benchmarkMode: 'calibration'`, groups the resulting cells by prompt (reusing `SummaryService`'s newly-exported `computeClassificationMetrics`/`computeTaggingMetrics`/`computeSummarizationMetrics` per prompt group, since per-model `perModelTaskMetrics` alone doesn't cover a prompt sweep), and promotes the gate-passing prompt with the best primary metric — or, per the plan's settled decision, the best-metric prompt regardless when none pass, flagging `advisory: true` downstream
+- [x] Phase 2: vary model across the declared candidate slate, fix the promoted prompt, both splits — `runPhase2()` runs `comparisonMode: 'model'` with `benchmarkMode: 'promotion-check'`, which is exactly what makes `SummaryService`'s new `perModelTaskMetrics` (below) populate automatically
+- [x] Phase 3: re-run a short phase-1-shaped confirmation on the phase-2 winner; on failure, `runCampaign()` re-confirms the runner-up and records the failure reason on `ModelRecommendation.confirmation`
+- [x] Selection rule, in order and recorded with the verdict — `ModelSelectionService.selectModel()`: **gate** (discards any model whose `TaskMetrics.gate.verdict === 'fail'`) → **quality** (`StatisticsService.tieGroupsByOverlappingCI()`, new — chained/transitive CI overlap, not just pairwise, so A-B and B-C overlapping without a direct A-C overlap still merge into one tie group) → **budget** (p95 latency via the new `computeP95LatencyMs()`, re-ranking *within* a tie group only against `LatencyBudgetService`'s configured per-task share — never a silent 0/Infinity default when unconfigured, recorded instead as `ordering.latencyBudgetNote`) → **stability** (run-to-run agreement descending, then avg output tokens ascending)
+- [x] Reports the full ordering, tie groups, and discarded-by-gate list on `ModelRecommendation.ordering`
+- [x] Reports the best **single** model across all tasks (`ModelSelectionCampaign.bestSingleModel`) — **implementation choice, since the plan left the exact cross-task tie-break rule open**: the candidate scored in every task's phase 2 that minimizes total absolute quality distance from each task's own per-task winner, with `qualityDelta` recorded per task. `vramBudgetExceeded` is deliberately left **always unset** — LMEval has no real VRAM footprint data for a declared candidate (`parameterSize`/`quantization` are free text) and TASK.md itself states LMEval "structurally cannot see" resident-model cost; faking a number here would violate the same never-a-silent-default principle governing the latency budget gate
+- [x] `ModelRecommendation` emitted per task to `data/evals/recommendations/{campaignId}-{task}.json` (`FileService.RECOMMENDATIONS_DIR`), independent of the campaign record; the campaign itself persists to `data/evals/model-selection/{campaignId}/campaign.json`
+- [x] New types in `src/types/eval.ts`: `ModelCandidateMeta`, `TieGroup`, `ModelSelectionOrdering`, `ModelRecommendation`, `ModelSelectionCampaign`, `EvaluationSummary.perModelTaskMetrics`. **Added beyond the plan's own type**: `ModelSelectionCampaign.judgeModelId?` — the plan's campaign shape had no field for the judge model a summarization phase run needs (`EvaluationConfig.judgeModelId` is required for the built-in summarization purpose template's rubric grading); omitting it would make a summarization campaign task unrunnable
+- [x] `server/services/ModelSelectionService.ts` (new): `createCampaign()`/`getCampaign()`/`listCampaigns()`/`runCampaign()`/`runPhase1()`/`runPhase2()`/`runPhase3()`/`selectModel()`/`computeP95LatencyMs()`/`computeBestSingleModel()`/`computeCrossServerFlag()`/`cancel()`/`findRecommendationByEvaluationId()` (the last used by A10's report section, below)
+- [x] `server/routes/modelSelection.ts` (new) mounted at `/api/eval/model-selection` in `server/index.ts`: `POST /` (create + fire-and-forget `runCampaign()`, `202`), `GET /`, `GET /:id`, `GET /:id/recommendations`, `POST /:id/cancel`, plus `GET`/`PUT /latency-budgets` (the plan left this route optional/deferrable; built it since campaign creation has nothing else to configure the budget with)
+- [x] `server/services/LatencyBudgetService.ts` (new) + `FileService.LATENCY_BUDGETS_PATH` (`data/evals/config/latency-budgets.json`) — externally-supplied per-task share (ms) of MemoryApi's whole-ingestion target, set once and reused, per the plan's settled decision
+- [x] `StatisticsService.tieGroupsByOverlappingCI()` (new) + exported `percentile()` — **deviates from the plan's literal algorithm text**: the plan describes joining a candidate via `candidate.ci.lower <= groupMinUpper` alone (comparing only one bound against the group's running minimum upper bound), which a unit test caught merging two CIs that don't overlap at all whenever an earlier, wider interval in the group had a high upper bound. Implemented instead as a proper bidirectional overlap check against the previously-accepted candidate (`candidate.lower <= prev.upper && prev.lower <= candidate.upper`), which still produces the plan's own chained A-B-C example correctly
+- [x] `SummaryService`: `computeClassificationMetrics`/`computeTaggingMetrics`/`computeSummarizationMetrics` exported (visibility-only, consumed directly by `ModelSelectionService` for phase 1/3's prompt-keyed grouping); `computeSummary()` gained a `comparisonMode` option and computes `perModelTaskMetrics` when `comparisonMode === 'model'` with more than one model present — additive, the existing whole-run `taskMetrics` is unchanged
+- [x] Tests: `StatisticsService.test.ts` (tie grouping — single candidate, direct overlap, disjoint, chained transitive overlap; `percentile`), `LatencyBudgetService.test.ts` (new — get/set round trip, missing-file null), `SummaryService.test.ts` (extended — `perModelTaskMetrics` populated for `comparisonMode: 'model'` with >1 model, absent for single-model and for prompt-comparison runs), `ModelSelectionService.test.ts` (new — campaign validation, `computeP95LatencyMs`, `selectModel`'s full gate/quality/budget/stability pipeline including the all-gates-fail fallback, `computeCrossServerFlag`), `modelSelection.test.ts` (new, `server/routes/` — POST validation, 404s, latency-budgets round trip) — **204 → 266 passing, 35 files, `tsc -b`/`npm run build`/`npm run lint` all clean** (lint's pre-existing 23 errors unchanged, none in a touched file)
+- **Not built / owed**: `runPhase1`/`runPhase2`/`runPhase3`/`runCampaign` are only hand-traceable against synthetic fixtures for their pure sub-steps (`selectModel`, `computeP95LatencyMs`, cross-task aggregation) — they were **not** exercised end-to-end against a real `ExecutionService.run()` + LMApi/Ollama round trip, consistent with this repo's standing convention of not claiming live-model behavior from unit tests. Tracked as a new Track E entry below
 
-
-**A10 — Task-specific reporting**
-- [ ] Confusion/per-class panels (classification), micro/macro + per-tag panels (tagging), judge dimensions + unsupported-claim findings (summarization)
-- [ ] Slice tables: calibration/regression, boundary pairs, input length, ambiguity, prompt-injection
-- [ ] Model-selection view for `comparisonMode: 'model'` — gate pass/fail, primary metric with CIs and tie groups, p95 latency, truncation rate, run-to-run agreement, resulting recommendation
-- [ ] Include benchmark version, provenance hashes, resolved inference parameters, transport, and judge qualification in HTML/Markdown exports and baseline comparisons
+**A10 — Task-specific reporting** — ✅ **complete 2026-09-05, same plan as A9** (formatting only — no new computation; all data already existed on `EvaluationSummary`/`ModelRecommendation` after A9 landed)
+- [x] Confusion/per-class panels (classification), micro/macro + per-tag panels (tagging), rubric dimensions + deterministic-check rates + judge/self-judge status (summarization) — `ReportService`'s new `renderTaskMetrics()`, plus the shared gate rendering (verdict/caseCount/neededCases/failures) for all three. **Not built**: a per-finding "unsupported-claim" list — no per-finding judge output exists yet (still A11/future territory per A6/A8's own scoping notes); `criticalUnsupportedClaimRate` (the existing coarse proxy) is rendered instead
+- [x] Slice tables — `renderSliceTables()` groups the run's test cases (from the already-written `testcases.json`) by their `caseTags` family prefix (e.g. `split`, `shape`, `category`) and reports each value's case count and average pass rate, joined against the existing `testCaseSummaries` — no new data collection
+- [x] Per-model breakdown table (`renderTaskMetrics()` reused once per model) when `EvaluationSummary.perModelTaskMetrics` is present
+- [x] Model-selection section, gated on `comparisonMode === 'model'` — looks up the `ModelRecommendation` for the evaluation via `ModelSelectionService.findRecommendationByEvaluationId()`, renders gate pass/fail (discarded-by-gate list), primary metric with CI, tie groups, p95 latency + stability by model, and the resulting recommendation (including the advisory flag and any latency-budget note)
+- [x] Provenance/judge-qualification block extending the existing inference/transport header with `benchmarkProvenance` and, for a summarization run with a `judgeModelId`, `JudgeQualificationService.get()`'s qualified/not-qualified/no-record status
+- [x] Baseline comparison (`GET /api/eval/evaluations/:id/regression`) response extended with a `provenanceDiff` (current vs. baseline `resolvedInference`/`transportProvenance`/`benchmarkProvenance`) — pure pass-through, both sides already carried these fields
+- [x] Tests: `ReportService.test.ts` (new) — per-task-type rendering, per-model breakdown presence/absence, slice-table grouping, provenance/judge block presence/absence, model-selection section rendering and its omission for a non-`'model'` comparisonMode or no matching recommendation
+- **Not built**: any Track B UI surfacing (Results/Breakdown tab panels, SummaryPage) — out of scope per the plan's explicit boundary; only the Markdown export and the `/regression` JSON payload were extended this pass
 
 ---
 
@@ -484,6 +498,19 @@ behavior can be called verified.
   unqualified judge's summarization result actually renders as `advisory` in `VerdictHeader`, not just
   in the underlying `gate.verdict` data. Also owed: revisiting the macro-F1/micro-F1 CI proxy (per A7's
   scoping note) once real confusion-matrix data is available to check the proxy's fidelity.
+- [ ] **A9/A10 (2026-09-05)** — a real LMApi + Ollama round trip, since `ModelSelectionService`'s
+  `runPhase1`/`runPhase2`/`runPhase3`/`runCampaign` were only hand-traced and unit-tested against
+  synthetic fixtures for their pure sub-steps (`selectModel`'s gate/quality/budget/stability pipeline,
+  `computeP95LatencyMs`, cross-task aggregation), never exercised against a live `ExecutionService.run()`.
+  Confirm: running a full 3-phase campaign per task over a real declared candidate slate produces a
+  sane `ModelRecommendation` (tie groups, discarded-by-gate list, single-model alternative) exported to
+  `data/evals/recommendations/`; `perModelTaskMetrics` reflects real per-model confusion
+  matrices/gates, not just structurally-valid JSON; a phase-1 gate miss really does promote the
+  best-metric prompt with `advisory: true` rather than throwing; a phase-3 confirmation failure really
+  does fall back to the runner-up; and the Markdown report's new Task Metrics / Per-Model Breakdown /
+  Slice Breakdown / Model Selection sections render correctly against a real evaluation with a
+  configured latency budget and a qualified judge. None of unit tests or static review count as this
+  verification, per this repo's standing convention (TASK.md §6).
 
 ---
 

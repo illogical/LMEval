@@ -17,6 +17,7 @@ import type {
   TaggingTaskMetrics,
   SummarizationTaskMetrics,
   PerClassMetric,
+  EvalComparisonMode,
 } from '../../src/types/eval';
 import { checkSummaryDeterministics, DEFAULT_COMPRESSION_RANGE } from './summarizationChecks';
 import { bootstrapCI, mcNemarTest, caseCountGate } from './StatisticsService';
@@ -43,7 +44,7 @@ function median(values: number[]): number {
  * matching). A response outside the declared label set buckets into 'INVALID'
  * in the confusion matrix rather than being silently dropped.
  */
-function computeClassificationMetrics(
+export function computeClassificationMetrics(
   cells: EvalMatrixCell[],
   testCaseById: Map<string, TestCase>,
   labels: string[],
@@ -176,7 +177,7 @@ function computeClassificationMetrics(
  * dropping obviously-wrong tokens before scoring) so unknown-tag and
  * duplicate-tag rates reflect exactly what the model emitted.
  */
-function computeTaggingMetrics(
+export function computeTaggingMetrics(
   cells: EvalMatrixCell[],
   testCaseById: Map<string, TestCase>,
   vocabulary: string[]
@@ -297,7 +298,7 @@ function computeTaggingMetrics(
  * medians across cases — "three independent judge passes...aggregated by
  * median" applied at both levels the plan's language could mean.
  */
-function computeSummarizationMetrics(
+export function computeSummarizationMetrics(
   cells: EvalMatrixCell[],
   testCaseById: Map<string, TestCase>,
   compressionRange: [number, number],
@@ -478,6 +479,7 @@ export const SummaryService = {
       baselineCells?: EvalMatrixCell[];
       judgeQualified?: boolean;
       benchmarkProvenance?: EvaluationSummary['benchmarkProvenance'];
+      comparisonMode?: EvalComparisonMode;
     }
   ): EvaluationSummary {
     const completed = cells.filter(c => c.status === 'completed');
@@ -704,6 +706,30 @@ export const SummaryService = {
       };
     }
 
+    // A9: per-model breakdown for comparisonMode: 'model' runs with more than
+    // one candidate — additive alongside the whole-run taskMetrics above,
+    // which is computed the same way it always has been.
+    let perModelTaskMetrics: Record<string, TaskMetrics> | undefined;
+    const distinctModelIds = [...new Set(cells.map(c => c.modelId))];
+    if (options?.comparisonMode === 'model' && distinctModelIds.length > 1
+      && options?.testCases && options.testCases.length > 0 && options?.purposeCategory) {
+      perModelTaskMetrics = {};
+      for (const modelId of distinctModelIds) {
+        const modelCells = cells.filter(c => c.modelId === modelId);
+        const modelTaskMetrics = computeTaskMetrics(
+          modelCells,
+          options.testCases,
+          options.purposeCategory,
+          options.assertionStrategy,
+          options.runsPerCell ?? 1,
+          options.selfJudgeGuardViolated ?? false,
+          undefined,
+          options.judgeQualified
+        );
+        if (modelTaskMetrics) perModelTaskMetrics[modelId] = modelTaskMetrics;
+      }
+    }
+
     return {
       evalId,
       totalCells: cells.length,
@@ -722,6 +748,7 @@ export const SummaryService = {
       transportProvenance: options?.transportProvenance,
       benchmarkProvenance: options?.benchmarkProvenance,
       taskMetrics,
+      perModelTaskMetrics,
     };
   },
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bootstrapCI, mcNemarTest, caseCountGate } from '../StatisticsService';
+import { bootstrapCI, mcNemarTest, caseCountGate, tieGroupsByOverlappingCI, percentile } from '../StatisticsService';
 
 describe('StatisticsService', () => {
   describe('bootstrapCI', () => {
@@ -86,6 +86,59 @@ describe('StatisticsService', () => {
       expect(clears.verdict).toBe('pass');
       const fails = caseCountGate({ point: 0.2, lower: 0.15, upper: 0.25 }, 0.05, 50, 'lte');
       expect(fails.verdict).toBe('fail');
+    });
+  });
+
+  describe('tieGroupsByOverlappingCI', () => {
+    it('returns an empty array for no candidates', () => {
+      expect(tieGroupsByOverlappingCI([])).toEqual([]);
+    });
+
+    it('puts a single candidate in its own rank-1 group', () => {
+      const groups = tieGroupsByOverlappingCI([{ id: 'a', ci: { point: 0.9, lower: 0.85, upper: 0.95 } }]);
+      expect(groups).toEqual([{ rank: 1, modelIds: ['a'] }]);
+    });
+
+    it('groups two directly-overlapping CIs together', () => {
+      const groups = tieGroupsByOverlappingCI([
+        { id: 'a', ci: { point: 0.90, lower: 0.85, upper: 0.95 } },
+        { id: 'b', ci: { point: 0.88, lower: 0.83, upper: 0.93 } },
+      ]);
+      expect(groups).toHaveLength(1);
+      expect(groups[0].modelIds.sort()).toEqual(['a', 'b']);
+    });
+
+    it('separates disjoint (non-overlapping) CIs into distinct ranked groups', () => {
+      const groups = tieGroupsByOverlappingCI([
+        { id: 'a', ci: { point: 0.95, lower: 0.90, upper: 0.99 } },
+        { id: 'b', ci: { point: 0.50, lower: 0.40, upper: 0.60 } },
+      ]);
+      expect(groups).toEqual([
+        { rank: 1, modelIds: ['a'] },
+        { rank: 2, modelIds: ['b'] },
+      ]);
+    });
+
+    it('chains transitive overlap: A-B overlap plus B-C overlap merges all three even without a direct A-C overlap', () => {
+      // A: [0.80, 0.90], B: [0.70, 0.82], C: [0.60, 0.72] — A/B overlap at 0.80-0.82,
+      // B/C overlap at 0.70-0.72, but A [0.80,0.90] and C [0.60,0.72] do not overlap directly.
+      const groups = tieGroupsByOverlappingCI([
+        { id: 'A', ci: { point: 0.85, lower: 0.80, upper: 0.90 } },
+        { id: 'B', ci: { point: 0.76, lower: 0.70, upper: 0.82 } },
+        { id: 'C', ci: { point: 0.66, lower: 0.60, upper: 0.72 } },
+      ]);
+      expect(groups).toHaveLength(1);
+      expect(groups[0].modelIds.sort()).toEqual(['A', 'B', 'C']);
+    });
+  });
+
+  describe('percentile', () => {
+    it('returns 0 for an empty array', () => {
+      expect(percentile([], 0.95)).toBe(0);
+    });
+
+    it('interpolates between the two nearest ranks', () => {
+      expect(percentile([1, 2, 3, 4, 5], 0.5)).toBe(3);
     });
   });
 });

@@ -1,4 +1,4 @@
-import type { ConfidenceInterval, McNemarResult } from '../../src/types/eval';
+import type { ConfidenceInterval, McNemarResult, TieGroup } from '../../src/types/eval';
 
 /**
  * A7: statistics that match the data's resolution. Pure functions — no I/O, no
@@ -16,7 +16,7 @@ function makeRng(seed: number): () => number {
   };
 }
 
-function percentile(sorted: number[], p: number): number {
+export function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
   const idx = (sorted.length - 1) * p;
   const lo = Math.floor(idx);
@@ -118,4 +118,45 @@ export function caseCountGate(
   const scaleFactor = halfWidth > 0 ? (halfWidth / targetHalfWidth) ** 2 : 1;
   const neededCases = Math.max(1, Math.ceil(caseCount * scaleFactor) - caseCount);
   return { verdict: 'inconclusive', neededCases };
+}
+
+export interface TieGroupInput {
+  id: string;
+  ci: ConfidenceInterval;
+}
+
+/**
+ * A9: groups candidates into tie groups by *chained* CI overlap — sorted
+ * descending by point estimate, a candidate joins the currently-open group
+ * when its interval overlaps the previously-accepted candidate's interval
+ * (both bounds checked: `candidate.lower <= prevUpper && prevLower <=
+ * candidate.upper`). This lets A-B overlap plus B-C overlap merge into one
+ * group even without a direct A-C overlap — overlapping CIs express
+ * "statistically indistinguishable," which is transitive along a chain, not
+ * just pairwise — while still requiring an actual overlap at each link
+ * (a same-direction-only check on one bound alone would wrongly merge two
+ * intervals that don't overlap at all whenever an earlier, wider interval in
+ * the group happened to have a high upper bound).
+ */
+export function tieGroupsByOverlappingCI(candidates: TieGroupInput[]): TieGroup[] {
+  if (candidates.length === 0) return [];
+  const sorted = [...candidates].sort((a, b) => b.ci.point - a.ci.point);
+
+  const groups: TieGroup[] = [];
+  let currentIds: string[] = [sorted[0].id];
+  let prev = sorted[0].ci;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const candidate = sorted[i];
+    const overlaps = candidate.ci.lower <= prev.upper && prev.lower <= candidate.ci.upper;
+    if (overlaps) {
+      currentIds.push(candidate.id);
+    } else {
+      groups.push({ rank: groups.length + 1, modelIds: currentIds });
+      currentIds = [candidate.id];
+    }
+    prev = candidate.ci;
+  }
+  groups.push({ rank: groups.length + 1, modelIds: currentIds });
+  return groups;
 }

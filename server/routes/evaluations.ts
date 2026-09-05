@@ -146,7 +146,24 @@ evaluationsRouter.get('/:id/regression', (req, res) => {
   );
   if (!baseline) return void res.status(404).json({ error: 'Baseline not found' });
 
-  res.json(SummaryService.computeRegression(summary, baseline.summary));
+  // A10: provenance/inference/transport/judge-qualification diff — both sides
+  // already carry these fields on their EvaluationSummary, so this is
+  // pass-through, not new computation.
+  res.json({
+    ...SummaryService.computeRegression(summary, baseline.summary),
+    provenanceDiff: {
+      current: {
+        resolvedInference: summary.resolvedInference,
+        transportProvenance: summary.transportProvenance,
+        benchmarkProvenance: summary.benchmarkProvenance,
+      },
+      baseline: {
+        resolvedInference: baseline.summary.resolvedInference,
+        transportProvenance: baseline.summary.transportProvenance,
+        benchmarkProvenance: baseline.summary.benchmarkProvenance,
+      },
+    },
+  });
 });
 
 evaluationsRouter.post('/', (req, res) => {

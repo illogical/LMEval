@@ -369,6 +369,7 @@ export const ExecutionService = {
       selfJudgeGuardViolated?: boolean;
       judgeQualified?: boolean;
       benchmarkProvenance?: EvaluationConfig['benchmarkProvenance'];
+      comparisonMode?: EvaluationConfig['comparisonMode'];
     }
   ): Promise<EvaluationSummary> {
     const summary = SummaryService.computeSummary(evalId, cells, pairwiseRankings, options);
@@ -498,6 +499,7 @@ export const ExecutionService = {
         selfJudgeGuardViolated,
         judgeQualified,
         benchmarkProvenance: config.benchmarkProvenance,
+        comparisonMode: config.comparisonMode,
       });
 
       const wasCancelled = cancelledEvals.has(evalId);

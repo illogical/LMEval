@@ -331,6 +331,8 @@ export interface EvaluationSummary {
   benchmarkProvenance?: BenchmarkRunProvenance;
   /** R4-R7: task-specific metrics + gate verdict. Present only when the eval used a built-in purpose template. */
   taskMetrics?: TaskMetrics;
+  /** A9: per-model breakdown for comparisonMode: 'model' runs — same TaskMetrics shape, one per candidate. */
+  perModelTaskMetrics?: Record<string, TaskMetrics>;
 }
 
 export interface EvaluationHistoryEntry {
@@ -510,6 +512,77 @@ export interface JudgeQualification {
   meanInflation: number;
   selfConsistencyMAD: Record<string, number>;
   qualified: boolean;
+}
+
+// --- A9: two-phase model selection ----------------------------------------
+
+/** Declared per campaign — LMEval has no VRAM/quant introspection today. */
+export interface ModelCandidateMeta {
+  modelId: string;
+  lmapiServer: string;
+  parameterSize?: string;   // e.g. "8B" — free text, declared by the user
+  quantization?: string;    // e.g. "Q4_K_M"
+  contextLength?: number;
+}
+
+export interface TieGroup {
+  rank: number;              // 1-based; all members statistically indistinguishable on the primary metric
+  modelIds: string[];
+}
+
+export interface ModelSelectionOrdering {
+  tieGroups: TieGroup[];
+  discardedByGate: Array<{ modelId: string; reason: string }>;
+  p95LatencyMs: Record<string, number>;
+  stability: Record<string, { runToRunAgreement?: number; avgOutputTokens: number }>;
+  /** Set when no latency budget was configured for this task — budget re-ranking was skipped. */
+  latencyBudgetNote?: string;
+}
+
+export interface ModelRecommendation {
+  task: 'classification' | 'tagging' | 'summarization';
+  recommendedModelId: string;
+  runnerUpModelIds: string[];
+  discardedByGate: Array<{ modelId: string; reason: string }>;
+  primaryMetric: { name: string; value: number; ci95: [number, number] };
+  p95LatencyMs: number;
+  inference: { temperature: number; maxTokens: number };
+  promptId: string;
+  promptVersion: number;
+  suiteId: string;
+  suiteVersion: string;
+  provenance: { taxonomySha256: string; datasetSha256: string; sourceRevision: string };
+  evaluationId: string;
+  judgeQualificationId?: string;
+  singleModelAlternative?: { modelId: string; qualityDelta: Record<string, number> };
+  generatedAt: string;
+  ordering: ModelSelectionOrdering;
+  confirmation: { ranModelId: string; passed: boolean; reason?: string };
+  advisory?: boolean;   // true when promoted from a phase-1 gate miss
+}
+
+/** Persisted campaign record driving the 3-phase protocol; one per POST /model-selection run. */
+export interface ModelSelectionCampaign {
+  id: string;
+  status: EvalStatus;
+  tasks: Array<'classification' | 'tagging' | 'summarization'>;
+  incumbentModelId: string;
+  candidateSlate: ModelCandidateMeta[];
+  promptIdsByTask: Record<string, string[]>;
+  testSuiteIdByTask: Record<string, string>;
+  totalVramBudgetGb?: number;
+  /** Required only for a 'summarization' task's rubric grading — not in the original design doc, added because a summarization run cannot execute without one. */
+  judgeModelId?: string;
+  phase1EvalIds: Record<string, string>;
+  phase2EvalIds: Record<string, string>;
+  phase3EvalIds: Record<string, string>;
+  recommendations: Record<string, ModelRecommendation>;
+  bestSingleModel?: { modelId: string; qualityDelta: Record<string, number> };
+  crossServerFlag?: boolean;
+  vramBudgetExceeded?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  error?: string;
 }
 
 export interface EvalPurposeTemplate {
