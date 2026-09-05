@@ -1,6 +1,6 @@
 # Professional Memory-Metadata Evaluations
 
-**Status:** Proposed
+**Status:** In progress — LMEval A1 and MemoryApi's A2 transport foundation completed 2026-09-04
 
 **Applies to:** LMEval built-in purpose templates, test suites, scoring, reports, standalone mode, and HomeBase-hosted mode
 
@@ -15,7 +15,11 @@ LMEval answers two questions for each ingestion task, not one:
 1. **Which prompt wording is best?** Rank prompt variants on a fixed model.
 2. **Which local model is best for this task?** Rank the available local models on a fixed, promoted prompt, subject to a quality gate and an ingestion latency budget.
 
-MemoryApi currently runs classification, tagging, and summarization on one shared `LLM_MODEL`. The second question only produces value if MemoryApi can act on a per-task answer, so this plan's model-selection output is written against the per-task model configuration described in the production counterpart. Until that configuration exists, LMEval still reports per-task model rankings, but MemoryApi can only adopt a single compromise winner.
+MemoryApi now resolves classification, tagging, and summarization through separate task-model
+overrides with fallback to the shared `LLM_MODEL`, so it can act on LMEval's per-task recommendations.
+LMEval still reports the best single-model alternative because MemoryApi must measure the residency
+and model-swap cost before adopting multiple winners. This implementation was verified at MemoryApi
+revision `c7ecb9e292947f88199c16548b88dc4fc8557a60`.
 
 Success means that a prompt or model can be ranked by task-appropriate quality metrics, failures can be diagnosed by label and scenario, an approved baseline can prevent regressions, and a per-task model recommendation can be exported in a form MemoryApi consumes directly. Latency and token use remain visible; they do not substitute for task quality, but they do act as a hard budget filter during model selection.
 
@@ -28,7 +32,7 @@ Success means that a prompt or model can be ranked by task-appropriate quality m
 - MemoryApi has eight categories and 61 tags. Its 26 production seed memories cover only Preference (17), Note (8), and Event (1). Its 48 sample memories cover all eight categories. Across both files, ten tags remain uncovered: Family, Plan, Summary, To Do, Watch Later, Test, Improve, Design, Shopping, and Video Game.
 - MemoryApi output filtering and fallback can make the stored result look valid even when the raw model response violated the prompt contract. LMEval must measure the raw response; MemoryApi separately measures the complete production pipeline.
 - **Resolved by A1 on 2026-09-04:** this review originally found that LMEval sent no inference parameters. `buildLmapiProvider` now sends resolved `temperature`, `max_tokens`, and optional `seed`; the values and transport provenance persist with the result, and unspecified runs are barred from baseline/promotion use. LMApi now accepts and forwards `seed` to Ollama. Transport parity with MemoryApi remains unresolved separately below.
-- LMEval and MemoryApi do not call LMApi the same way. LMEval posts `messages: [system, user]` to `/api/chat/completions/any`; MemoryApi's `LMApiClient` joins the messages into one `ROLE: content` string and posts it as `prompt` to `/api/generate/any`. A prompt that wins in LMEval is therefore not the prompt MemoryApi executes. Transport parity is a precondition for this workflow, not a detail.
+- **Resolved in MemoryApi revision `c7ecb9e292947f88199c16548b88dc4fc8557a60`:** its LMApi provider now posts the same ordered `[system, user]` messages to `/api/chat/completions/any` that LMEval uses, with top-level task inference parameters and captured `finish_reason`. Ollama's separate native `/api/generate` provider remains a different transport and must not be treated as cross-provider parity.
 - The shipped built-ins already use different config keys than this plan's union. `data/evals/purpose-templates/classification.json` uses `config.categories`; `tagging.json` uses `config.tagVocabulary` and `config.threshold`. Migration must accept these as aliases rather than assume a clean field set.
 - `EvaluationConfig.comparisonMode` already distinguishes `model`, `prompt`, and `matrix`, but nothing downstream produces a model-selection verdict. Model ranking today means reading an average composite score off the leaderboard, which is the wrong statistic for these three tasks.
 
@@ -133,8 +137,10 @@ Use separate locations:
 ## Execution Fidelity
 
 A benchmark result is only transferable if LMEval executes the task the way MemoryApi executes it.
-Inference parameter control and recording landed in A1 on 2026-09-04; transport and prompt-shape
-parity remain open.
+Inference parameter control and recording landed in LMEval A1, and MemoryApi's structured LMApi
+transport plus production prompt wrapper landed at revision
+`c7ecb9e292947f88199c16548b88dc4fc8557a60`. Snapshot consumption and a live cross-project parity
+smoke test remain open.
 
 ### Inference parameters
 
@@ -164,7 +170,12 @@ The output-token ceiling is itself a measured variable, not a constant: record `
 
 ### Transport parity
 
-LMEval's `LmapiClient` posts structured chat messages; MemoryApi's `LMApiClient` flattens them into one prompt string. Whichever call shape the two projects settle on, they must settle on the same one, and this plan assumes MemoryApi moves to structured chat messages against the chat-completions endpoint, because that is what preserves the instruction/content separation both plans depend on.
+**Implementation status (2026-09-04): MemoryApi side complete.** MemoryApi's LMApi provider now
+posts the ordered system and user messages without flattening to `/api/chat/completions/any`, matching
+LMEval's endpoint and message-shape vocabulary. Its production renderer supplies the exact
+`<memory>\n...\n</memory>` user message and escapes case-insensitive, whitespace-bearing closing
+delimiters to `&lt;/memory&gt;`. Verified at revision
+`c7ecb9e292947f88199c16548b88dc4fc8557a60`; the live cross-process smoke test is still owed.
 
 Record the LMApi endpoint path and message shape in each evaluation's provenance. If a MemoryApi snapshot declares a transport LMEval did not use, report stale provenance and refuse to treat the run as a promotion input rather than silently comparing across transports.
 
@@ -344,7 +355,7 @@ Direction is asymmetric by design. MemoryApi owns truth and receives advice; LME
 
 ### What each project gains
 
-- **MemoryApi gains from LMEval:** task-appropriate metrics instead of a single accuracy number, slice-level failure diagnosis, repeated-run stability, a calibrated summarization judge, per-task model recommendations it cannot produce from its own single-model evaluators, and regression gates against an approved baseline.
+- **MemoryApi gains from LMEval:** task-appropriate metrics instead of a single accuracy number, slice-level failure diagnosis, repeated-run stability, a calibrated summarization judge, cross-model per-task recommendations beyond its own evaluators, and regression gates against an approved baseline.
 - **LMEval gains from MemoryApi:** a real taxonomy with adjudicated ground truth, a reviewed benchmark corpus with grounding annotations, an annotation guide that makes label disputes resolvable, the raw-versus-pipeline distinction that keeps LMEval honest about what it is measuring, and a production consumer that turns eval features into decisions rather than dashboards.
 - **Both gain:** the built-in suites, the strategy union, the model-selection protocol, and the statistics work are all task-generic. Any future fixed-vocabulary classification, multi-label tagging, or grounded summarization task in either project reuses them unchanged.
 

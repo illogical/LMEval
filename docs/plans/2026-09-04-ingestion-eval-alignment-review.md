@@ -6,17 +6,28 @@
 
 **Reviews:** [`docs/plans/2026-09-03-professional-memory-evaluations.md`](2026-09-03-professional-memory-evaluations.md) · MemoryApi `docs/plans/2026-09-03-ingestion-prompt-refinement.md`
 
-Cross-project review of the two ingestion-evaluation plans. Findings 1–4 were folded into both plans; the "further suggestions" section was not, and remains open for a decision.
+Cross-project review of the two ingestion-evaluation plans. Findings 1–4 were folded into both plans;
+findings 1–3 now carry implementation-status corrections, while the "further suggestions" section
+remains open for a decision.
 
 ## What blocks a transferable result
 
-Four issues, verified in code. The first three make any measurement non-transferable; the fourth makes the promotion gate unreachable.
+Four issues were verified in code at review time. MemoryApi revision
+`c7ecb9e292947f88199c16548b88dc4fc8557a60` and LMEval A1 resolve the implementation gaps in the
+first three; live parity verification and authoritative snapshot artifacts are still required before
+promotion. The fourth remains evaluation-design work.
 
 ### 1 — The two projects call LMApi differently (parity)
 
 LMEval posts structured `messages: [system, user]` to `/api/chat/completions/any`. MemoryApi's `LMApiClient` joins the messages into one `ROLE: content` string and posts it as `prompt` to `/api/generate/any`.
 
-MemoryApi's plan builds its whole prompt architecture on separating a stable system instruction from untrusted `<memory>` content. Its own client would flatten that separation before the model ever saw it — and every LMEval number about those prompts would describe a call production does not make.
+At review time, MemoryApi's client flattened the stable system instruction and untrusted `<memory>`
+content before the model saw them, so an LMEval number described a call production did not make.
+
+**Status correction (2026-09-04): resolved for the LMApi provider.** MemoryApi revision
+`c7ecb9e292947f88199c16548b88dc4fc8557a60` posts the ordered system/user messages without
+flattening to `/api/chat/completions/any`, matching LMEval. Its native Ollama provider remains
+intentionally different. A live cross-process parity smoke test is still required before promotion.
 
 > MemoryApi `src/services/modelClients.ts:227–241` · LMEval `server/services/LmapiClient.ts:103`
 
@@ -35,11 +46,14 @@ in finding 1 remains the blocker to a transferable result.
 
 > LMEval `server/services/PromptfooAdapter.ts:31–40` · MemoryApi `src/services/memoryTextProcessor.ts:29, 45, 76`
 
-### 3 — MemoryApi cannot run a different model per task (capability)
+### 3 — MemoryApi could not run a different model per task (resolved)
 
-`MemoryRAGSystem` constructs one `ModelClient` and loads one `config.LLM_MODEL`, reused by `summarizeText`, `classifyText`, `tagText`, and aggregation. There is no per-task override.
+At review time, `MemoryRAGSystem` constructed one `ModelClient` from one shared `config.LLM_MODEL`.
 
-Choosing the best local model for each of the three prompts is the stated goal, but neither plan originally mentioned the configuration change that makes such a choice actionable. Without it, a per-task ranking has nowhere to land and the only adoptable answer is a single compromise winner.
+**Status correction (2026-09-04): resolved.** MemoryApi revision
+`c7ecb9e292947f88199c16548b88dc4fc8557a60` provides task-specific model overrides with fallback to
+`LLM_MODEL`, reuses clients when names match, and keeps different task clients isolated. Per-task
+recommendations are now actionable, subject to MemoryApi's end-to-end latency and residency checks.
 
 > MemoryApi `src/services/memoryRAGSystem.ts:47–48` · `src/services/configService.ts:73`
 
