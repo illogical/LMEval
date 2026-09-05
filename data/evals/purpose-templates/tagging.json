@@ -4,6 +4,7 @@
   "description": "Assign a set of relevant tags (multi-label) to short text snippets from a fixed tag vocabulary — seeded from MemoryAPI's memory-tagging prompt (~60 tags across 4 groups).",
   "purposeCategory": "tagging",
   "builtIn": true,
+  "defaultTestSuiteId": "memory-tagging-v1",
   "seedPromptContent": "## Purpose\nYou are a classification assistant that assigns relevant tags to each memory based on its content as a comma-separated list.\n\n## Examples\nUse the following examples as guidance for which tags to select:\n\n1. Memory: \"Remember to buy groceries tomorrow\"\n   Tags: Shopping, Reminder\n\n2. Memory: \"My favorite programming language is C#\"\n   Tags: Programming, Favorite\n\n3. Memory: \"foreach(int i = 0; i < count; i++) { }\"\n   Tags: Snippet, Programming\n\n4. Memory: \"Met John at the conference last June\"\n   Tags: Work\n\n5. Memory: \"Meeting notes from 2024-11-09\"\n   Tags: Notes, Work, Summary\n\n6. Memory: \"My favorite cuisine is Mexican.\"\n   Tags: Favorite, Food\n\n7. Memory: \"SELECT * FROM users WHERE active = 1;\"\n   Tags: Snippet, Command, Programming\n\n8. Memory: \"Checklist for deployment: test, optimize, integrate.\"\n   Tags: Checklist, Testing, Optimization, Integration\n\n## Instructions\nSelect all tags that apply and are relevant to the content, from the provided list only.\n- Do not create, modify, or infer new tags outside this list.\n- Return only the selected tags as a comma-separated list, with no additional text, formatting, or explanation.\n- Prefer precision over quantity — include only tags that strongly match the relevancy of the memory content.\n\n# Choose from the following tags and only output a simple comma-separated list:\nWork, Project, Learning, Family, Inspiration, Resource, Workflow, Checklist, Draft, Plan, Customize, Summary, Prompt, Appointment, Favorite,\nTo Do, Review, Read Later, Watch Later, Follow Up, Research, Update, Test, Improve, Tip, Shortcut, Reminder, Action Required, Notes, Comparison, Avoid,\nData Science, Machine Learning, Generative AI, Design, UX, Productivity, Travel, Career, Health, Food, Shopping, Video Game, Movie, TV Show, Book,\nSnippet, Config, Command, API, Automation, Prompt Engineering, Template, Software, Deployment, Debugging, Testing, Optimization, Integration, Programming, Utility\n\nTag the memory content given in the next message.",
   "defaultComparisonMode": "prompt",
   "inference": { "temperature": 0.3, "maxTokens": 1000 },
@@ -24,49 +25,49 @@
       "id": "seed-tag-1",
       "userMessage": "Pick up the kids from school at 3pm",
       "description": "Family reminder",
-      "tags": ["Family", "Reminder"]
+      "expectedLabels": ["Family", "Reminder"]
     },
     {
       "id": "seed-tag-2",
       "userMessage": "I love spicy Thai food",
       "description": "Food preference",
-      "tags": ["Food", "Favorite"]
+      "expectedLabels": ["Food", "Favorite"]
     },
     {
       "id": "seed-tag-3",
       "userMessage": "Refactor the authentication module for better performance",
       "description": "Performance refactor task",
-      "tags": ["Optimization", "Programming"]
+      "expectedLabels": ["Optimization", "Programming"]
     },
     {
       "id": "seed-tag-4",
       "userMessage": "Watch the new sci-fi movie trailer this weekend",
       "description": "Watch later movie",
-      "tags": ["Watch Later", "Movie"]
+      "expectedLabels": ["Watch Later", "Movie"]
     },
     {
       "id": "seed-tag-5",
       "userMessage": "Book flights for the Tokyo trip in June",
       "description": "Travel planning",
-      "tags": ["Travel", "To Do"]
+      "expectedLabels": ["Travel", "To Do"]
     },
     {
       "id": "seed-tag-6",
       "userMessage": "Fix the bug where login fails on Safari",
       "description": "Bug fix",
-      "tags": ["Debugging", "Testing"]
+      "expectedLabels": ["Debugging", "Testing"]
     },
     {
       "id": "seed-tag-7",
       "userMessage": "Compare AWS Lambda vs Azure Functions for our use case",
       "description": "Technology comparison research",
-      "tags": ["Comparison", "Research"]
+      "expectedLabels": ["Comparison", "Research"]
     },
     {
       "id": "seed-tag-8",
       "userMessage": "Set up CI/CD pipeline using GitHub Actions",
       "description": "DevOps automation",
-      "tags": ["Deployment", "Automation"]
+      "expectedLabels": ["Deployment", "Automation"]
     }
   ],
   "createdAt": "2026-09-03T00:00:00.000Z",

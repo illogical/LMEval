@@ -6,6 +6,23 @@ export interface ParseResult {
   errors: string[];
 }
 
+const ARRAY_FIELDS = ['expectedLabels', 'caseTags', 'requiredFacts', 'forbiddenClaims', 'protectedTokens'] as const;
+
+function splitList(value: unknown, separator: RegExp = /[;,]/): string[] | undefined {
+  if (Array.isArray(value)) {
+    const items = value.filter((v): v is string => typeof v === 'string').map(v => v.trim()).filter(Boolean);
+    return items.length ? items : undefined;
+  }
+  if (typeof value === 'string' && value.trim()) return value.split(separator).map(v => v.trim()).filter(Boolean);
+  return undefined;
+}
+
+function sameSet(a: string[], b: string[]): boolean {
+  const left = [...new Set(a)].sort();
+  const right = [...new Set(b)].sort();
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
 // ─── RFC 4180 CSV parser ───────────────────────────────────────────────────
 
 function parseCSVLine(line: string): string[] {
@@ -96,6 +113,7 @@ export function parseCSV(text: string): ParseResult {
   const descriptionCol = colOf('description');
   const expectedOutputCol = colOf('expectedOutput');
   const tagsCol = colOf('tags');
+  const arrayCols = Object.fromEntries(ARRAY_FIELDS.map(field => [field, colOf(field)])) as Record<typeof ARRAY_FIELDS[number], number>;
 
   for (let r = 1; r < rows.length; r++) {
     const fields = parseCSVLine(rows[r]);
@@ -111,8 +129,14 @@ export function parseCSV(text: string): ParseResult {
     if (expectedOutputCol !== -1 && fields[expectedOutputCol]?.trim()) {
       tc.expectedOutput = fields[expectedOutputCol].trim();
     }
-    if (tagsCol !== -1 && fields[tagsCol]?.trim()) {
-      tc.tags = fields[tagsCol].split(';').map(t => t.trim()).filter(Boolean);
+    for (const field of ARRAY_FIELDS) {
+      const col = arrayCols[field];
+      if (col !== -1) tc[field] = splitList(fields[col], /;/);
+    }
+    const legacyTags = tagsCol !== -1 ? splitList(fields[tagsCol], /;/) : undefined;
+    if (!tc.expectedLabels && legacyTags) tc.expectedLabels = legacyTags;
+    if (tc.expectedLabels && legacyTags && !sameSet(tc.expectedLabels, legacyTags)) {
+      warnings.push(`Row ${r + 1}: expectedLabels and legacy tags differ; expectedLabels was used.`);
     }
     cases.push(tc);
   }
@@ -156,18 +180,21 @@ export function parseJSON(text: string): ParseResult {
       warnings.push(`Item ${i + 1}: missing userMessage — skipped.`);
       continue;
     }
-    const tc: Omit<TestCase, 'id'> = { userMessage };
+    const tc = { ...item, userMessage } as unknown as Omit<TestCase, 'id'>;
+    delete (tc as Partial<TestCase>).id;
     if (typeof item.description === 'string' && item.description.trim()) {
       tc.description = item.description.trim();
     }
     if (typeof item.expectedOutput === 'string' && item.expectedOutput.trim()) {
       tc.expectedOutput = item.expectedOutput.trim();
     }
-    if (Array.isArray(item.tags)) {
-      tc.tags = (item.tags as unknown[]).filter(t => typeof t === 'string').map(t => (t as string).trim()).filter(Boolean);
-    } else if (typeof item.tags === 'string' && item.tags.trim()) {
-      tc.tags = item.tags.split(',').map(t => t.trim()).filter(Boolean);
+    for (const field of ARRAY_FIELDS) tc[field] = splitList(item[field]);
+    const legacyTags = splitList(item.tags);
+    if (!tc.expectedLabels && legacyTags) tc.expectedLabels = legacyTags;
+    if (tc.expectedLabels && legacyTags && !sameSet(tc.expectedLabels, legacyTags)) {
+      warnings.push(`Item ${i + 1}: expectedLabels and legacy tags differ; expectedLabels was used.`);
     }
+    delete tc.tags;
     cases.push(tc);
   }
 
@@ -199,21 +226,21 @@ function csvQuote(value: string): string {
 }
 
 export function serializeCSV(cases: TestCase[]): string {
-  const header = 'description,userMessage,expectedOutput,tags';
+  const header = 'description,userMessage,expectedOutput,expectedLabels,caseTags,requiredFacts,forbiddenClaims,protectedTokens';
   const rows = cases.map(tc => {
-    const tags = tc.tags ? tc.tags.join(';') : '';
     return [
       csvQuote(tc.description ?? ''),
       csvQuote(tc.userMessage),
       csvQuote(tc.expectedOutput ?? ''),
-      csvQuote(tags),
+      ...ARRAY_FIELDS.map(field => csvQuote(tc[field]?.join(';') ?? '')),
     ].join(',');
   });
   return [header, ...rows].join('\r\n');
 }
 
 export function serializeJSON(cases: TestCase[]): string {
-  const out = cases.map(({ id: _id, ...rest }) => rest);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const out = cases.map(({ id, tags, ...rest }) => rest);
   return JSON.stringify(out, null, 2);
 }
 
@@ -235,4 +262,4 @@ export function todayString(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export const CSV_TEMPLATE = 'description,userMessage,expectedOutput,tags\r\n';
+export const CSV_TEMPLATE = 'description,userMessage,expectedOutput,expectedLabels,caseTags,requiredFacts,forbiddenClaims,protectedTokens\r\n';

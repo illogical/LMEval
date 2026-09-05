@@ -4,6 +4,7 @@
   "description": "Summarize memory content for use as a description in a vector database and semantic search — seeded from MemoryAPI's memory-summary prompt. Scored via LLM rubric (conciseness, faithfulness, coverage), not deterministic checks.",
   "purposeCategory": "summarization",
   "builtIn": true,
+  "defaultTestSuiteId": "memory-summarization-v1",
   "seedPromptContent": "Summarize the following memory content for use as an effective content description in a vector database and semantic search. Return only the summary, with no preamble or explanation.\n\nThe memory content to summarize will be given in the next message.",
   "defaultComparisonMode": "prompt",
   "inference": { "temperature": 0.3, "maxTokens": 1000 },
@@ -12,34 +13,58 @@
     "config": {
       "templateId": "summarization-quality",
       "dimensions": ["faithfulness", "salient-coverage", "retrieval-utility", "concision"],
-      "compressionRange": [0.05, 0.6]
+      "compressionRange": [0.35, 0.69]
     }
   },
   "starterTestCases": [
     {
       "id": "seed-sum-1",
       "userMessage": "Meeting notes from the Q3 planning session: we agreed to prioritize the mobile redesign over the API v2 migration this quarter, since customer support tickets show the mobile UI is the top complaint. Sarah will own the redesign spec, due in two weeks. The API migration is pushed to Q4. We also discussed hiring a contractor for QA but decided to wait until budget is confirmed in the next finance review.",
-      "description": "Meeting notes with a decision, an owner, and a deferred item"
+      "description": "Meeting notes with a decision, an owner, and a deferred item",
+      "referenceAnswer": "Q3 planning prioritized the mobile redesign, owned by Sarah with a specification due in two weeks; API v2 moved to Q4, and QA contractor hiring awaits budget confirmation.",
+      "requiredFacts": ["mobile redesign prioritized", "Sarah owns the specification", "due in two weeks", "API v2 moved to Q4", "QA contractor awaits budget confirmation"],
+      "forbiddenClaims": ["QA contractor was approved"],
+      "caseTags": ["starter", "risk:decision"]
     },
     {
       "id": "seed-sum-2",
       "userMessage": "I've been reading about transformer architectures and how attention mechanisms let models weigh the relevance of different tokens in a sequence, rather than processing everything sequentially like RNNs did. The key insight is self-attention: every token can directly attend to every other token in a single layer, which is why transformers parallelize so much better on GPUs than recurrent models ever did.",
-      "description": "Technical learning note explaining a concept"
+      "description": "Technical learning note explaining a concept",
+      "referenceAnswer": "Transformers use self-attention so each token can weigh every other token within a layer, enabling better GPU parallelism than sequential recurrent models.",
+      "requiredFacts": ["self-attention connects tokens directly", "transformers parallelize better than recurrent models"],
+      "forbiddenClaims": ["RNNs process every token in parallel"],
+      "protectedTokens": ["GPU", "RNN"],
+      "caseTags": ["starter", "risk:technical"]
     },
     {
       "id": "seed-sum-3",
       "userMessage": "Doctor appointment recap: blood pressure was slightly elevated at 138/88, doctor recommended cutting back on sodium and doing 30 minutes of cardio 4x a week. Follow-up bloodwork scheduled in 6 weeks to check cholesterol. No new medications prescribed for now.",
-      "description": "Medical appointment recap with follow-up actions"
+      "description": "Medical appointment recap with follow-up actions",
+      "referenceAnswer": "Blood pressure was 138/88; the doctor advised reducing sodium and doing 30 minutes of cardio four times weekly, with cholesterol bloodwork in six weeks and no new medication.",
+      "requiredFacts": ["blood pressure 138/88", "reduce sodium", "30 minutes of cardio four times weekly", "bloodwork in six weeks", "no new medication"],
+      "forbiddenClaims": ["medication was prescribed"],
+      "protectedTokens": ["138/88", "6 weeks"],
+      "caseTags": ["starter", "risk:medical"]
     },
     {
       "id": "seed-sum-4",
       "userMessage": "Idea for a side project: a browser extension that automatically summarizes long Slack threads into a 3-bullet TL;DR using a local LLM, so you don't have to scroll through 200 messages to catch up after being out for a day. Could start with just Slack, but Discord and Teams would be natural extensions later.",
-      "description": "Project idea with a core concept and possible extensions"
+      "description": "Project idea with a core concept and possible extensions",
+      "referenceAnswer": "A proposed browser extension would use a local LLM to summarize long Slack threads into three bullets, with possible later support for Discord and Teams.",
+      "requiredFacts": ["browser extension", "local LLM", "three-bullet Slack summaries", "Discord and Teams are possible extensions"],
+      "forbiddenClaims": ["Discord support already exists", "Teams support already exists"],
+      "protectedTokens": ["Slack", "Discord", "Teams"],
+      "caseTags": ["starter", "risk:proposal"]
     },
     {
       "id": "seed-sum-5",
       "userMessage": "Traveled to Lisbon for a work conference in March 2025. Gave a talk on distributed tracing at the main track, met two engineers from a company doing similar observability work who we're now considering as integration partners. Also spent a day exploring the city — really enjoyed the food scene, especially the seafood near Cais do Sodré.",
-      "description": "Travel/event memory mixing work outcomes and personal experience"
+      "description": "Travel/event memory mixing work outcomes and personal experience",
+      "referenceAnswer": "At a Lisbon work conference in March 2025, the traveler spoke on distributed tracing and met two potential integration partners, while also enjoying the city's seafood.",
+      "requiredFacts": ["Lisbon conference in March 2025", "distributed tracing talk", "two potential integration partners", "enjoyed local seafood"],
+      "forbiddenClaims": ["an integration partnership was finalized"],
+      "protectedTokens": ["Lisbon", "March 2025"],
+      "caseTags": ["starter", "risk:event"]
     }
   ],
   "createdAt": "2026-09-03T00:00:00.000Z",

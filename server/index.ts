@@ -15,6 +15,7 @@ import { presetsRouter } from './routes/presets';
 import { judgesRouter } from './routes/judges';
 import { TemplateService } from './services/TemplateService';
 import { PurposeTemplateService } from './services/PurposeTemplateService';
+import { TestSuiteService } from './services/TestSuiteService';
 import { GitService } from './services/GitService';
 import { configurePaths } from './services/FileService';
 import { setupWebSocket } from './ws';
@@ -66,6 +67,7 @@ export function buildApp(): { router: Router; dispose: () => Promise<void> } {
   // Seed built-in templates on startup
   TemplateService.seedBuiltIns();
   PurposeTemplateService.seedBuiltIns();
+  TestSuiteService.seedBuiltIns();
 
   // Check if data dir is a git repo on startup
   GitService.isInitialized().then(initialized => {

@@ -10,7 +10,7 @@ type Action =
   | { type: 'SET_PROMPT_B'; payload: Partial<PromptSlot> }
   | { type: 'SET_MODELS'; payload: SelectedModel[] }
   | { type: 'SET_COMPARISON_MODE'; payload: EvalComparisonMode }
-  | { type: 'SET_CONFIG'; payload: Partial<Pick<EvalWizardState, 'templateId' | 'testSuiteId' | 'inlineTestCases' | 'userMessage' | 'judgeModelId' | 'enablePairwise' | 'runsPerCell'>> }
+  | { type: 'SET_CONFIG'; payload: Partial<Pick<EvalWizardState, 'templateId' | 'testSuiteId' | 'benchmarkMode' | 'inlineTestCases' | 'userMessage' | 'judgeModelId' | 'enablePairwise' | 'runsPerCell'>> }
   | { type: 'START_EVAL'; payload: { evalId: string } }
   | { type: 'LOAD_PRESET'; payload: EvalPreset }
   | { type: 'LOAD_PURPOSE_TEMPLATE'; payload: EvalPurposeTemplate }

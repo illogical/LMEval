@@ -1,0 +1,2085 @@
+{
+  "schemaVersion": "memory-benchmark-review.v1",
+  "reviewStatus": "pending-human-review",
+  "approvedAt": null,
+  "cases": [
+    {
+      "caseId": "mem-cls-001",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "memoryapi",
+        "path": "src/samples/sampleMemories.json",
+        "index": 0,
+        "treatment": "sanitized",
+        "rationale": "Rewritten from the cited generic MemoryApi sample to improve coverage without retaining personal details."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped source selected or privacy-sanitized for balanced category coverage.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-002",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-003",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-004",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-005",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-006",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-007",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-008",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-009",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "memoryapi",
+        "path": "src/samples/sampleMemories.json",
+        "index": 7,
+        "treatment": "sanitized",
+        "rationale": "Rewritten from the cited generic MemoryApi sample to improve coverage without retaining personal details."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped source selected or privacy-sanitized for balanced category coverage.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-010",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-011",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-012",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-013",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-014",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-015",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-016",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-017",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped source selected or privacy-sanitized for balanced category coverage.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-018",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-019",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-020",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-021",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-022",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-023",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-024",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-025",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "memoryapi",
+        "path": "src/samples/sampleMemories.json",
+        "index": 20,
+        "treatment": "sanitized",
+        "rationale": "Rewritten from the cited generic MemoryApi sample to improve coverage without retaining personal details."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped source selected or privacy-sanitized for balanced category coverage.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-026",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-027",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-028",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-029",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-030",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-031",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-032",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-033",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "memoryapi",
+        "path": "src/samples/sampleMemories.json",
+        "index": 21,
+        "treatment": "sanitized",
+        "rationale": "Rewritten from the cited generic MemoryApi sample to improve coverage without retaining personal details."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped source selected or privacy-sanitized for balanced category coverage.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-034",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-035",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-036",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-037",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-038",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-039",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-040",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-041",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "memoryapi",
+        "path": "src/samples/sampleMemories.json",
+        "index": 31,
+        "treatment": "sanitized",
+        "rationale": "Rewritten from the cited generic MemoryApi sample to improve coverage without retaining personal details."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped source selected or privacy-sanitized for balanced category coverage.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-042",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-043",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-044",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-045",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-046",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-047",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-048",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-049",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "memoryapi",
+        "path": "src/samples/sampleMemories.json",
+        "index": 40,
+        "treatment": "sanitized",
+        "rationale": "Rewritten from the cited generic MemoryApi sample to improve coverage without retaining personal details."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped source selected or privacy-sanitized for balanced category coverage.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-050",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-051",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-052",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-053",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-054",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-055",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-056",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-057",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "memoryapi",
+        "path": "src/samples/sampleMemories.json",
+        "index": 44,
+        "treatment": "sanitized",
+        "rationale": "Rewritten from the cited generic MemoryApi sample to improve coverage without retaining personal details."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped source selected or privacy-sanitized for balanced category coverage.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-058",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-059",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-060",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-061",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-062",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": true,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-063",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-cls-064",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover category balance, boundary behavior, noise, or instruction pressure.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-001",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-002",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-003",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-004",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-005",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-006",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-007",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-008",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-009",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-010",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-011",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-012",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-013",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-014",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-015",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-016",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-017",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-018",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-019",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-020",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-021",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-022",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-023",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-024",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-025",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-026",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-027",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-028",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-029",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-030",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-031",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-032",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-033",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-034",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-035",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-036",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-037",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-038",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-039",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-040",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-041",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-042",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-043",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-044",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-045",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-046",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-047",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-048",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-049",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-050",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-051",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-052",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-053",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-054",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-055",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-056",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-057",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-058",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-059",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-060",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-061",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-062",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-063",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-064",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-065",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-066",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-067",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-068",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-069",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-070",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-071",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-tag-072",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps."
+      },
+      "ambiguity": false,
+      "rationale": "Authored from the canonical vocabulary to close tag-support and robustness gaps.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-01",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-02",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-03",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-04",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-05",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-06",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-07",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-08",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-09",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-10",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-11",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-short-12",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-01",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-02",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-03",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-04",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-05",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-06",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-07",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-08",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-09",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-10",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-11",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-medium-12",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-01",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-02",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-03",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-04",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Purpose-authored benchmark case; it is not represented as a transformation of a MemoryApi record."
+      },
+      "ambiguity": false,
+      "rationale": "Production-shaped scenario rewritten to remove personal details and add explicit grounding risks.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-05",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-06",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-07",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-08",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-09",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-10",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-11",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    },
+    {
+      "caseId": "mem-sum-long-12",
+      "status": "pending-human-review",
+      "source": {
+        "kind": "lmeval-authored",
+        "treatment": "authored",
+        "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior."
+      },
+      "ambiguity": false,
+      "rationale": "Authored to cover summary length, grounding, temporal, negation, and injection behavior.",
+      "reviewerNotes": ""
+    }
+  ]
+}

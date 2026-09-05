@@ -102,7 +102,9 @@ export const ExecutionService = {
   resolveTestCases(config: EvaluationConfig): TestCase[] {
     if (config.testSuiteId) {
       const suite = TestSuiteService.get(config.testSuiteId);
-      return suite?.testCases ?? [];
+      if (!suite) return [];
+      if (!suite.builtIn || config.benchmarkMode === 'promotion-check') return suite.testCases;
+      return suite.testCases.filter(testCase => testCase.caseTags?.includes('split:calibration'));
     }
     if (config.inlineTestCases && config.inlineTestCases.length > 0) {
       return config.inlineTestCases;
@@ -366,6 +368,7 @@ export const ExecutionService = {
       assertionStrategy?: AssertionStrategy | null;
       selfJudgeGuardViolated?: boolean;
       judgeQualified?: boolean;
+      benchmarkProvenance?: EvaluationConfig['benchmarkProvenance'];
     }
   ): Promise<EvaluationSummary> {
     const summary = SummaryService.computeSummary(evalId, cells, pairwiseRankings, options);
@@ -438,6 +441,23 @@ export const ExecutionService = {
       }
 
       const cells = this.buildMatrix(config, testCases);
+      if (config.testSuiteId) {
+        const suite = TestSuiteService.get(config.testSuiteId);
+        if (suite?.builtIn && suite.provenance) {
+          config.benchmarkMode ??= 'calibration';
+          const promotionCheck = config.benchmarkMode === 'promotion-check';
+          config.benchmarkProvenance = {
+            suiteId: suite.id,
+            version: suite.version,
+            datasetSha256: suite.provenance.datasetSha256,
+            reviewStatus: suite.provenance.reviewStatus,
+            includedSplits: promotionCheck ? ['calibration', 'regression'] : ['calibration'],
+            promptVersions: [...new Map(cells.map(cell => [cell.promptId, cell.promptVersion])).entries()]
+              .map(([promptId, version]) => ({ promptId, version })),
+            regressionExposedAt: promotionCheck ? new Date().toISOString() : undefined,
+          };
+        }
+      }
       writeJson(join(evalDir, 'cells.json'), cells);
 
       Object.assign(config, resolveInferenceAndProvenance(config, purposeTemplate));
@@ -477,6 +497,7 @@ export const ExecutionService = {
         assertionStrategy: purposeStrategy,
         selfJudgeGuardViolated,
         judgeQualified,
+        benchmarkProvenance: config.benchmarkProvenance,
       });
 
       const wasCancelled = cancelledEvals.has(evalId);

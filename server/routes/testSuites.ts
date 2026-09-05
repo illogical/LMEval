@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { TestSuiteService } from '../services/TestSuiteService';
+import { BuiltInSuiteImmutableError, TestSuiteService } from '../services/TestSuiteService';
 import { parseCSV, parseJSON } from '../../src/utils/testCaseIO';
 import { generateId } from '../services/FileService';
 
@@ -26,7 +26,13 @@ testSuitesRouter.post('/', (req, res) => {
 testSuitesRouter.put('/:id', (req, res) => {
   const { id } = req.params;
   const body = req.body;
-  const updated = TestSuiteService.update(id, body);
+  let updated;
+  try {
+    updated = TestSuiteService.update(id, body);
+  } catch (error) {
+    if (error instanceof BuiltInSuiteImmutableError) return void res.status(403).json({ error: error.message, code: error.code });
+    throw error;
+  }
   if (!updated) return void res.status(404).json({ error: 'Test suite not found' });
   res.json(updated);
 });
@@ -47,7 +53,13 @@ testSuitesRouter.post('/parse', (req, res) => {
 
 testSuitesRouter.delete('/:id', (req, res) => {
   const { id } = req.params;
-  const deleted = TestSuiteService.delete(id);
+  let deleted;
+  try {
+    deleted = TestSuiteService.delete(id);
+  } catch (error) {
+    if (error instanceof BuiltInSuiteImmutableError) return void res.status(403).json({ error: error.message, code: error.code });
+    throw error;
+  }
   if (!deleted) return void res.status(404).json({ error: 'Test suite not found' });
   res.json({ success: true });
 });

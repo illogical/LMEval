@@ -19,6 +19,7 @@ export interface EvalWizardState {
   comparisonMode: EvalComparisonMode;
   templateId: string | null;
   testSuiteId: string | null;
+  benchmarkMode: 'calibration' | 'promotion-check';
   inlineTestCases: TestCase[];
   userMessage: string;
   judgeModelId: string | null;
@@ -47,6 +48,7 @@ export const initialState: EvalWizardState = {
   comparisonMode: 'prompt',
   templateId: null,
   testSuiteId: null,
+  benchmarkMode: 'calibration',
   inlineTestCases: [],
   userMessage: '',
   judgeModelId: null,

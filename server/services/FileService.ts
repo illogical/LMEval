@@ -82,6 +82,7 @@ export let CUSTOM_TEMPLATES_DIR = join(DATA_DIR, 'templates', 'custom');
 export let CUSTOM_PURPOSE_TEMPLATES_DIR = join(DATA_DIR, 'purpose-templates', 'custom');
 export let PROMPTS_DIR = join(DATA_DIR, 'prompts');
 export let TEST_SUITES_DIR = join(DATA_DIR, 'test-suites');
+export let CUSTOM_TEST_SUITES_DIR = join(TEST_SUITES_DIR, 'custom');
 export let EVALUATIONS_DIR = join(DATA_DIR, 'evaluations');
 export let BASELINES_DIR = join(DATA_DIR, 'baselines');
 export let PRESETS_DIR = join(DATA_DIR, 'presets');
@@ -91,6 +92,7 @@ export let JUDGE_QUALIFICATIONS_DIR = join(DATA_DIR, 'judge-qualifications');
 export let REPO_ROOT = process.cwd();
 export let BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');
 export let BUILT_IN_PURPOSE_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'purpose-templates');
+export let BUILT_IN_TEST_SUITES_DIR = join(REPO_ROOT, 'data', 'evals', 'test-suites', 'built-in');
 export let REPORT_TEMPLATE_PATH = join(REPO_ROOT, 'data', 'evals', 'templates', 'report-template.html');
 export let JUDGE_PROMPTS_DIR = join(REPO_ROOT, 'data', 'prompts', 'judge');
 // A8: temporary in-repo calibration fixture until MemoryApi's reviewed v1
@@ -110,6 +112,7 @@ export function configurePaths(options: { dataRoot: string; repoRoot: string }):
   CUSTOM_PURPOSE_TEMPLATES_DIR = join(DATA_DIR, 'purpose-templates', 'custom');
   PROMPTS_DIR = join(DATA_DIR, 'prompts');
   TEST_SUITES_DIR = join(DATA_DIR, 'test-suites');
+  CUSTOM_TEST_SUITES_DIR = join(TEST_SUITES_DIR, 'custom');
   EVALUATIONS_DIR = join(DATA_DIR, 'evaluations');
   BASELINES_DIR = join(DATA_DIR, 'baselines');
   PRESETS_DIR = join(DATA_DIR, 'presets');
@@ -119,6 +122,7 @@ export function configurePaths(options: { dataRoot: string; repoRoot: string }):
   REPO_ROOT = options.repoRoot;
   BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');
   BUILT_IN_PURPOSE_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'purpose-templates');
+  BUILT_IN_TEST_SUITES_DIR = join(REPO_ROOT, 'data', 'evals', 'test-suites', 'built-in');
   REPORT_TEMPLATE_PATH = join(REPO_ROOT, 'data', 'evals', 'templates', 'report-template.html');
   JUDGE_PROMPTS_DIR = join(REPO_ROOT, 'data', 'prompts', 'judge');
   CALIBRATION_DIR = join(REPO_ROOT, 'data', 'evals', 'calibration');

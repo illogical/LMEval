@@ -477,6 +477,7 @@ export const SummaryService = {
       selfJudgeGuardViolated?: boolean;
       baselineCells?: EvalMatrixCell[];
       judgeQualified?: boolean;
+      benchmarkProvenance?: EvaluationSummary['benchmarkProvenance'];
     }
   ): EvaluationSummary {
     const completed = cells.filter(c => c.status === 'completed');
@@ -677,7 +678,7 @@ export const SummaryService = {
       ? this.computeConsistency(cells)
       : undefined;
 
-    const taskMetrics = computeTaskMetrics(
+    let taskMetrics = computeTaskMetrics(
       cells,
       options?.testCases,
       options?.purposeCategory,
@@ -687,6 +688,21 @@ export const SummaryService = {
       options?.baselineCells,
       options?.judgeQualified
     );
+
+    if (taskMetrics && options?.benchmarkProvenance?.reviewStatus === 'pending-human-review') {
+      taskMetrics = {
+        ...taskMetrics,
+        gate: {
+          ...taskMetrics.gate,
+          pass: false,
+          verdict: 'advisory',
+          failures: [
+            ...taskMetrics.gate.failures,
+            'Benchmark ground truth is pending human review.',
+          ],
+        },
+      };
+    }
 
     return {
       evalId,
@@ -704,6 +720,7 @@ export const SummaryService = {
       truncationRate,
       resolvedInference: options?.resolvedInference,
       transportProvenance: options?.transportProvenance,
+      benchmarkProvenance: options?.benchmarkProvenance,
       taskMetrics,
     };
   },

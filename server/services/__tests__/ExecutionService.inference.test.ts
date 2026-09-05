@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveInferenceAndProvenance } from '../ExecutionService';
+import { ExecutionService, resolveInferenceAndProvenance } from '../ExecutionService';
 import type { EvaluationConfig, EvalPurposeTemplate } from '../../../src/types/eval';
 
 function baseConfig(overrides: Partial<EvaluationConfig> = {}): EvaluationConfig {
@@ -80,5 +80,22 @@ describe('resolveInferenceAndProvenance', () => {
     const result = resolveInferenceAndProvenance(baseConfig(), null);
     expect(result.transportProvenance?.messageShape).toBe('chat-messages');
     expect(result.transportProvenance?.seedHonored).toBe(true);
+  });
+});
+
+describe('built-in benchmark split resolution', () => {
+  it('defaults a built-in suite to calibration cases only', () => {
+    const cases = ExecutionService.resolveTestCases(baseConfig({ testSuiteId: 'memory-classification-v1' }));
+    expect(cases).toHaveLength(48);
+    expect(cases.every(testCase => testCase.caseTags?.includes('split:calibration'))).toBe(true);
+  });
+
+  it('includes regression cases only for an explicit promotion check', () => {
+    const cases = ExecutionService.resolveTestCases(baseConfig({
+      testSuiteId: 'memory-classification-v1',
+      benchmarkMode: 'promotion-check',
+    }));
+    expect(cases).toHaveLength(64);
+    expect(cases.filter(testCase => testCase.caseTags?.includes('split:regression'))).toHaveLength(16);
   });
 });

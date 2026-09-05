@@ -69,7 +69,11 @@ export interface TestCase {
   referenceAnswer?: string;
   jsonSchema?: Record<string, unknown>;
   expectedOutput?: string;
+  /** @deprecated Import-only alias for expectedLabels. New data never emits this field. */
   tags?: string[];
+  expectedLabels?: string[];
+  caseTags?: string[];
+  requiredFacts?: string[];
   /**
    * Minimal grounding fields added to support R6's deterministic summarization
    * checks. Full grounding-field support (expectedLabels/caseTags/requiredFacts,
@@ -87,8 +91,22 @@ export interface TestSuite {
   name: string;
   description?: string;
   testCases: TestCase[];
+  builtIn: boolean;
+  purposeCategory?: PurposeCategory;
+  version: string;
+  provenance?: TestSuiteProvenance;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TestSuiteProvenance {
+  source: string;
+  sourceRevision: string;
+  sourceFiles: Array<{ path: string; sha256: string }>;
+  taxonomySha256?: string;
+  datasetSha256: string;
+  curatedAt: string;
+  reviewStatus: 'pending-human-review' | 'approved';
 }
 
 export type EvalComparisonMode = 'model' | 'prompt' | 'matrix';
@@ -148,6 +166,18 @@ export interface EvaluationConfig {
   /** True when resolution found nothing at either tier — result is unusable as a baseline or promotion input. */
   inferenceParametersUnspecified?: boolean;
   transportProvenance?: TransportProvenance;
+  benchmarkMode?: 'calibration' | 'promotion-check';
+  benchmarkProvenance?: BenchmarkRunProvenance;
+}
+
+export interface BenchmarkRunProvenance {
+  suiteId: string;
+  version: string;
+  datasetSha256: string;
+  reviewStatus: TestSuiteProvenance['reviewStatus'];
+  includedSplits: Array<'calibration' | 'regression'>;
+  promptVersions: Array<{ promptId: string; version: number }>;
+  regressionExposedAt?: string;
 }
 
 export interface ToolCallResult {
@@ -298,6 +328,7 @@ export interface EvaluationSummary {
   resolvedInference?: ResolvedInferenceParams;
   /** Mirrors EvaluationConfig.transportProvenance for display without a second fetch. */
   transportProvenance?: TransportProvenance;
+  benchmarkProvenance?: BenchmarkRunProvenance;
   /** R4-R7: task-specific metrics + gate verdict. Present only when the eval used a built-in purpose template. */
   taskMetrics?: TaskMetrics;
 }
@@ -491,6 +522,7 @@ export interface EvalPurposeTemplate {
   defaultComparisonMode: EvalComparisonMode;
   assertionStrategy: AssertionStrategy;
   starterTestCases: TestCase[];
+  defaultTestSuiteId?: string;
   /** Default inference parameters for evaluations using this template, absent per-run override. */
   inference?: InferenceParams;
   createdAt: string;

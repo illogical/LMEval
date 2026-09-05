@@ -345,13 +345,22 @@ This is the unit MemoryApi consumes. It is advisory: LMEval writes it to its own
 
 ## Interchange Contract
 
+> **Status update (2026-09-05):** This section describes Track A10, later interoperability/export
+> work — not a prerequisite for A4/A5. A4's grounding fields and A5's three built-in benchmark
+> suites shipped without this contract or any MemoryApi exporter: LMEval curated
+> `memory-classification-v1`/`memory-tagging-v1`/`memory-summarization-v1` itself, reading MemoryApi
+> source material at a pinned revision and recording its own provenance and review ledger. See
+> [`plans/2026-09-04-a4-a5-ground-truth-built-in-suites.md`](2026-09-04-a4-a5-ground-truth-built-in-suites.md).
+> The `memory-eval-snapshot.v1`/`prompt-promotion-record.v1` schema exchange below remains a
+> reasonable future design if a MemoryApi exporter is ever built, but nothing currently waits on it.
+
 Both plans describe the same two artifacts in prose, from opposite ends. Prose on both sides drifts. Define them once, as JSON Schema, in MemoryApi under `docs/evaluation/schemas/`, versioned as `memory-eval-snapshot.v1.schema.json` and `prompt-promotion-record.v1.schema.json`. LMEval vendors a copy under `data/evals/schemas/` and validates on import; a schema-version mismatch is a hard import failure with a clear message, never a best-effort parse.
 
 **Snapshot — MemoryApi to LMEval.** Taxonomy (categories, tag groups with descriptions), the three datasets with per-case grounding fields and split/slice tags, the production prompt text and version for each task, the declared inference parameters and transport, and the provenance hashes. LMEval treats every field as reviewed input and re-verifies the hashes on import.
 
 **Promotion record — LMEval to MemoryApi.** The evaluated prompt and model, resolved inference parameters, task metrics with confidence intervals, slice breakdowns, gate verdicts, judge qualification, the `ModelRecommendation` set, and the snapshot hashes the run consumed. MemoryApi validates that the record's hashes match its current taxonomy and datasets before a human considers it.
 
-Direction is asymmetric by design. MemoryApi owns truth and receives advice; LMEval owns measurement and receives data. Neither writes into the other's repository, and neither calls the other at runtime. Both artifacts move by human review and commit.
+Direction is asymmetric by design. LMEval owns curation of its own benchmark ground truth and its measurement; MemoryApi owns its production prompts, taxonomies, and runtime behavior, and receives advice via the promotion record. Neither writes into the other's repository, and neither calls the other at runtime. Both artifacts move by human review and commit.
 
 ### What each project gains
 

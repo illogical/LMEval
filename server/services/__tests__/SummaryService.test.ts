@@ -83,6 +83,30 @@ describe('SummaryService.computeSummary — new aggregations', () => {
   });
 });
 
+describe('SummaryService.computeSummary - benchmark review guard', () => {
+  it('forces task verdicts to advisory while benchmark ground truth is pending review', () => {
+    const testCases: TestCase[] = [{ id: 't1', userMessage: 'x', expectedOutput: 'Note' }];
+    const summary = SummaryService.computeSummary('eval-1', [cell({
+      testCaseId: 't1', response: 'Note', assertionResults: [{ type: 'equals', pass: true, score: 1 }],
+    })], undefined, {
+      testCases,
+      purposeCategory: 'classification',
+      assertionStrategy: { type: 'exact-label', config: { labels: ['Note'] } },
+      benchmarkProvenance: {
+        suiteId: 'memory-classification-v1',
+        version: '1.0.0',
+        datasetSha256: 'abc',
+        reviewStatus: 'pending-human-review',
+        includedSplits: ['calibration'],
+        promptVersions: [{ promptId: 'p1', version: 1 }],
+      },
+    });
+    expect(summary.benchmarkProvenance?.suiteId).toBe('memory-classification-v1');
+    expect(summary.taskMetrics?.gate).toMatchObject({ pass: false, verdict: 'advisory' });
+    expect(summary.taskMetrics?.gate.failures).toContain('Benchmark ground truth is pending human review.');
+  });
+});
+
 describe('SummaryService.computeSummary — truncation rate', () => {
   it('excludes cells with no captured finishReason from the denominator', () => {
     const cells: EvalMatrixCell[] = [

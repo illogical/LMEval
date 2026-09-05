@@ -62,6 +62,30 @@
   gap: 0;
 }
 
+.tce-benchmark {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+
+.tce-benchmark strong,
+.tce-benchmark span { display: block; }
+.tce-benchmark span { color: var(--muted); margin-top: 3px; }
+.tce-benchmark-actions { display: flex; gap: 6px; }
+.tce-benchmark-mode { flex-basis: 100%; border: 0; border-top: 1px solid var(--border); padding: 10px 0 0; margin: 0; }
+.tce-benchmark-mode legend { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.tce-benchmark-mode label { margin-right: 18px; }
+.tce-benchmark-mode p { color: var(--muted); margin: 7px 0 0; }
+
 /* ── Drag overlay ── */
 .tce-drag-over {
   border: 2px dashed var(--accent);

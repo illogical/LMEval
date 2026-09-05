@@ -8,7 +8,8 @@ import { ExecutionPreview } from '../components/config/ExecutionPreview';
 import { PresetSelector } from '../components/config/PresetSelector';
 import { useEvalWizard } from '../contexts/EvalWizardContext';
 import { useEvalHeaderAction } from '../contexts/EvalHeaderActionContext';
-import { createEvaluation, createPrompt, createPurposeTemplate, getPurposeTemplate, getTemplate } from '../api/eval';
+import { createEvaluation, createPrompt, createPurposeTemplate, getPurposeTemplate, getTemplate, getTestSuite, listEvaluations } from '../api/eval';
+import type { EvalPurposeTemplate, TestSuite } from '../types/eval';
 import './ConfigPage.css';
 
 export function ConfigPage() {
@@ -19,6 +20,9 @@ export function ConfigPage() {
   const [savingPrompts, setSavingPrompts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [judgeRequired, setJudgeRequired] = useState(false);
+  const [purposeTemplate, setPurposeTemplate] = useState<EvalPurposeTemplate | null>(null);
+  const [regressionPreviouslyExposed, setRegressionPreviouslyExposed] = useState(false);
+  const [selectedSuite, setSelectedSuite] = useState<TestSuite | null>(null);
   const [perspectiveCount, setPerspectiveCount] = useState(0);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [showSaveTemplateForm, setShowSaveTemplateForm] = useState(false);
@@ -26,13 +30,39 @@ export function ConfigPage() {
   const [templateSaved, setTemplateSaved] = useState(false);
 
   useEffect(() => {
-    if (!state.purposeTemplateId) { setJudgeRequired(false); return; }
+    if (!state.purposeTemplateId) { setJudgeRequired(false); setPurposeTemplate(null); return; }
     let cancelled = false;
     getPurposeTemplate(state.purposeTemplateId)
-      .then(t => { if (!cancelled) setJudgeRequired(t.assertionStrategy.type === 'grounded-summary'); })
-      .catch(() => { if (!cancelled) setJudgeRequired(false); });
+      .then(t => { if (!cancelled) { setPurposeTemplate(t); setJudgeRequired(t.assertionStrategy.type === 'grounded-summary'); } })
+      .catch(() => { if (!cancelled) { setPurposeTemplate(null); setJudgeRequired(false); } });
     return () => { cancelled = true; };
   }, [state.purposeTemplateId]);
+
+  useEffect(() => {
+    const suiteId = purposeTemplate?.defaultTestSuiteId;
+    const current = [state.promptA, state.promptB].filter(prompt => prompt.id);
+    if (!suiteId || state.benchmarkMode !== 'promotion-check' || current.length === 0) {
+      setRegressionPreviouslyExposed(false);
+      return;
+    }
+    let cancelled = false;
+    listEvaluations().then(evaluations => {
+      if (cancelled) return;
+      setRegressionPreviouslyExposed(evaluations.some(evaluation =>
+        evaluation.benchmarkProvenance?.suiteId === suiteId
+        && evaluation.benchmarkProvenance.includedSplits.includes('regression')
+        && current.every(prompt => evaluation.benchmarkProvenance?.promptVersions.some(version => version.promptId === prompt.id && version.version === prompt.version))
+      ));
+    }).catch(() => { if (!cancelled) setRegressionPreviouslyExposed(false); });
+    return () => { cancelled = true; };
+  }, [purposeTemplate?.defaultTestSuiteId, state.benchmarkMode, state.promptA, state.promptB]);
+
+  useEffect(() => {
+    if (!state.testSuiteId) { setSelectedSuite(null); return; }
+    let cancelled = false;
+    getTestSuite(state.testSuiteId).then(suite => { if (!cancelled) setSelectedSuite(suite); }).catch(() => { if (!cancelled) setSelectedSuite(null); });
+    return () => { cancelled = true; };
+  }, [state.testSuiteId]);
 
   // Perspective count drives the judge-call estimate in the Execution Preview.
   useEffect(() => {
@@ -73,6 +103,11 @@ export function ConfigPage() {
   const promptCount = [state.promptA, state.promptB].filter(p => p.content.trim()).length;
   const modelCount = state.selectedModels.length;
   function calcTestCaseCount(): number {
+    if (selectedSuite) {
+      return selectedSuite.builtIn && state.benchmarkMode === 'calibration'
+        ? selectedSuite.testCases.filter(testCase => testCase.caseTags?.includes('split:calibration')).length
+        : selectedSuite.testCases.length;
+    }
     if (state.testSuiteId) return 1;
     if (state.inlineTestCases.length > 0) return state.inlineTestCases.length;
     if (state.userMessage) return 1;
@@ -97,6 +132,9 @@ export function ConfigPage() {
   }
   if (blockers.length === 0 && !state.testSuiteId && state.inlineTestCases.length === 0 && !state.userMessage.trim()) {
     warnings.push('No test cases defined — the run will send an empty user message.');
+  }
+  if (blockers.length === 0 && selectedSuite?.provenance?.reviewStatus === 'pending-human-review') {
+    warnings.push('This benchmark is pending human review, so its result is advisory and not promotion-capable.');
   }
 
   const runDisabled = running || blockers.length > 0;
@@ -139,6 +177,7 @@ export function ConfigPage() {
         purposeTemplateId: state.purposeTemplateId ?? undefined,
         templateId: state.templateId ?? undefined,
         testSuiteId: state.testSuiteId ?? undefined,
+        benchmarkMode: state.testSuiteId ? state.benchmarkMode : undefined,
         inlineTestCases: state.inlineTestCases.length > 0 ? state.inlineTestCases : undefined,
         userMessage: state.userMessage || undefined,
         judgeModelId: state.judgeModelId ?? undefined,
@@ -198,9 +237,15 @@ export function ConfigPage() {
               userMessage={state.userMessage}
               onUserMessageChange={msg => dispatch({ type: 'SET_CONFIG', payload: { userMessage: msg } })}
               testSuiteId={state.testSuiteId}
-              onTestSuiteChange={id => dispatch({ type: 'SET_CONFIG', payload: { testSuiteId: id } })}
+              onTestSuiteChange={id => dispatch({ type: 'SET_CONFIG', payload: { testSuiteId: id, inlineTestCases: id ? [] : state.inlineTestCases, benchmarkMode: 'calibration' } })}
               inlineTestCases={state.inlineTestCases}
-              onInlineTestCasesChange={cases => dispatch({ type: 'SET_CONFIG', payload: { inlineTestCases: cases } })}
+              onInlineTestCasesChange={cases => dispatch({ type: 'SET_CONFIG', payload: { inlineTestCases: cases, testSuiteId: cases.length ? null : state.testSuiteId } })}
+              purposeCategory={purposeTemplate?.purposeCategory}
+              recommendedSuiteId={purposeTemplate?.defaultTestSuiteId}
+              starterTestCases={purposeTemplate?.starterTestCases ?? []}
+              benchmarkMode={state.benchmarkMode}
+              onBenchmarkModeChange={mode => dispatch({ type: 'SET_CONFIG', payload: { benchmarkMode: mode } })}
+              regressionPreviouslyExposed={regressionPreviouslyExposed}
             />
           </div>
 

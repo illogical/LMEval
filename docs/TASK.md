@@ -27,23 +27,32 @@ the two-phase protocol in §4 Track A is what makes it mean something.
 
 ### Relationship to MemoryApi
 
-MemoryApi is LMEval's first real consumer and its source of ground truth. It runs three ingestion
-tasks per memory — classification (8 categories), tagging (61 tags), summarization — with separate
-task-model overrides that fall back to the shared `LLM_MODEL`. LMEval's three built-in purpose
-templates were seeded directly from MemoryApi's `src/prompts/` and `src/samples/`.
+MemoryApi is LMEval's first real consumer. It runs three ingestion tasks per memory —
+classification (8 categories), tagging (61 tags), summarization — with separate task-model
+overrides that fall back to the shared `LLM_MODEL`. LMEval's three built-in purpose templates were
+seeded directly from MemoryApi's `src/prompts/` and `src/samples/`, and LMEval's three built-in
+benchmark suites (`memory-classification-v1`, `memory-tagging-v1`, `memory-summarization-v1`, A5)
+were curated by LMEval itself from that same MemoryApi source material — harvested, augmented for
+missing coverage, reviewed, and hashed entirely within this repository. There is no MemoryApi
+exporter or snapshot this work waits on.
 
-The direction of the relationship is deliberately asymmetric, and neither project calls the other
-at runtime or writes into the other's repository:
+MemoryApi remains authoritative for its own current prompts, category/tag vocabularies, transport,
+and production behavior; LMEval reads that material as a reviewed *input* to curation, not as a
+delivered artifact, and never calls MemoryApi at runtime or writes into its repository:
 
 | Direction | Artifact | Content |
 |---|---|---|
-| MemoryApi → LMEval | `memory-eval-snapshot.v1` | Taxonomy, adjudicated benchmark datasets with grounding annotations, production prompt text + version, declared inference parameters and transport, provenance hashes |
+| MemoryApi → LMEval | Source material (`src/prompts/`, `src/samples/`), read directly from a pinned MemoryApi revision | Prompt text, category/tag taxonomies, labeled sample memories — inputs LMEval curates into its own benchmark suites and review ledger |
 | LMEval → MemoryApi | `prompt-promotion-record.v1` | Evaluated prompt + model, resolved inference parameters, task metrics with confidence intervals, slice breakdowns, gate verdicts, judge qualification, `ModelRecommendation` set, consumed snapshot hashes |
 
-**MemoryApi owns truth and receives advice. LMEval owns measurement and receives data.** Both
-artifacts move by human review and commit.
+**LMEval owns curation of its own benchmark artifacts and their acceptance gate (human review of the
+review ledger before `approved` provenance). LMEval owns measurement. MemoryApi owns its production
+prompts, taxonomies, and runtime behavior, and receives advice via the promotion record.** A future
+interoperability/export contract between the two projects (A10) is later work, not a prerequisite
+for A4/A5.
 
-Full detail: [`plans/2026-09-03-professional-memory-evaluations.md`](plans/2026-09-03-professional-memory-evaluations.md)
+Full detail: [`plans/2026-09-03-professional-memory-evaluations.md`](plans/2026-09-03-professional-memory-evaluations.md),
+[`plans/2026-09-04-a4-a5-ground-truth-built-in-suites.md`](plans/2026-09-04-a4-a5-ground-truth-built-in-suites.md),
 and the cross-project review in [`plans/2026-09-04-ingestion-eval-alignment-review.md`](plans/2026-09-04-ingestion-eval-alignment-review.md).
 
 ---
@@ -71,7 +80,7 @@ and the cross-project review in [`plans/2026-09-04-ingestion-eval-alignment-revi
 | F5 | AI-generated test cases | ⛔ deferred (dogfood candidate) |
 | W1–W8 | Prepare wizard layout polish | ✅ complete |
 | I1–I4 | Test case import/export | ✅ complete (verified in tree 2026-09-04) |
-| PME | Professional memory evaluations | ⚠️ A1, A3, A6, A7, A8 complete (2026-09-04) and MemoryApi's A2 transport implementation complete; A2 verification/snapshot work, A4-A5, A9-A11 remain — see §4; A3/A6/A7/A8 owe live model verification, tracked in Track E |
+| PME | Professional memory evaluations | ⚠️ A1, A3, A4, A5, A6, A7, A8 complete (2026-09-04/05) and MemoryApi's A2 transport implementation complete; A2 verification work, A9-A11 remain — see §4; A3/A4/A5/A6/A7/A8 owe live model verification and/or human review-ledger approval, tracked in Track E |
 
 ---
 
@@ -114,8 +123,9 @@ first 2026-09-04 pass short of its intended scope (see the entry below):
   computes Spearman (judge vs. human overall), Faithfulness-within-1-point rate, mean inflation, and
   per-dimension self-consistency MAD; persists a `JudgeQualification` record. `get()` reads it back.
 - **`data/evals/calibration/summarization-v0.json`** (new): a **temporary, in-repo, 22-case
-  hand-scored fixture** — explicitly not MemoryApi data, same "must not claim MemoryApi provenance"
-  treatment as A5's temporary fixtures; swap for MemoryApi's reviewed set once A5 lands.
+  hand-scored fixture** — explicitly LMEval-authored, not MemoryApi data. Distinct from A5's
+  `memory-summarization-v1` benchmark suite (36 reviewed cases with reference answers); consider
+  whether judge calibration should move onto a slice of that suite once its review ledger is approved.
 - **`server/routes/judges.ts`** (new) + mounted at `/api/eval/judges` in `server/index.ts`:
   `POST /:modelId/qualify` (optional `{ calibrationSetId }`), `GET /:modelId/qualification`.
 - **`src/components/results/VerdictHeader.tsx`**: the gate headline now reads `gate.verdict` (pass /
@@ -320,20 +330,23 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 - [x] Rewrite the three files under `data/evals/purpose-templates/` in the same change
 - [x] **Wire `exact-label`** — it is declared as a purpose strategy but `PromptfooAdapter` builds no assertion for it, and `TestCase.expectedOutput` is ignored entirely. Classification is currently graded by `expectedKeywords`, which accepts explanatory prose containing the label
 
-**A4 — Test case grounding fields**
-- [ ] Extend `TestCase` with `expectedLabels?`, `caseTags?`, `requiredFacts?`, `forbiddenClaims?`, `protectedTokens?`
-- [ ] Keep `tags` as a deprecated import alias for `expectedLabels`; warn when both are present and differ
-- [ ] Update JSON/CSV parse + serialize (semicolon-delimited arrays), the suite editor, and API types together
+**A4 — Test case grounding fields** — ✅ **complete 2026-09-05**
+- [x] Extend `TestCase` with `expectedLabels?`, `caseTags?`, `requiredFacts?` (`forbiddenClaims?`/`protectedTokens?` already added by R6, above)
+- [x] Keep `tags` as a deprecated import alias for `expectedLabels`; order-insensitive comparison; warn when both are present and differ (`src/utils/testCaseIO.ts`)
+- [x] Update JSON/CSV parse + serialize (semicolon-delimited arrays for `expectedLabels`/`caseTags`/`requiredFacts`/`forbiddenClaims`/`protectedTokens`), the suite editor (`TestCaseEditor.tsx`, task-aware columns), and API types together
 
-**A5 — Built-in benchmark suites**
-> Blocked on MemoryApi's reviewed v1 datasets and versioned snapshot export. Temporary LMEval
-> fixtures may exercise generic plumbing but must not claim MemoryApi provenance.
-- [ ] Extend `TestSuite` with `builtIn`, `purposeCategory`, `version`, `provenance{source, sourceRevision, taxonomySha256, datasetSha256, importedAt}`
-- [ ] Version-controlled built-ins at `<repoRoot>/data/evals/test-suites/built-in/`; writable suites at `<dataRoot>/evals/test-suites/custom/`; legacy suites read as custom, never auto-migrated
-- [ ] `TestSuiteService.list()` merges all three; updates/deletes rejected when `builtIn`
-- [ ] Add `defaultTestSuiteId?` to `EvalPurposeTemplate` — starter cases stay a smoke run, the linked suite is the benchmark
-- [ ] Import the reviewed MemoryApi v1 datasets: `memory-classification-v1` (64 cases), `memory-tagging-v1` (72), `memory-summarization-v1` (36), each with 25% marked `split:regression`
-- [ ] Dataset linter rejecting duplicate IDs, out-of-taxonomy labels, coverage gaps, malformed slice tags, prompt-example leakage, and provenance hash mismatches
+**A5 — Built-in benchmark suites** — ✅ **complete 2026-09-05, per [`plans/2026-09-04-a4-a5-ground-truth-built-in-suites.md`](plans/2026-09-04-a4-a5-ground-truth-built-in-suites.md)**
+> Built without waiting on a MemoryApi exporter — LMEval curated the three suites itself from
+> MemoryApi source material read at a pinned revision, augmenting for coverage gaps and recording
+> full provenance. `reviewStatus` is `pending-human-review` until the checked-in review ledger is
+> approved; that approval is this workflow's acceptance gate, not a future MemoryApi deliverable.
+- [x] Extend `TestSuite` with `builtIn`, `purposeCategory`, `version`, `provenance{source, sourceRevision, sourceFiles[], taxonomySha256, datasetSha256, curatedAt, reviewStatus}`
+- [x] Version-controlled built-ins at `data/evals/test-suites/built-in/`; writable suites at the data-root `evals/test-suites/custom/`; legacy suites read as custom, never auto-migrated (`FileService.configurePaths()`, `TestSuiteService`)
+- [x] `TestSuiteService` merges built-in/custom/legacy sources, fails loudly on duplicate IDs; updates/deletes rejected for `builtIn` suites with `403 BUILT_IN_SUITE_IMMUTABLE`
+- [x] Added `defaultTestSuiteId?` to `EvalPurposeTemplate`, linked on all three built-in templates — starter cases stay a smoke run, the linked suite is the benchmark
+- [x] Curated `memory-classification-v1` (64 cases, 48/16 calibration/regression), `memory-tagging-v1` (72 cases, 54/18), `memory-summarization-v1` (36 cases, 27/9) from MemoryApi revision `c7ecb9e292947f88199c16548b88dc4fc8557a60`'s 74 labeled memories plus LMEval-authored coverage/boundary/adversarial cases — checked in at `data/evals/test-suites/built-in/`, generated deterministically by `scripts/generate-memory-benchmarks.ts` from the canonical `data/evals/benchmarks/memory-benchmark-source.v1.json` corpus
+- [x] Dataset linter (`scripts/lint-memory-benchmarks.ts` + `server/services/MemoryBenchmarkService.ts`) rejecting duplicate IDs, out-of-taxonomy labels/tags, coverage gaps, malformed slice tags, prompt-example leakage, provenance/hash mismatches, and `approved` status without a complete review ledger
+- [ ] **Owed**: human review-ledger approval (`data/evals/benchmarks/memory-benchmark-review.v1.json`) to flip `reviewStatus` to `approved`, and live-model verification of all three suites — tracked in Track E
 
 **A6 — Task-appropriate scoring** — ✅ **complete 2026-09-04** (statistics/CIs remain A7, judge qualification remains A8 — neither was in this pass's scope)
 - [x] **Classification**: `exactOutput`/`formatCompliant`/`validLabel` derived per response in `SummaryService.computeClassificationMetrics()`; aggregate accuracy, macro-F1, per-class P/R/F1, invalid-label rate, format-compliance rate, confusion matrix, run-to-run agreement (when `runsPerCell` > 1). Gate: macro-F1 ≥ 0.90, per-class recall ≥ 0.80, zero invalid labels, 100% format compliance
@@ -353,8 +366,8 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 - [x] `JudgeQualification` record: judge model id, calibration-set hash, date, measured statistics (`src/types/eval.ts`; computed by `server/services/JudgeQualificationService.ts`, persisted to `data/evals/judge-qualifications/{judgeModelId}.json`)
 - [x] Qualify against ≥20 human-scored summaries: Spearman ≥ 0.6 with human overall, Faithfulness within 1 point on ≥80%, mean inflation within 0.5, self-consistency MAD ≤ 0.5 per dimension — all four thresholds implemented in `JudgeQualificationService.qualify()`, 3 self-consistency passes per case at t=0
 - [x] Re-qualify when the judge model or calibration set changes; label a summarization result **advisory, not promotable** when the judge is unqualified — `SummarizationTaskMetrics.gate.verdict` is forced to `'advisory'` whenever `judgeQualified` is `false` or absent (including "qualification never run"), independent of how the scores look; `calibrationSetHash` changing invalidates a stale qualification (checked by comparing hashes, not yet auto-triggering a re-qualify — that's a manual `POST /api/eval/judges/:modelId/qualify` today)
-- [ ] Derive `grounded-summary` compression bounds from the 10th/90th percentile of v1 reference summaries; record the derivation in the suite provenance — **not built this pass**, blocked on A5's real MemoryApi reference summaries (the temporary calibration fixture below isn't a substitute for the actual v1 reference set this needs)
-- **Calibration set**: `data/evals/calibration/summarization-v0.json` is a **temporary, in-repo, 22-case hand-scored fixture** (LMEval-authored, not MemoryApi data) — ships now so A8 is buildable and exercisable ahead of A5's real MemoryApi dataset; swap when that lands. `POST /api/eval/judges/:modelId/qualify` (optional `{ calibrationSetId }` body) runs it; `GET /api/eval/judges/:modelId/qualification` reads the persisted record.
+- [x] Derive `grounded-summary` compression bounds from the 10th/90th percentile of v1 reference summaries — **complete 2026-09-05 alongside A5**; `data/evals/benchmarks/memory-benchmark-source.v1.json` records `derivedCompressionRange: [0.35, 0.69]` from the finalized `memory-summarization-v1` reference set, and `data/evals/purpose-templates/summarization.json`'s `assertionStrategy.config.compressionRange` uses it
+- **Calibration set**: `data/evals/calibration/summarization-v0.json` is a **temporary, in-repo, 22-case hand-scored fixture** (LMEval-authored, not MemoryApi data), distinct from A5's now-landed `memory-summarization-v1` benchmark suite. `POST /api/eval/judges/:modelId/qualify` (optional `{ calibrationSetId }` body) runs it; `GET /api/eval/judges/:modelId/qualification` reads the persisted record.
 - **Not built**: any Prepare-page UI surfacing qualification status (the plan's "reuses the self-judge-guard warning pattern" badge) — route + gating logic only this pass, no frontend surfacing yet.
 
 **A9 — Two-phase model selection**
@@ -366,11 +379,8 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 - [ ] Report the best **single** model across all three tasks alongside the per-task winners, with the quality delta — three per-task winners means three resident models or a swap per memory, and LMEval structurally cannot see that cost
 - [ ] Emit `ModelRecommendation` per task as a first-class artifact to LMEval's own export directory
 
-**A10 — Interchange contract**
-> Blocked on MemoryApi publishing the authoritative schemas and versioned snapshot artifacts.
-- [ ] Vendor `memory-eval-snapshot.v1.schema.json` and `prompt-promotion-record.v1.schema.json` under `data/evals/schemas/`; validate on import; schema-version or hash mismatch is a **hard failure**, never a best-effort parse
 
-**A11 — Task-specific reporting**
+**A10 — Task-specific reporting**
 - [ ] Confusion/per-class panels (classification), micro/macro + per-tag panels (tagging), judge dimensions + unsupported-claim findings (summarization)
 - [ ] Slice tables: calibration/regression, boundary pairs, input length, ambiguity, prompt-injection
 - [ ] Model-selection view for `comparisonMode: 'model'` — gate pass/fail, primary metric with CIs and tie groups, p95 latency, truncation rate, run-to-run agreement, resulting recommendation
@@ -464,6 +474,7 @@ behavior can be called verified.
   aggregation reads the resulting `assertionResults` correctly; the self-judge guard fires when
   `judgeModelId` really does overlap `modelIds`. The `npx vitest run` baseline referenced here is now
   clean (see §3, second pass) — this item is otherwise still owed as live-model verification.
+- [ ] **A4/A5 (2026-09-05)** — human review-ledger approval of `data/evals/benchmarks/memory-benchmark-review.v1.json` (flips `reviewStatus` to `approved` on all three built-in suites, gated by the linter's "approved without complete ledger" rejection); a browser walkthrough of purpose template → starter cases → "Use benchmark suite" → linked suite selected; and at least one live LMApi model run against each of `memory-classification-v1`/`memory-tagging-v1`/`memory-summarization-v1` confirming the production `<memory>` wrapper, escaping, and split tagging behave as scored. None of dataset linting, unit tests, or this audit's static review count as this verification.
 - [ ] **A7/A8 (2026-09-04, second pass)** — a real LMApi + Ollama round trip confirming: bootstrap CIs
   and the McNemar test produce sane numbers against real (not synthetic) per-case data; the
   classification/tagging `runsPerCell: 3` / `t=0.3` default actually fires for a built-in template run
@@ -598,9 +609,9 @@ number. Wire `EvaluationSummary.taskMetrics` into `VerdictHeader` as soon as A6 
 - **Estimated wall-clock, not just call count.** The Execution Preview now counts calls honestly. A
   rolling average of observed per-call latency per model turns that into "≈4 min" — the number a user
   actually needs before committing to a 200-cell matrix.
-- **Purpose template → benchmark suite affordance.** Once A5 lands, the Prepare page should offer
-  "Load the `memory-classification-v1` benchmark" as a one-click action beside the starter cases, and
-  say plainly which one is the smoke test and which one is the regression benchmark.
+- ~~**Purpose template → benchmark suite affordance.**~~ Done — A5 landed `defaultTestSuiteId` and
+  the Prepare page's "Use benchmark suite" / "Use starter cases" toggle with version/review-status
+  badge (`TestCaseEditor.tsx`).
 - **Judge-model self-grading guard.** A6 forbids a model judging itself. The Prepare page can enforce
   this at selection time with an inline warning rather than discovering it at scoring time.
 - **Make the Summary step's absence legible.** Step 5 ships a "Coming Soon" placeholder inside a

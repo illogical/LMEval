@@ -14,6 +14,12 @@ interface TestCaseEditorProps {
   onTestSuiteChange: (id: string | null) => void;
   inlineTestCases: TestCase[];
   onInlineTestCasesChange: (cases: TestCase[]) => void;
+  purposeCategory?: TestSuite['purposeCategory'];
+  recommendedSuiteId?: string;
+  starterTestCases: TestCase[];
+  benchmarkMode: 'calibration' | 'promotion-check';
+  onBenchmarkModeChange: (mode: 'calibration' | 'promotion-check') => void;
+  regressionPreviouslyExposed: boolean;
 }
 
 type ImportStatus =
@@ -35,6 +41,9 @@ export function TestCaseEditor({
   userMessage, onUserMessageChange,
   testSuiteId, onTestSuiteChange,
   inlineTestCases, onInlineTestCasesChange,
+  purposeCategory, recommendedSuiteId, starterTestCases,
+  benchmarkMode, onBenchmarkModeChange,
+  regressionPreviouslyExposed,
 }: TestCaseEditorProps) {
   const [mode, setMode] = useState<'quick' | 'suite'>('quick');
   const [suites, setSuites] = useState<TestSuite[]>([]);
@@ -52,6 +61,10 @@ export function TestCaseEditor({
   useEffect(() => {
     listTestSuites().then(setSuites).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (testSuiteId || inlineTestCases.length > 0 || recommendedSuiteId) setMode('suite');
+  }, [testSuiteId, inlineTestCases.length, recommendedSuiteId]);
 
   // Auto-dismiss success banner
   useEffect(() => {
@@ -88,8 +101,8 @@ export function TestCaseEditor({
   function updateRow(id: string, field: keyof TestCase, value: string) {
     onInlineTestCasesChange(inlineTestCases.map(c => {
       if (c.id !== id) return c;
-      if (field === 'tags') {
-        return { ...c, tags: value.split(',').map(t => t.trim()).filter(Boolean) };
+      if (['expectedLabels', 'caseTags', 'requiredFacts', 'forbiddenClaims', 'protectedTokens'].includes(field)) {
+        return { ...c, [field]: value.split(',').map(t => t.trim()).filter(Boolean) };
       }
       return { ...c, [field]: value };
     }));
@@ -201,8 +214,21 @@ export function TestCaseEditor({
   // ── Derived ───────────────────────────────────────────────────────────
 
   const hasInlineCases = inlineTestCases.length > 0;
-  const hasTags = inlineTestCases.some(tc => tc.tags && tc.tags.length > 0);
   const isLoading = importStatus.type === 'loading';
+  const recommendedSuite = suites.find(suite => suite.id === recommendedSuiteId);
+
+  function useBenchmark() {
+    if (!recommendedSuiteId) return;
+    onInlineTestCasesChange([]);
+    onBenchmarkModeChange('calibration');
+    onTestSuiteChange(recommendedSuiteId);
+  }
+
+  function useStarterCases() {
+    onTestSuiteChange(null);
+    onBenchmarkModeChange('calibration');
+    onInlineTestCasesChange(assignIds(starterTestCases));
+  }
 
   return (
     <div className="tce">
@@ -234,6 +260,31 @@ export function TestCaseEditor({
             <div className="tce-drop-overlay">
               <span>Drop to import test cases</span>
             </div>
+          )}
+
+          {recommendedSuite && (
+            <section className="tce-benchmark" aria-label="Recommended benchmark">
+              <div>
+                <strong>Recommended benchmark: {recommendedSuite.name}</strong>
+                <span>v{recommendedSuite.version} · {recommendedSuite.provenance?.reviewStatus ?? 'unknown review status'}</span>
+              </div>
+              <div className="tce-benchmark-actions">
+                <button className="tce-btn tce-btn-save" type="button" onClick={useBenchmark}>Use benchmark suite</button>
+                <button className="tce-btn" type="button" onClick={useStarterCases}>Use starter cases</button>
+              </div>
+              {testSuiteId === recommendedSuite.id && (
+                <fieldset className="tce-benchmark-mode">
+                  <legend>Benchmark run</legend>
+                  <label><input type="radio" checked={benchmarkMode === 'calibration'} onChange={() => onBenchmarkModeChange('calibration')} /> Calibration only</label>
+                  <label><input type="radio" checked={benchmarkMode === 'promotion-check'} onChange={() => onBenchmarkModeChange('promotion-check')} /> Promotion check</label>
+                  <p>{benchmarkMode === 'calibration'
+                    ? 'Uses the cases intended for repeated prompt refinement.'
+                    : regressionPreviouslyExposed
+                      ? 'Warning: these exact prompt versions have already seen this regression dataset. Another result is no longer an independent holdout check.'
+                      : 'Also exposes the checked-in regression split. Use after saving the exact candidate prompt versions; repeated checks are recorded.'}</p>
+                </fieldset>
+              )}
+            </section>
           )}
 
           {/* ── Toolbar ── */}
@@ -352,7 +403,10 @@ export function TestCaseEditor({
                     <th>#</th>
                     <th>Description</th>
                     <th>User Message</th>
-                    {hasTags && <th>Tags</th>}
+                    {purposeCategory === 'classification' && <th>Expected output</th>}
+                    {purposeCategory === 'tagging' && <th>Expected labels</th>}
+                    {purposeCategory === 'summarization' && <><th>Reference answer</th><th>Required facts</th><th>Forbidden claims</th><th>Protected tokens</th></>}
+                    {purposeCategory && <th>Case slices</th>}
                     <th></th>
                   </tr>
                 </thead>
@@ -376,16 +430,24 @@ export function TestCaseEditor({
                           placeholder="User message"
                         />
                       </td>
-                      {hasTags && (
+                      {purposeCategory === 'classification' && (
                         <td>
                           <input
                             className="tce-input"
-                            value={tc.tags?.join(', ') ?? ''}
-                            onChange={e => updateRow(tc.id, 'tags', e.target.value)}
-                            placeholder="tag1, tag2"
+                            value={tc.expectedOutput ?? ''}
+                            onChange={e => updateRow(tc.id, 'expectedOutput', e.target.value)}
+                            placeholder="Canonical category"
                           />
                         </td>
                       )}
+                      {purposeCategory === 'tagging' && <td><input className="tce-input" value={tc.expectedLabels?.join(', ') ?? ''} onChange={e => updateRow(tc.id, 'expectedLabels', e.target.value)} placeholder="Canonical labels" /></td>}
+                      {purposeCategory === 'summarization' && <>
+                        <td><input className="tce-input" value={tc.referenceAnswer ?? ''} onChange={e => updateRow(tc.id, 'referenceAnswer', e.target.value)} placeholder="Reference summary" /></td>
+                        <td><input className="tce-input" value={tc.requiredFacts?.join(', ') ?? ''} onChange={e => updateRow(tc.id, 'requiredFacts', e.target.value)} placeholder="Required facts" /></td>
+                        <td><input className="tce-input" value={tc.forbiddenClaims?.join(', ') ?? ''} onChange={e => updateRow(tc.id, 'forbiddenClaims', e.target.value)} placeholder="Forbidden claims" /></td>
+                        <td><input className="tce-input" value={tc.protectedTokens?.join(', ') ?? ''} onChange={e => updateRow(tc.id, 'protectedTokens', e.target.value)} placeholder="Protected tokens" /></td>
+                      </>}
+                      {purposeCategory && <td><input className="tce-input" value={tc.caseTags?.join(', ') ?? ''} onChange={e => updateRow(tc.id, 'caseTags', e.target.value)} placeholder="namespace:value" /></td>}
                       <td>
                         <button className="tce-remove" onClick={() => removeRow(tc.id)} title="Remove">×</button>
                       </td>

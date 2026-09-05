@@ -7,6 +7,7 @@ import { ExecutionService } from '../services/ExecutionService';
 import { SessionService } from '../services/SessionService';
 import { ReportService } from '../services/ReportService';
 import { SummaryService } from '../services/SummaryService';
+import { TestSuiteService } from '../services/TestSuiteService';
 import type {
   EvaluationConfig, EvaluationSummary, TestCase, EvaluationHistoryEntry, BaselineSummary,
 } from '../../src/types/eval';
@@ -157,6 +158,13 @@ evaluationsRouter.post('/', (req, res) => {
   if (!body.name || !body.promptIds?.length || !body.modelIds?.length) {
     return void res.status(400).json({ error: 'name, promptIds, and modelIds are required' });
   }
+  if (body.testSuiteId && body.inlineTestCases?.length) {
+    return void res.status(400).json({ error: 'testSuiteId and inlineTestCases are mutually exclusive' });
+  }
+  if (body.benchmarkMode === 'promotion-check') {
+    const suite = body.testSuiteId ? TestSuiteService.get(body.testSuiteId) : null;
+    if (!suite?.builtIn) return void res.status(400).json({ error: 'promotion-check requires a built-in test suite' });
+  }
 
   const now = new Date().toISOString();
   const evalId = generateId('eval');
@@ -177,6 +185,7 @@ evaluationsRouter.post('/', (req, res) => {
     judgeModelId: body.judgeModelId,
     enablePairwise: body.enablePairwise,
     runsPerCell: body.runsPerCell ?? 1,
+    benchmarkMode: body.benchmarkMode,
     sessionId: body.sessionId,
     sessionVersion: body.sessionVersion,
     status: 'pending',

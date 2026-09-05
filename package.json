@@ -21,7 +21,9 @@
     "test:e2e-api": "tsx scripts/e2e-api.ts",
     "test:e2e-ui": "playwright test",
     "test:e2e-ui:headed": "playwright test --headed",
-    "test:all": "npm run test && npm run test:e2e-api && npm run test:e2e-ui"
+    "test:all": "npm run test && npm run test:e2e-api && npm run test:e2e-ui",
+    "benchmarks:generate": "tsx scripts/generate-memory-benchmarks.ts",
+    "benchmarks:lint": "tsx scripts/lint-memory-benchmarks.ts"
   },
   "dependencies": {
     "ajv": "^8.18.0",
