@@ -19,6 +19,7 @@ import type {
   PerClassMetric,
 } from '../../src/types/eval';
 import { checkSummaryDeterministics, DEFAULT_COMPRESSION_RANGE } from './summarizationChecks';
+import { bootstrapCI, mcNemarTest, caseCountGate } from './StatisticsService';
 
 // Minimum relative change required before a metric is considered regressed or improved
 const SCORE_REGRESSION_THRESHOLD = 0.02; // 2% change in composite score
@@ -46,7 +47,8 @@ function computeClassificationMetrics(
   cells: EvalMatrixCell[],
   testCaseById: Map<string, TestCase>,
   labels: string[],
-  runsPerCell: number
+  runsPerCell: number,
+  baselineCells?: EvalMatrixCell[]
 ): ClassificationTaskMetrics {
   const labelSet = new Set(labels);
   const completed = cells.filter(c => c.status === 'completed');
@@ -112,11 +114,46 @@ function computeClassificationMetrics(
   const invalidLabelRate = invalidCount / total;
   const formatComplianceRate = formatCompliantCount / total;
   const failures: string[] = [];
-  if (macroF1 < 0.90) failures.push(`macro-F1 ${macroF1.toFixed(2)} < 0.90`);
   const lowRecallClasses = withSupport.filter(c => c.recall < 0.80);
   if (lowRecallClasses.length > 0) failures.push(`${lowRecallClasses.length} class(es) below 0.80 recall`);
   if (invalidLabelRate > 0) failures.push(`invalid-label rate ${(invalidLabelRate * 100).toFixed(1)}% > 0`);
   if (formatComplianceRate < 1) failures.push(`format-compliance rate ${(formatComplianceRate * 100).toFixed(1)}% < 100%`);
+
+  // A7: bootstrap CI over per-case exact-match, standing in for macro-F1's gate
+  // threshold — the two correlate tightly at the case level and per-class
+  // bootstrapping isn't worth the complexity for a point-in-time gate check.
+  const exactMatches = scoredCells.map(({ expected, predicted }) => (predicted === expected ? 1 : 0));
+  const accuracyCI = bootstrapCI(exactMatches);
+  const caseCount = scoredCells.length;
+  const { verdict: ciVerdict, neededCases } = caseCountGate(accuracyCI, 0.90, caseCount);
+  if (ciVerdict === 'fail') failures.push(`macro-F1 ${macroF1.toFixed(2)} < 0.90 (95% CI ${accuracyCI.lower.toFixed(2)}-${accuracyCI.upper.toFixed(2)})`);
+  else if (ciVerdict === 'inconclusive') failures.push(`gate inconclusive at ${caseCount} cases (95% CI ${accuracyCI.lower.toFixed(2)}-${accuracyCI.upper.toFixed(2)} straddles 0.90) — need ~${neededCases} more cases`);
+
+  const otherFail = failures.some(f => !f.startsWith('gate inconclusive'));
+  const verdict: 'pass' | 'fail' | 'inconclusive' = otherFail ? 'fail' : ciVerdict === 'pass' ? 'pass' : ciVerdict;
+
+  // A7: McNemar test vs. a baseline's per-case exact-match, aligned by testCaseId.
+  let mcNemar: ClassificationTaskMetrics['mcNemar'];
+  if (baselineCells && baselineCells.length > 0) {
+    const baselineByCase = new Map<string, boolean>();
+    for (const cell of baselineCells.filter(c => c.status === 'completed')) {
+      const tc = testCaseById.get(cell.testCaseId);
+      const expected = tc?.expectedOutput?.trim() || tc?.expectedKeywords?.[0]?.trim();
+      if (!expected) continue;
+      baselineByCase.set(cell.testCaseId, (cell.response ?? '').trim() === expected);
+    }
+    const candidateByCase = new Map<string, boolean>();
+    for (const { cell, expected, predicted } of scoredCells) {
+      candidateByCase.set(cell.testCaseId, predicted === expected);
+    }
+    const sharedIds = [...candidateByCase.keys()].filter(id => baselineByCase.has(id));
+    if (sharedIds.length > 0) {
+      mcNemar = mcNemarTest(
+        sharedIds.map(id => baselineByCase.get(id)!),
+        sharedIds.map(id => candidateByCase.get(id)!)
+      );
+    }
+  }
 
   return {
     taskType: 'classification',
@@ -127,7 +164,9 @@ function computeClassificationMetrics(
     formatComplianceRate,
     confusionMatrix,
     runToRunAgreement,
-    gate: { pass: failures.length === 0, failures },
+    accuracyCI,
+    mcNemar,
+    gate: { pass: verdict === 'pass', failures, verdict, caseCount, neededCases: verdict === 'inconclusive' ? neededCases : undefined },
   };
 }
 
@@ -147,6 +186,7 @@ function computeTaggingMetrics(
 
   let sumTP = 0, sumFP = 0, sumFN = 0;
   let jaccardSum = 0;
+  const perCaseJaccard: number[] = [];
   let exactSetMatches = 0;
   let unknownTokens = 0, duplicateTokens = 0, totalTokens = 0;
   let formatCompliantCount = 0;
@@ -178,7 +218,9 @@ function computeTaggingMetrics(
     const fp = predictedSet.size - tp;
     const fn = expectedSet.size - tp;
     sumTP += tp; sumFP += fp; sumFN += fn;
-    jaccardSum += union.size > 0 ? tp / union.size : 1;
+    const caseJaccard = union.size > 0 ? tp / union.size : 1;
+    jaccardSum += caseJaccard;
+    perCaseJaccard.push(caseJaccard);
     if (predictedSet.size === expectedSet.size && intersection.length === expectedSet.size) exactSetMatches++;
 
     const labelsInvolved = new Set([...expectedSet, ...predictedSet]);
@@ -214,10 +256,19 @@ function computeTaggingMetrics(
   const formatComplianceRate = formatCompliantCount / total;
 
   const failures: string[] = [];
-  if (microF1 < 0.85) failures.push(`micro-F1 ${microF1.toFixed(2)} < 0.85`);
   if (macroLabelF1 < 0.70) failures.push(`macro label-F1 ${macroLabelF1.toFixed(2)} < 0.70`);
   if (exactSetMatchRate < 0.60) failures.push(`exact-set match rate ${(exactSetMatchRate * 100).toFixed(1)}% < 60%`);
   if (unknownTagRate > 0) failures.push(`unknown-tag rate ${(unknownTagRate * 100).toFixed(1)}% > 0`);
+
+  // A7: bootstrap CI over per-case Jaccard, standing in for micro-F1's gate
+  // threshold (both derive from the same TP/FP/FN counts at the case level).
+  const jaccardCI = bootstrapCI(perCaseJaccard);
+  const { verdict: ciVerdict, neededCases } = caseCountGate(jaccardCI, 0.85, caseCount);
+  if (ciVerdict === 'fail') failures.push(`micro-F1 ${microF1.toFixed(2)} < 0.85 (95% CI ${jaccardCI.lower.toFixed(2)}-${jaccardCI.upper.toFixed(2)})`);
+  else if (ciVerdict === 'inconclusive') failures.push(`gate inconclusive at ${caseCount} cases (95% CI ${jaccardCI.lower.toFixed(2)}-${jaccardCI.upper.toFixed(2)} straddles 0.85) — need ~${neededCases} more cases`);
+
+  const otherFail = failures.some(f => !f.startsWith('gate inconclusive'));
+  const verdict: 'pass' | 'fail' | 'inconclusive' = otherFail ? 'fail' : ciVerdict === 'pass' ? 'pass' : ciVerdict;
 
   return {
     taskType: 'tagging',
@@ -231,7 +282,8 @@ function computeTaggingMetrics(
     duplicateTagRate,
     formatComplianceRate,
     perLabel,
-    gate: { pass: failures.length === 0, failures },
+    jaccardCI,
+    gate: { pass: verdict === 'pass', failures, verdict, caseCount, neededCases: verdict === 'inconclusive' ? neededCases : undefined },
   };
 }
 
@@ -249,7 +301,8 @@ function computeSummarizationMetrics(
   cells: EvalMatrixCell[],
   testCaseById: Map<string, TestCase>,
   compressionRange: [number, number],
-  selfJudgeGuardViolated: boolean
+  selfJudgeGuardViolated: boolean,
+  judgeQualified?: boolean
 ): SummarizationTaskMetrics {
   const completed = cells.filter(c => c.status === 'completed');
   const total = completed.length || 1;
@@ -299,6 +352,25 @@ function computeSummarizationMetrics(
   const concision = perspectiveMedians['Concision'] ?? 0;
   const weighted = faithfulness * 0.40 + salientCoverage * 0.30 + retrievalUtility * 0.20 + concision * 0.10;
 
+  // A7: per-case weighted score for bootstrapping — each case's own
+  // per-perspective median (0 when a perspective didn't fire for that case).
+  const allCaseKeys = new Set<string>();
+  for (const byCase of perPerspectiveCaseScores.values()) {
+    for (const key of byCase.keys()) allCaseKeys.add(key);
+  }
+  const caseMedianFor = (perspective: string, caseKey: string): number => {
+    const scores = perPerspectiveCaseScores.get(perspective)?.get(caseKey);
+    return scores ? median(scores) : 0;
+  };
+  const perCaseWeighted = [...allCaseKeys].map(key =>
+    caseMedianFor('Faithfulness', key) * 0.40 +
+    caseMedianFor('Salient Coverage', key) * 0.30 +
+    caseMedianFor('Retrieval Utility', key) * 0.20 +
+    caseMedianFor('Concision', key) * 0.10
+  );
+  const weightedCI = bootstrapCI(perCaseWeighted);
+  const caseCount = allCaseKeys.size;
+
   // A "critical unsupported claim" is a faithfulness score of 1 (the rubric's
   // "multiple fabrications" floor) on any individual case — no per-dimension
   // finding-level judge output exists yet (that's A8/A11 territory), so this
@@ -325,11 +397,26 @@ function computeSummarizationMetrics(
 
   const failures: string[] = [];
   if (selfJudgeGuardViolated) failures.push('judge model is also under evaluation — result is advisory only');
-  if (weighted < 4.2) failures.push(`median weighted score ${weighted.toFixed(2)} < 4.2`);
   if (faithfulness < 4.5) failures.push(`median Faithfulness ${faithfulness.toFixed(2)} < 4.5`);
   if (criticalUnsupportedClaimRate > 0) failures.push(`${(criticalUnsupportedClaimRate * 100).toFixed(1)}% of cases have a critical unsupported claim`);
   if (deterministic.protectedTokensPreservedRate < 1) failures.push('protected tokens not preserved in all cases');
   if (deterministic.noForbiddenClaimsRate < 1) failures.push('forbidden claim present in at least one case');
+
+  const { verdict: ciVerdict, neededCases } = caseCountGate(weightedCI, 4.2, caseCount);
+  if (ciVerdict === 'fail') failures.push(`median weighted score ${weighted.toFixed(2)} < 4.2 (95% CI ${weightedCI.lower.toFixed(2)}-${weightedCI.upper.toFixed(2)})`);
+  else if (ciVerdict === 'inconclusive') failures.push(`gate inconclusive at ${caseCount} cases (95% CI ${weightedCI.lower.toFixed(2)}-${weightedCI.upper.toFixed(2)} straddles 4.2) — need ~${neededCases} more cases`);
+
+  // A8: an unqualified (or not-yet-qualified) judge means the result can never
+  // clear the gate outright — it's advisory regardless of how the scores look.
+  const judgeUnqualified = judgeQualified === false || judgeQualified === undefined;
+  const otherFail = failures.some(f => !f.startsWith('gate inconclusive') && !f.startsWith('judge model is also'));
+  let verdict: 'pass' | 'fail' | 'inconclusive' | 'advisory';
+  if (selfJudgeGuardViolated || judgeUnqualified) verdict = 'advisory';
+  else if (otherFail) verdict = 'fail';
+  else verdict = ciVerdict === 'pass' ? 'pass' : ciVerdict;
+  if (judgeUnqualified && !failures.some(f => f.includes('judge not qualified'))) {
+    failures.push('judge not qualified against a calibration set — result is advisory only');
+  }
 
   return {
     taskType: 'summarization',
@@ -337,7 +424,9 @@ function computeSummarizationMetrics(
     medianRubric: { faithfulness, salientCoverage, retrievalUtility, concision, weighted },
     criticalUnsupportedClaimRate,
     selfJudgeGuardViolated,
-    gate: { pass: failures.length === 0, failures },
+    weightedCI,
+    judgeQualified,
+    gate: { pass: verdict === 'pass', failures, verdict, caseCount, neededCases: verdict === 'inconclusive' ? neededCases : undefined },
   };
 }
 
@@ -347,13 +436,15 @@ function computeTaskMetrics(
   purposeCategory: PurposeCategory | undefined,
   assertionStrategy: AssertionStrategy | null | undefined,
   runsPerCell: number,
-  selfJudgeGuardViolated: boolean
+  selfJudgeGuardViolated: boolean,
+  baselineCells?: EvalMatrixCell[],
+  judgeQualified?: boolean
 ): TaskMetrics | undefined {
   if (!testCases || testCases.length === 0 || !purposeCategory) return undefined;
   const testCaseById = new Map(testCases.map(tc => [tc.id, tc]));
 
   if (purposeCategory === 'classification' && assertionStrategy?.type === 'exact-label') {
-    return computeClassificationMetrics(cells, testCaseById, assertionStrategy.config.labels, runsPerCell);
+    return computeClassificationMetrics(cells, testCaseById, assertionStrategy.config.labels, runsPerCell, baselineCells);
   }
   if (purposeCategory === 'tagging' && assertionStrategy?.type === 'label-overlap') {
     return computeTaggingMetrics(cells, testCaseById, assertionStrategy.config.vocabulary);
@@ -363,7 +454,8 @@ function computeTaskMetrics(
       cells,
       testCaseById,
       assertionStrategy.config.compressionRange ?? DEFAULT_COMPRESSION_RANGE,
-      selfJudgeGuardViolated
+      selfJudgeGuardViolated,
+      judgeQualified
     );
   }
   return undefined;
@@ -383,6 +475,8 @@ export const SummaryService = {
       purposeCategory?: PurposeCategory;
       assertionStrategy?: AssertionStrategy | null;
       selfJudgeGuardViolated?: boolean;
+      baselineCells?: EvalMatrixCell[];
+      judgeQualified?: boolean;
     }
   ): EvaluationSummary {
     const completed = cells.filter(c => c.status === 'completed');
@@ -589,7 +683,9 @@ export const SummaryService = {
       options?.purposeCategory,
       options?.assertionStrategy,
       options?.runsPerCell ?? 1,
-      options?.selfJudgeGuardViolated ?? false
+      options?.selfJudgeGuardViolated ?? false,
+      options?.baselineCells,
+      options?.judgeQualified
     );
 
     return {
@@ -632,7 +728,8 @@ export const SummaryService = {
 
   computeRegression(
     current: EvaluationSummary,
-    baseline: EvaluationSummary
+    baseline: EvaluationSummary,
+    totalCases?: number
   ): RegressionResult {
     const metrics: MetricRegression[] = [];
 
@@ -648,7 +745,11 @@ export const SummaryService = {
       if (pct >= threshold) {
         status = delta > 0 ? 'improved' : 'regressed';
       }
-      metrics.push({ metric: name, baseline: baselineVal, current: currentVal, delta, status });
+      // A7: state regression-slice gates in cases, not raw points — a 16-case
+      // slice moves in 6.25pp steps, so a bare threshold in points can silently
+      // reduce to "any single case flipped".
+      const onCaseMovementPct = totalCases && totalCases > 0 ? 100 / totalCases : undefined;
+      metrics.push({ metric: name, baseline: baselineVal, current: currentVal, delta, status, onCaseMovementPct });
     }
 
     const currentAvgScore = current.modelSummaries

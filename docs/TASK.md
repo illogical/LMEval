@@ -4,7 +4,7 @@
 > [`features/eval-wizard/TASK.md`](features/eval-wizard/TASK.md) (wizard/UX track). Both remain in the
 > repository as historical records of completed work; **all open work lives here.**
 >
-> **Last reconciled against the working tree:** 2026-09-04 (A1 and MemoryApi's A2 implementation closed)
+> **Last reconciled against the working tree:** 2026-09-04 (A1, A3, A6, MemoryApi's A2, A7, and A8 closed)
 
 ---
 
@@ -71,11 +71,63 @@ and the cross-project review in [`plans/2026-09-04-ingestion-eval-alignment-revi
 | F5 | AI-generated test cases | ⛔ deferred (dogfood candidate) |
 | W1–W8 | Prepare wizard layout polish | ✅ complete |
 | I1–I4 | Test case import/export | ✅ complete (verified in tree 2026-09-04) |
-| PME | Professional memory evaluations | ⚠️ A1, A3, A6 complete (2026-09-04, per [`plans/2026-09-04-2053-feat-core-task-measurement-excellence-plan.md`](plans/2026-09-04-2053-feat-core-task-measurement-excellence-plan.md)) and MemoryApi's A2 transport implementation complete; A2 verification/snapshot work, A4-A5, A7-A11 remain — see §4; A3/A6 owe live model verification, tracked in Track E |
+| PME | Professional memory evaluations | ⚠️ A1, A3, A6, A7, A8 complete (2026-09-04) and MemoryApi's A2 transport implementation complete; A2 verification/snapshot work, A4-A5, A9-A11 remain — see §4; A3/A6/A7/A8 owe live model verification, tracked in Track E |
 
 ---
 
-## 3 — Completed in this pass (2026-09-04)
+## 3 — Completed in this pass (2026-09-04, second pass)
+
+**Track A7/A8 — Statistics and judge qualification**, closing the two blockers that stopped the
+first 2026-09-04 pass short of its intended scope (see the entry below):
+
+- `npx vitest run` → **204 passing, 28 files, all green** — the pre-existing vitest 4.1.0/environment
+  breakage recorded in the first pass's entry below **no longer reproduces**: every test file this
+  pass touched or added ran to completion, including the earlier pass's R1-R8 tests
+  (`AssertionStrategyService.test.ts`, `PromptfooAdapter.test.ts`, `SummaryService.test.ts`) that were
+  previously only hand-traced. Root cause of the original breakage not diagnosed (out of scope); noting
+  it's resolved rather than re-asserting the old caveat. `tsc -b`, `npm run build`, `npm run lint` clean
+  (`npm run lint`'s 24 pre-existing errors are unchanged and none are in a file this pass touched).
+- **`server/services/StatisticsService.ts`** (new, pure functions, unit-tested in isolation —
+  12/12 passing in `StatisticsService.test.ts`): `bootstrapCI()` (percentile bootstrap, deterministic
+  seeded resampling), `mcNemarTest()` (paired, continuity-corrected, normal-approximation p-value),
+  `caseCountGate()` (pass only when the whole CI clears a threshold; `inconclusive` with a rough
+  needed-case estimate otherwise, never a false pass).
+- **`src/types/eval.ts`**: `GateResult` gains `verdict: 'pass' | 'fail' | 'inconclusive' | 'advisory'`,
+  `caseCount`, `neededCases?` alongside the existing `pass`/`failures`. Each `TaskMetrics` variant gains
+  its CI field (`accuracyCI`/`mcNemar` for classification, `jaccardCI` for tagging, `weightedCI`/
+  `judgeQualified` for summarization). New `ConfidenceInterval`, `McNemarResult`, `JudgeQualification`
+  types. `MetricRegression` gains `onCaseMovementPct?`.
+- **`server/services/SummaryService.ts`**: all three `compute*Metrics()` functions now bootstrap a CI
+  over their primary per-case metric and derive `gate.verdict` from `caseCountGate()` rather than a
+  bare point-estimate boolean; classification accepts optional `baselineCells` for McNemar;
+  summarization's gate is forced to `'advisory'` whenever `judgeQualified` is `false`/absent (judge
+  never qualified, or qualification stale) — independent of the self-judge guard, which also forces
+  `'advisory'`. `computeRegression()` accepts an optional `totalCases` and reports
+  `onCaseMovementPct` per metric.
+- **`server/services/ExecutionService.ts`**: defaults `runsPerCell: 3` / `inference: { temperature:
+  0.3, maxTokens: 1000 }` for classification/tagging built-in purpose templates when both were left
+  unset (previously silently ran at `runsPerCell: 1`, forfeiting run-to-run-agreement and any CI);
+  reads a persisted `JudgeQualification` for `config.judgeModelId` and threads `judgeQualified` into
+  `aggregate()` for summarization runs.
+- **`server/services/JudgeQualificationService.ts`** (new): `qualify()` runs a judge model 3x
+  (self-consistency, t=0) against each case in a calibration set via `LmapiClient.chatCompletion()`,
+  computes Spearman (judge vs. human overall), Faithfulness-within-1-point rate, mean inflation, and
+  per-dimension self-consistency MAD; persists a `JudgeQualification` record. `get()` reads it back.
+- **`data/evals/calibration/summarization-v0.json`** (new): a **temporary, in-repo, 22-case
+  hand-scored fixture** — explicitly not MemoryApi data, same "must not claim MemoryApi provenance"
+  treatment as A5's temporary fixtures; swap for MemoryApi's reviewed set once A5 lands.
+- **`server/routes/judges.ts`** (new) + mounted at `/api/eval/judges` in `server/index.ts`:
+  `POST /:modelId/qualify` (optional `{ calibrationSetId }`), `GET /:modelId/qualification`.
+- **`src/components/results/VerdictHeader.tsx`**: the gate headline now reads `gate.verdict` (pass /
+  fail / inconclusive-with-needed-cases / advisory-with-reason) instead of a bare boolean, per §5.3 of
+  `docs/SPECIFICATION.md` (updated in this pass alongside §3's `EvaluationSummary`/`GateResult` shape).
+- **Deferred/partial, stated plainly**: A8's compression-bounds derivation from real MemoryApi
+  reference summaries is not built (blocked on A5); no Prepare-page UI surfaces judge-qualification
+  status yet (route + gating logic only); macro-F1/micro-F1's CI is a per-case exact-match/Jaccard
+  proxy, not a true macro-F1-specific bootstrap (see A7's scoping note in §4); live-model verification
+  of all of the above is owed — added to Track E below.
+
+## 3a — Completed in the first 2026-09-04 pass
 
 **Track A3/A6 — Typed assertion strategies and task-appropriate scoring** (R1-R8 of
 [`plans/2026-09-04-2053-feat-core-task-measurement-excellence-plan.md`](plans/2026-09-04-2053-feat-core-task-measurement-excellence-plan.md)),
@@ -240,12 +292,12 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 
 > Plan: [`plans/2026-09-03-professional-memory-evaluations.md`](plans/2026-09-03-professional-memory-evaluations.md)
 >
-> **A1, A3, and A6 have landed** (A6 minus the statistics/CI layer, which is A7, and minus judge
-> qualification, which is A8). MemoryApi's A2 transport implementation has also landed. Promotion
-> evidence still requires the exact imported MemoryApi snapshot contract plus a live cross-project
-> parity check; neither is implied by documentation or unit tests. A3/A6's task-appropriate scoring
-> is itself implemented but **not yet live-verified** against a real LMApi + Ollama round trip — see
-> the new Track E entry below.
+> **A1, A3, A6, A7, and A8 have landed.** MemoryApi's A2 transport implementation has also landed.
+> Promotion evidence still requires the exact imported MemoryApi snapshot contract plus a live
+> cross-project parity check; neither is implied by documentation or unit tests. A3/A6/A7/A8's logic
+> is unit-tested (`npx vitest run` is now clean, 204/28 — see §3) but **not yet live-verified** against
+> a real LMApi + Ollama round trip — see the Track E entries below. A9-A11 remain and are now
+> unblocked by A7's confidence intervals and A8's qualification flag.
 
 **A1 — Inference parameters and provenance** *(first, because every later measurement is untrustworthy without it)* — ✅ **complete 2026-09-04**
 - [x] Add `inference?: { temperature: number; maxTokens: number; seed?: number }` to `EvaluationConfig`
@@ -289,18 +341,21 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 - [x] **Summarization**: deterministic checks (no preamble/heading/fence, compression ratio in range, protected tokens preserved, no literal forbidden claims) run *before* and independent of model grading (`server/services/summarizationChecks.ts`, shared by the per-cell assertion and the aggregate rates so they can't disagree); `summarization-quality.json` revised to Faithfulness 0.40 / Salient Coverage 0.30 / Retrieval Utility 0.20 / Concision 0.10; three independent judge passes at t=0 aggregated by median (implementation choice, since the plan left this open: three metric-suffixed `llm-rubric` assertions per perspective rather than a bespoke repeated-grading harness — see `buildGroundedSummaryRubricAssertions`'s doc comment); a self-judge guard flags (and gates） the result advisory-only when the judge model is also under evaluation. Gate: median weighted ≥ 4.2, median Faithfulness ≥ 4.5, zero cases with a critical unsupported claim (approximated today as a per-case median Faithfulness ≤ 1 — no per-finding judge output exists yet; a real "critical unsupported claim" *finding* extractor is A8/A11 territory)
 - [x] Persisted in a discriminated `EvaluationSummary.taskMetrics` union (`ClassificationTaskMetrics` | `TaggingTaskMetrics` | `SummarizationTaskMetrics`) — classification and tagging assertions are `javascript`, never `llm-rubric`, so `compositeScore` is naturally absent for them; no composite is manufactured
 
-**A7 — Statistics that match the data's resolution**
-- [ ] Bootstrap 95% confidence intervals over cases; McNemar paired test for baseline-vs-candidate
-- [ ] Report the point estimate, the case count behind it, and **one case's worth of movement in pp** alongside every primary metric
-- [ ] Express gates against the interval, not the point estimate; emit `inconclusive` with a needed-case-count rather than a false pass
-- [ ] State regression-slice gates in **cases** ("at most one regression-slice case may flip"), not points — a 16-case slice moves in 6.25 pp steps, so a bare 2 pp rule reduces to "any single case flipped" and rejects good candidates on noise
-- [ ] Default classification/tagging runs: production temperature (`t=0.3`, not `t=0`), ≥3 runs per prompt/model/case — `0.3` is noisier run-to-run than `0` would be, which is exactly why the repeated-run and run-to-run-agreement metrics can't be skipped here
+**A7 — Statistics that match the data's resolution** — ✅ **complete 2026-09-04**
+- [x] Bootstrap 95% confidence intervals over cases (`server/services/StatisticsService.ts`'s `bootstrapCI()`, percentile method, deterministic seeded resampling); McNemar paired test for baseline-vs-candidate (`mcNemarTest()`, wired into `computeClassificationMetrics()` when `baselineCells` is supplied)
+- [x] Report the point estimate, the case count behind it, and **one case's worth of movement in pp** alongside every primary metric — `GateResult` now carries `caseCount`; `MetricRegression.onCaseMovementPct` (`100 / totalCases`) is emitted when `SummaryService.computeRegression()` is called with a case count
+- [x] Express gates against the interval, not the point estimate; emit `inconclusive` with a needed-case-count rather than a false pass — `caseCountGate()` in `StatisticsService.ts`, wired into all three `compute*Metrics()` gate calculations via a new `GateResult.verdict: 'pass' | 'fail' | 'inconclusive' | 'advisory'` (extending the prior bare `pass: boolean`)
+- [x] State regression-slice gates in **cases**, not points — `computeRegression()` accepts an optional `totalCases` and reports `onCaseMovementPct` per metric rather than a bare percentage threshold
+- [x] Default classification/tagging runs: production temperature (`t=0.3`), 3 runs per cell — `ExecutionService.run()` now defaults `runsPerCell: 3` / `inference: { temperature: 0.3, maxTokens: 1000 }` when a built-in classification/tagging purpose template left both unset, so run-to-run-agreement and the new CIs are never silently forfeited at the old `runsPerCell: 1` default
+- **Scoping note**: macro-F1/micro-F1's own gate CI is approximated via bootstrapping the per-case exact-match (classification) / Jaccard (tagging) arrays rather than re-deriving a macro-F1-specific bootstrap — the two correlate tightly at the case level and a true per-class-then-macro bootstrap wasn't judged worth the added complexity for a point-in-time gate check. Revisit if a live run shows this proxy disagreeing with macro-F1 in practice (Track E).
 
-**A8 — Judge qualification**
-- [ ] `JudgeQualification` record: judge model id, calibration-set hash, date, measured statistics
-- [ ] Qualify against ≥20 human-scored summaries: Spearman ≥ 0.6 with human overall, Faithfulness within 1 point on ≥80%, mean inflation within 0.5, self-consistency MAD ≤ 0.5 per dimension
-- [ ] Re-qualify when the judge model or calibration set changes; label a summarization result **advisory, not promotable** when the judge is unqualified
-- [ ] Derive `grounded-summary` compression bounds from the 10th/90th percentile of v1 reference summaries; record the derivation in the suite provenance
+**A8 — Judge qualification** — ✅ **complete 2026-09-04**
+- [x] `JudgeQualification` record: judge model id, calibration-set hash, date, measured statistics (`src/types/eval.ts`; computed by `server/services/JudgeQualificationService.ts`, persisted to `data/evals/judge-qualifications/{judgeModelId}.json`)
+- [x] Qualify against ≥20 human-scored summaries: Spearman ≥ 0.6 with human overall, Faithfulness within 1 point on ≥80%, mean inflation within 0.5, self-consistency MAD ≤ 0.5 per dimension — all four thresholds implemented in `JudgeQualificationService.qualify()`, 3 self-consistency passes per case at t=0
+- [x] Re-qualify when the judge model or calibration set changes; label a summarization result **advisory, not promotable** when the judge is unqualified — `SummarizationTaskMetrics.gate.verdict` is forced to `'advisory'` whenever `judgeQualified` is `false` or absent (including "qualification never run"), independent of how the scores look; `calibrationSetHash` changing invalidates a stale qualification (checked by comparing hashes, not yet auto-triggering a re-qualify — that's a manual `POST /api/eval/judges/:modelId/qualify` today)
+- [ ] Derive `grounded-summary` compression bounds from the 10th/90th percentile of v1 reference summaries; record the derivation in the suite provenance — **not built this pass**, blocked on A5's real MemoryApi reference summaries (the temporary calibration fixture below isn't a substitute for the actual v1 reference set this needs)
+- **Calibration set**: `data/evals/calibration/summarization-v0.json` is a **temporary, in-repo, 22-case hand-scored fixture** (LMEval-authored, not MemoryApi data) — ships now so A8 is buildable and exercisable ahead of A5's real MemoryApi dataset; swap when that lands. `POST /api/eval/judges/:modelId/qualify` (optional `{ calibrationSetId }` body) runs it; `GET /api/eval/judges/:modelId/qualification` reads the persisted record.
+- **Not built**: any Prepare-page UI surfacing qualification status (the plan's "reuses the self-judge-guard warning pattern" badge) — route + gating logic only this pass, no frontend surfacing yet.
 
 **A9 — Two-phase model selection**
 - [ ] Phase 1: vary prompt, fix incumbent production model, calibration split only
@@ -407,9 +462,17 @@ behavior can be called verified.
   path against real (possibly malformed) model output; the 3-pass `llm-rubric` judge calls actually
   fire 3 times per perspective per case with `temperature: 0`, and `SummaryService`'s median
   aggregation reads the resulting `assertionResults` correctly; the self-judge guard fires when
-  `judgeModelId` really does overlap `modelIds`. Also owed: getting `npx vitest run` to a clean
-  baseline in this environment (currently broken pre-existing, see §3) so the new/extended unit tests
-  added this pass can actually execute rather than being logic-verified by hand alone.
+  `judgeModelId` really does overlap `modelIds`. The `npx vitest run` baseline referenced here is now
+  clean (see §3, second pass) — this item is otherwise still owed as live-model verification.
+- [ ] **A7/A8 (2026-09-04, second pass)** — a real LMApi + Ollama round trip confirming: bootstrap CIs
+  and the McNemar test produce sane numbers against real (not synthetic) per-case data; the
+  classification/tagging `runsPerCell: 3` / `t=0.3` default actually fires for a built-in template run
+  and doesn't regress latency past what the Prepare page's execution preview implies; a real judge
+  model run through `JudgeQualificationService.qualify()` against the temporary calibration fixture
+  produces plausible Spearman/inflation/MAD numbers (not just structurally-valid JSON parsing); an
+  unqualified judge's summarization result actually renders as `advisory` in `VerdictHeader`, not just
+  in the underlying `gate.verdict` data. Also owed: revisiting the macro-F1/micro-F1 CI proxy (per A7's
+  scoping note) once real confusion-matrix data is available to check the proxy's fidelity.
 
 ---
 

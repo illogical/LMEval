@@ -243,6 +243,8 @@ export interface MetricRegression {
   current: number;
   delta: number;
   status: 'improved' | 'regressed' | 'unchanged';
+  /** A7: one case's worth of movement in pp, when the case count behind the metric is known. */
+  onCaseMovementPct?: number;
 }
 
 export interface RegressionResult {
@@ -371,9 +373,21 @@ export interface PerClassMetric {
   support: number;
 }
 
+export interface ConfidenceInterval {
+  point: number;
+  lower: number;
+  upper: number;
+}
+
 export interface GateResult {
   pass: boolean;
   failures: string[];
+  /** A7: distinguishes "the CI straddles the threshold" from a genuine fail — never a false pass. */
+  verdict: 'pass' | 'fail' | 'inconclusive' | 'advisory';
+  /** Cases behind the primary metric's estimate; a bare threshold means little without this. */
+  caseCount: number;
+  /** Set when `verdict === 'inconclusive'`: rough additional cases needed to resolve the interval. */
+  neededCases?: number;
 }
 
 export interface ClassificationTaskMetrics {
@@ -387,6 +401,10 @@ export interface ClassificationTaskMetrics {
   confusionMatrix: Record<string, Record<string, number>>;
   /** Fraction of repeated-run groups (runsPerCell > 1) where every run predicted the same label. Undefined when runsPerCell === 1. */
   runToRunAgreement?: number;
+  /** A7: bootstrap 95% CI over per-case exact-match, backing accuracy's gate verdict. */
+  accuracyCI?: ConfidenceInterval;
+  /** A7: paired McNemar test vs. a baseline's per-case exact-match, when a baseline is supplied. */
+  mcNemar?: McNemarResult;
   gate: GateResult;
 }
 
@@ -402,6 +420,8 @@ export interface TaggingTaskMetrics {
   duplicateTagRate: number;
   formatComplianceRate: number;
   perLabel: Record<string, PerClassMetric>;
+  /** A7: bootstrap 95% CI over per-case Jaccard, backing jaccardMean's gate verdict. */
+  jaccardCI?: ConfidenceInterval;
   gate: GateResult;
 }
 
@@ -430,10 +450,36 @@ export interface SummarizationTaskMetrics {
   criticalUnsupportedClaimRate: number;
   /** True when the judge model is also one of the models under evaluation — scores are advisory only. */
   selfJudgeGuardViolated: boolean;
+  /** A7: bootstrap 95% CI over per-case median rubric weighted score. */
+  weightedCI?: ConfidenceInterval;
+  /** A8: qualification status of the judge model used, when known. Absent/unqualified forces gate.verdict to 'advisory'. */
+  judgeQualified?: boolean;
   gate: GateResult;
 }
 
 export type TaskMetrics = ClassificationTaskMetrics | TaggingTaskMetrics | SummarizationTaskMetrics;
+
+export interface McNemarResult {
+  /** Cases where baseline passed and candidate failed. */
+  discordantBaselineOnly: number;
+  /** Cases where candidate passed and baseline failed. */
+  discordantCandidateOnly: number;
+  pValue: number;
+  significant: boolean;
+}
+
+// --- A8: judge qualification ---------------------------------------------
+
+export interface JudgeQualification {
+  judgeModelId: string;
+  calibrationSetHash: string;
+  qualifiedAt: string;
+  spearman: number;
+  faithfulnessWithin1Pct: number;
+  meanInflation: number;
+  selfConsistencyMAD: Record<string, number>;
+  qualified: boolean;
+}
 
 export interface EvalPurposeTemplate {
   id: string;

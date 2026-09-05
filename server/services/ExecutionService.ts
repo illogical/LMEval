@@ -365,6 +365,7 @@ export const ExecutionService = {
       purposeCategory?: PurposeCategory;
       assertionStrategy?: AssertionStrategy | null;
       selfJudgeGuardViolated?: boolean;
+      judgeQualified?: boolean;
     }
   ): Promise<EvaluationSummary> {
     const summary = SummaryService.computeSummary(evalId, cells, pairwiseRankings, options);
@@ -412,9 +413,6 @@ export const ExecutionService = {
       // the userMessage quick-mode branch mints a fresh id each call.
       writeJson(join(evalDir, 'testcases.json'), testCases);
 
-      const cells = this.buildMatrix(config, testCases);
-      writeJson(join(evalDir, 'cells.json'), cells);
-
       let template: EvalTemplate | null = null;
       let purposeStrategy: AssertionStrategy | null = null;
       let purposeTemplate: EvalPurposeTemplate | null = null;
@@ -427,6 +425,20 @@ export const ExecutionService = {
         purposeTemplate = PurposeTemplateService.get(config.purposeTemplateId);
         purposeStrategy = purposeTemplate?.assertionStrategy ?? null;
       }
+
+      // A7: classification/tagging gates need repeated runs to compute
+      // run-to-run agreement and bootstrap CIs — default to production's
+      // t=0.3 / 3 runs when a built-in purpose template left both unset,
+      // rather than silently forfeiting those metrics at runsPerCell=1.
+      const category = purposeTemplate?.purposeCategory;
+      if ((category === 'classification' || category === 'tagging')
+        && config.runsPerCell == null && config.inference == null) {
+        config.runsPerCell = 3;
+        config.inference = { temperature: 0.3, maxTokens: 1000 };
+      }
+
+      const cells = this.buildMatrix(config, testCases);
+      writeJson(join(evalDir, 'cells.json'), cells);
 
       Object.assign(config, resolveInferenceAndProvenance(config, purposeTemplate));
       writeJson(join(evalDir, 'config.json'), config);
@@ -446,6 +458,15 @@ export const ExecutionService = {
         config.modelIds.includes(config.judgeModelId)
       );
 
+      // A8: a summarization gate can only pass outright when its judge model
+      // has been qualified against a calibration set — otherwise the result
+      // stays advisory regardless of score.
+      let judgeQualified: boolean | undefined;
+      if (purposeTemplate?.purposeCategory === 'summarization' && config.judgeModelId) {
+        const { JudgeQualificationService } = await import('./JudgeQualificationService');
+        judgeQualified = JudgeQualificationService.get(config.judgeModelId)?.qualified;
+      }
+
       await this.aggregate(evalId, finalCells, pairwiseRankings, {
         runsPerCell: config.runsPerCell,
         perspectiveOrder: template?.perspectives.map(p => p.name),
@@ -455,6 +476,7 @@ export const ExecutionService = {
         purposeCategory: purposeTemplate?.purposeCategory,
         assertionStrategy: purposeStrategy,
         selfJudgeGuardViolated,
+        judgeQualified,
       });
 
       const wasCancelled = cancelledEvals.has(evalId);

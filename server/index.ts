@@ -12,6 +12,7 @@ import { sessionsRouter } from './routes/sessions';
 import { evaluationsRouter } from './routes/evaluations';
 import { gitRouter } from './routes/git';
 import { presetsRouter } from './routes/presets';
+import { judgesRouter } from './routes/judges';
 import { TemplateService } from './services/TemplateService';
 import { PurposeTemplateService } from './services/PurposeTemplateService';
 import { GitService } from './services/GitService';
@@ -44,6 +45,7 @@ export function buildApp(): { router: Router; dispose: () => Promise<void> } {
   router.use('/api/eval/evaluations', evaluationsRouter);
   router.use('/api/eval/git', gitRouter);
   router.use('/api/eval/presets', presetsRouter);
+  router.use('/api/eval/judges', judgesRouter);
 
   router.get('/api/eval/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

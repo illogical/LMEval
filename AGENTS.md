@@ -2,11 +2,60 @@
 
 Guidance for AI coding agents working in this repo. Read this before making changes.
 
+## Read these first — every time, before implementing
+
+Three documents carry the project's intent. Read them before writing code; don't ask the user to
+point at them again, and don't infer the goals from the code alone.
+
+| Document | What it answers | When it wins |
+|---|---|---|
+| [README.md](README.md) | What LMEval is, how to run it, what every evaluation concept means, what a good test case looks like, the API endpoint table, project structure | User-facing behavior, terminology, onboarding |
+| [docs/SPECIFICATION.md](docs/SPECIFICATION.md) | The authoritative current + target state: data model, execution engine, wizard UX, non-goals | **Architecture disputes.** It explicitly overrides older planning docs |
+| [docs/TASK.md](docs/TASK.md) | The single unified task list — what is done, what is in flight, what is deliberately not started | **What to work on.** It supersedes `docs/prompt-eval-system/TASK.md` and `docs/features/eval-wizard/TASK.md`, which are historical only |
+
+Doc precedence when they disagree: `docs/SPECIFICATION.md` > `docs/TASK.md` > `docs/plans/<dated>.md` >
+anything under `docs/prompt-eval-system/` or `docs/features/`. Older docs are historical inputs, not
+competing specs — don't "fix" the spec to match an old plan.
+
+Two more, when the work touches evaluation quality rather than plumbing:
+
+- [`docs/plans/2026-09-03-professional-memory-evaluations.md`](docs/plans/2026-09-03-professional-memory-evaluations.md)
+  — the scoring, gate, statistics, judge-qualification and model-selection design. If you are touching
+  metrics, thresholds, or anything that produces a verdict, this is the reasoning behind it.
+- [`docs/plans/2026-09-03-promptfoo-adoption-and-purpose-templates.md`](docs/plans/2026-09-03-promptfoo-adoption-and-purpose-templates.md)
+  — why Promptfoo is the engine and how `EvaluationConfig` maps onto it.
+
 ## What this project is
 
-LMEval is a local-first web app for systematic prompt engineering and model evaluation. It talks to [LMApi](https://github.com/illogical/LMApi) (a local model-routing layer, default `http://localhost:3111`) to run prompt A/B comparisons and N-prompt × M-model evaluation matrices, scored by deterministic checks (keyword/JSON-schema/tool-call matching) and optionally an LLM judge. Everything is stored as plain JSON/Markdown under `data/`, with an optional nested git repo there for prompt version history — see the README's "Git Integration Workflow" section before touching anything under `data/.git/` or `server/routes/git.ts` / `server/services/GitService.ts`.
+LMEval is a local-first web app for systematic prompt engineering and model evaluation. It talks to [LMApi](https://github.com/illogical/LMApi) (a local model-routing layer, default `http://localhost:3111`) to run prompt A/B comparisons and N-prompt × M-model evaluation matrices, scored by deterministic assertions and optionally an LLM judge. Everything is stored as plain JSON/Markdown under `data/`, with an optional nested git repo there for prompt version history — see the README's "Git Integration Workflow" section before touching anything under `data/.git/` or `server/routes/git.ts` / `server/services/GitService.ts`.
 
-Read [README.md](README.md) first — it has the full feature list, project structure, API endpoint table, and stack. Don't duplicate that content here; this file is about how to work in the repo, not what it does.
+It answers exactly two questions, and they are **not** the same experiment: *which prompt wording is
+best* (vary the prompt, fix the model) and *which model is best for this task* (fix the promoted
+prompt, vary the model). `EvaluationConfig.comparisonMode` encodes the distinction — don't add
+features that blur it.
+
+The first real consumer is MemoryApi, whose three ingestion tasks — classification (8 categories),
+tagging (61 tags), summarization — are the three built-in purpose templates. The relationship is
+deliberately asymmetric: MemoryApi owns ground truth and receives advisory promotion records; LMEval
+owns measurement and receives datasets. **Never add code that writes into MemoryApi's repo or calls it
+at runtime.**
+
+## Execution engine: Promptfoo, not hand-rolled
+
+Evaluations run through the `promptfoo` npm package **in-process** (`evaluate(testSuite, { progressCallback })`),
+not its CLI. `server/services/ExecutionService.ts` and `PromptfooAdapter` translate an `EvaluationConfig`
+into a Promptfoo `TestSuite` and map results back into `EvalMatrixCell[]`. When you need a new check,
+reach for a Promptfoo assertion type (or a bundled `javascript` assertion) — do not resurrect the
+former hand-rolled `MetricsService` checks or `JudgeService` rubric construction, which this replaced.
+`EvalMatrixCell.assertionResults` mirrors Promptfoo's `GradingResult` shape; the legacy
+`deterministicMetrics` field survives only for pre-migration data.
+
+Scoring above the assertion layer lives in `SummaryService` (`taskMetrics`, a discriminated union per
+task type), `StatisticsService` (bootstrap CIs, McNemar, the case-count gate), and
+`JudgeQualificationService`. Two rules there are non-negotiable, because a false pass is worse than no
+answer: **gates are expressed against the confidence interval, never the point estimate** (a CI
+straddling the threshold is `inconclusive`, not a pass), and **a summarization result from an
+unqualified or self-judging judge is `advisory`**, never promotable.
 
 ## Two run modes — don't break either
 
@@ -29,7 +78,19 @@ Frontend asset paths differ between modes too: `npm run build` (root-relative) v
 
 ## Working with docs/
 
-`docs/` accumulates per-feature design docs (`docs/features/<feature>/`) and phase plans (`docs/prompt-eval-system/`, `docs/plans/`). When implementing a feature that has a doc, read it first — several (e.g. `docs/plans/2026-08-23-homebase-integration.md`, `docs/features/eval-wizard/EVAL_WIZARD.md`) describe constraints (like the composition-root rule above) that aren't obvious from the code alone. `docs/prompt-eval-system/IMPLEMENTATION_PLAN.md` is the overall roadmap referenced from the README's Contributing section.
+Open work lives in one place: [`docs/TASK.md`](docs/TASK.md). Everything else under `docs/` is either
+authoritative reference ([`docs/SPECIFICATION.md`](docs/SPECIFICATION.md)) or a historical record.
+
+- `docs/plans/<YYYY-MM-DD>-*.md` — dated design docs for a specific piece of work. The most recent
+  ones describe the current direction; read the plan before implementing a feature it covers.
+- `docs/features/<feature>/` and `docs/prompt-eval-system/` — earlier per-feature and phase plans.
+  Still useful for constraints that aren't obvious from the code (e.g.
+  `docs/plans/2026-08-23-homebase-integration.md`'s composition-root rule, or
+  `docs/features/eval-wizard/EVAL_WIZARD.md`'s wizard architecture), but their checklists and task
+  lists are superseded — do not pick work from them.
+- When you finish a piece of work, update `docs/TASK.md`, and update `docs/SPECIFICATION.md` if the
+  change moved the architecture or data model. Don't leave the spec describing something the code no
+  longer does.
 
 ## Running things
 

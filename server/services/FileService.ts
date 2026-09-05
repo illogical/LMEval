@@ -86,12 +86,17 @@ export let EVALUATIONS_DIR = join(DATA_DIR, 'evaluations');
 export let BASELINES_DIR = join(DATA_DIR, 'baselines');
 export let PRESETS_DIR = join(DATA_DIR, 'presets');
 export let SESSIONS_DIR = join(DATA_ROOT, 'sessions');
+export let JUDGE_QUALIFICATIONS_DIR = join(DATA_DIR, 'judge-qualifications');
 
 export let REPO_ROOT = process.cwd();
 export let BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');
 export let BUILT_IN_PURPOSE_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'purpose-templates');
 export let REPORT_TEMPLATE_PATH = join(REPO_ROOT, 'data', 'evals', 'templates', 'report-template.html');
 export let JUDGE_PROMPTS_DIR = join(REPO_ROOT, 'data', 'prompts', 'judge');
+// A8: temporary in-repo calibration fixture until MemoryApi's reviewed v1
+// dataset lands (A5) — must never claim MemoryApi provenance, same pattern
+// as A5's temporary fixtures.
+export let CALIBRATION_DIR = join(REPO_ROOT, 'data', 'evals', 'calibration');
 
 /**
  * Repoints every path constant above at the given roots. Must run before any
@@ -109,10 +114,12 @@ export function configurePaths(options: { dataRoot: string; repoRoot: string }):
   BASELINES_DIR = join(DATA_DIR, 'baselines');
   PRESETS_DIR = join(DATA_DIR, 'presets');
   SESSIONS_DIR = join(DATA_ROOT, 'sessions');
+  JUDGE_QUALIFICATIONS_DIR = join(DATA_DIR, 'judge-qualifications');
 
   REPO_ROOT = options.repoRoot;
   BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');
   BUILT_IN_PURPOSE_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'purpose-templates');
   REPORT_TEMPLATE_PATH = join(REPO_ROOT, 'data', 'evals', 'templates', 'report-template.html');
   JUDGE_PROMPTS_DIR = join(REPO_ROOT, 'data', 'prompts', 'judge');
+  CALIBRATION_DIR = join(REPO_ROOT, 'data', 'evals', 'calibration');
 }

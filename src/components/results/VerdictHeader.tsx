@@ -27,15 +27,29 @@ interface VerdictHeaderProps {
  * comparison (which models individually clear/miss the gate) is A11's
  * per-task reporting work, not this pass's VerdictHeader scope.
  */
+/**
+ * A7/A8: the gate verdict now distinguishes pass / fail / inconclusive (CI
+ * straddles the threshold — not a false pass) / advisory (judge unqualified
+ * or self-judging) rather than a bare boolean.
+ */
 function buildGateVerdict(config: EvaluationConfig, summary: EvaluationSummary): string | null {
   const gate = summary.taskMetrics?.gate;
   if (!gate) return null;
   const top = [...summary.modelSummaries].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))[0];
   const subject = top ? modelShortName(top.modelId) : (config.name || 'This candidate');
-  if (gate.pass) {
-    return `${subject} clears the ${summary.taskMetrics!.taskType} gate`;
+  const taskType = summary.taskMetrics!.taskType;
+  const caseNote = `${gate.caseCount} case${gate.caseCount === 1 ? '' : 's'}`;
+  switch (gate.verdict) {
+    case 'pass':
+      return `${subject} clears the ${taskType} gate (${caseNote})`;
+    case 'inconclusive':
+      return `${subject}'s ${taskType} gate is inconclusive at ${caseNote}${gate.neededCases ? ` — need ~${gate.neededCases} more to resolve` : ''}`;
+    case 'advisory':
+      return `${subject}'s ${taskType} result is advisory only — ${gate.failures[0] ?? 'judge not qualified'}`;
+    case 'fail':
+    default:
+      return `${subject} does NOT clear the ${taskType} gate — ${gate.failures[0] ?? 'see task metrics'}`;
   }
-  return `${subject} does NOT clear the ${summary.taskMetrics!.taskType} gate — ${gate.failures[0] ?? 'see task metrics'}`;
 }
 
 function buildVerdict(config: EvaluationConfig, summary: EvaluationSummary): { headline: string; detail: string } {
