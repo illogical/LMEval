@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildLmapiProvider } from '../PromptfooAdapter';
+import { buildLmapiProvider, PromptfooAdapter } from '../PromptfooAdapter';
+import type { EvaluationConfig, TestCase } from '../../../src/types/eval';
+
+type JsAssertionValue = (output: string) => { pass: boolean; score: number; reason: string };
 
 const chatCompletionMock = vi.fn().mockResolvedValue({
   choices: [{ index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
@@ -39,5 +42,80 @@ describe('buildLmapiProvider — inference parameter threading', () => {
     await provider.callApi('system prompt', { vars: { userMessage: 'hi' } } as never);
     const sentReq = chatCompletionMock.mock.calls[0][0] as Record<string, unknown>;
     expect(sentReq.seed).toBe(42);
+  });
+});
+
+function baseConfig(): EvaluationConfig {
+  return {
+    id: 'eval-1', name: 'test', promptIds: ['p1'], modelIds: ['m1'],
+    status: 'pending', createdAt: '', updatedAt: '',
+  };
+}
+
+describe('PromptfooAdapter.buildTestSuite — R1 exact-label wiring', () => {
+  const tc: TestCase = { id: 'tc1', userMessage: 'a memory', expectedOutput: 'Preference' };
+
+  it('builds an exact-label javascript assertion that rejects prose containing the label', () => {
+    const { testSuite } = PromptfooAdapter.buildTestSuite({
+      evalId: 'eval-1',
+      config: baseConfig(),
+      promptContents: [{ promptId: 'p1', content: 'sys' }],
+      testCases: [tc],
+      template: null,
+      purposeStrategy: { type: 'exact-label', config: { labels: ['Preference', 'Reminder'] } },
+    });
+    const assertion = testSuite.tests[0].assert.find(a => a.metric === 'exact-label');
+    expect(assertion).toBeDefined();
+    const check = assertion!.value as JsAssertionValue;
+    // R1's whole point: expectedKeywords-style prose containing the label must NOT pass.
+    expect(check('The correct category is Preference.').pass).toBe(false);
+    expect(check('Preference').pass).toBe(true);
+  });
+
+  it('flags a response outside the declared label set as not a declared label', () => {
+    const { testSuite } = PromptfooAdapter.buildTestSuite({
+      evalId: 'eval-1',
+      config: baseConfig(),
+      promptContents: [{ promptId: 'p1', content: 'sys' }],
+      testCases: [tc],
+      template: null,
+      purposeStrategy: { type: 'exact-label', config: { labels: ['Preference', 'Reminder'] } },
+    });
+    const assertion = testSuite.tests[0].assert.find(a => a.metric === 'exact-label');
+    const check = assertion!.value as JsAssertionValue;
+    const result = check('Code snippet');
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain('not a declared label');
+  });
+
+  it('does not build an exact-label assertion when the test case has no expectedOutput', () => {
+    const { testSuite } = PromptfooAdapter.buildTestSuite({
+      evalId: 'eval-1',
+      config: baseConfig(),
+      promptContents: [{ promptId: 'p1', content: 'sys' }],
+      testCases: [{ id: 'tc2', userMessage: 'a memory' }],
+      template: null,
+      purposeStrategy: { type: 'exact-label', config: { labels: ['Preference'] } },
+    });
+    expect(testSuite.tests[0].assert.find(a => a.metric === 'exact-label')).toBeUndefined();
+  });
+});
+
+describe('PromptfooAdapter.buildTestSuite — R6 summarization deterministic assertion', () => {
+  it('builds a summary-deterministic javascript assertion that fails on a preamble', () => {
+    const tc: TestCase = { id: 'tc1', userMessage: 'a'.repeat(100) };
+    const { testSuite } = PromptfooAdapter.buildTestSuite({
+      evalId: 'eval-1',
+      config: baseConfig(),
+      promptContents: [{ promptId: 'p1', content: 'sys' }],
+      testCases: [tc],
+      template: null,
+      purposeStrategy: { type: 'grounded-summary', config: { templateId: 'summarization-quality' } },
+    });
+    const assertion = testSuite.tests[0].assert.find(a => a.metric === 'summary-deterministic');
+    expect(assertion).toBeDefined();
+    const check = assertion!.value as JsAssertionValue;
+    expect(check('Here is a summary: ' + 'a'.repeat(30)).pass).toBe(false);
+    expect(check('a'.repeat(30)).pass).toBe(true);
   });
 });

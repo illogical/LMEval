@@ -10,8 +10,8 @@
   "assertionStrategy": {
     "type": "label-overlap",
     "config": {
-      "threshold": 0.5,
-      "tagVocabulary": [
+      "minimumCaseF1": 0.5,
+      "vocabulary": [
         "Work", "Project", "Learning", "Family", "Inspiration", "Resource", "Workflow", "Checklist", "Draft", "Plan", "Customize", "Summary", "Prompt", "Appointment", "Favorite",
         "To Do", "Review", "Read Later", "Watch Later", "Follow Up", "Research", "Update", "Test", "Improve", "Tip", "Shortcut", "Reminder", "Action Required", "Notes", "Comparison", "Avoid",
         "Data Science", "Machine Learning", "Generative AI", "Design", "UX", "Productivity", "Travel", "Career", "Health", "Food", "Shopping", "Video Game", "Movie", "TV Show", "Book",

@@ -23,7 +23,7 @@ function baseTemplate(overrides: Partial<EvalPurposeTemplate> = {}): EvalPurpose
     purposeCategory: 'classification',
     builtIn: true,
     defaultComparisonMode: 'prompt',
-    assertionStrategy: { type: 'exact-label', config: {} },
+    assertionStrategy: { type: 'exact-label', config: { labels: ['Preference'] } },
     starterTestCases: [],
     createdAt: '',
     updatedAt: '',

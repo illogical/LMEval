@@ -70,6 +70,15 @@ export interface TestCase {
   jsonSchema?: Record<string, unknown>;
   expectedOutput?: string;
   tags?: string[];
+  /**
+   * Minimal grounding fields added to support R6's deterministic summarization
+   * checks. Full grounding-field support (expectedLabels/caseTags/requiredFacts,
+   * CSV/JSON import wiring, deprecation of `tags`) is TASK.md Track A4, not this
+   * pass — these two fields exist only so summarization has something concrete
+   * to check "preserved" / "not claimed" against.
+   */
+  protectedTokens?: string[];
+  forbiddenClaims?: string[];
 }
 
 export interface TestSuite {
@@ -287,6 +296,8 @@ export interface EvaluationSummary {
   resolvedInference?: ResolvedInferenceParams;
   /** Mirrors EvaluationConfig.transportProvenance for display without a second fetch. */
   transportProvenance?: TransportProvenance;
+  /** R4-R7: task-specific metrics + gate verdict. Present only when the eval used a built-in purpose template. */
+  taskMetrics?: TaskMetrics;
 }
 
 export interface EvaluationHistoryEntry {
@@ -313,12 +324,116 @@ export interface EvalStreamEvent {
 
 export type PurposeCategory = 'classification' | 'tagging' | 'summarization' | 'custom';
 
-export type AssertionStrategyType = 'exact-label' | 'label-overlap' | 'llm-rubric' | 'custom';
+export type AssertionStrategyType = 'exact-label' | 'label-overlap' | 'grounded-summary' | 'custom';
 
-export interface AssertionStrategy {
-  type: AssertionStrategyType;
-  config: Record<string, unknown>;
+/** R1: classification — the response must equal one of the declared labels exactly. */
+export interface ExactLabelConfig {
+  labels: string[];
 }
+
+/** R5 (tagging): the predicted tag set must overlap the expected set by at least `minimumCaseF1`. */
+export interface LabelOverlapConfig {
+  vocabulary: string[];
+  minimumCaseF1: number;
+}
+
+/** R6 (summarization): deterministic guards + rubric grading template. */
+export interface GroundedSummaryConfig {
+  templateId: string;
+  dimensions?: string[];
+  /** [min, max] fraction of input length the summary must fall within. */
+  compressionRange?: [number, number];
+}
+
+/**
+ * 'custom' is intentionally NOT a plugin point (see plan Key Decisions/Scope
+ * Boundaries — a generalized custom task-type system is explicitly deferred).
+ * This shape exists only so R2's "invalid custom config is a 400, not a silent
+ * no-op" has something concrete to validate: a custom strategy must at least
+ * describe itself.
+ */
+export interface CustomAssertionConfig {
+  description: string;
+}
+
+export type AssertionStrategy =
+  | { type: 'exact-label'; config: ExactLabelConfig }
+  | { type: 'label-overlap'; config: LabelOverlapConfig }
+  | { type: 'grounded-summary'; config: GroundedSummaryConfig }
+  | { type: 'custom'; config: CustomAssertionConfig };
+
+// --- R4/R5/R6/R7: task-appropriate scoring -------------------------------
+
+export interface PerClassMetric {
+  precision: number;
+  recall: number;
+  f1: number;
+  support: number;
+}
+
+export interface GateResult {
+  pass: boolean;
+  failures: string[];
+}
+
+export interface ClassificationTaskMetrics {
+  taskType: 'classification';
+  accuracy: number;
+  macroF1: number;
+  perClass: Record<string, PerClassMetric>;
+  invalidLabelRate: number;
+  formatComplianceRate: number;
+  /** confusionMatrix[expectedLabel][predictedLabel] = count. 'INVALID' buckets predictions outside the label set. */
+  confusionMatrix: Record<string, Record<string, number>>;
+  /** Fraction of repeated-run groups (runsPerCell > 1) where every run predicted the same label. Undefined when runsPerCell === 1. */
+  runToRunAgreement?: number;
+  gate: GateResult;
+}
+
+export interface TaggingTaskMetrics {
+  taskType: 'tagging';
+  microPrecision: number;
+  microRecall: number;
+  microF1: number;
+  macroLabelF1: number;
+  jaccardMean: number;
+  exactSetMatchRate: number;
+  unknownTagRate: number;
+  duplicateTagRate: number;
+  formatComplianceRate: number;
+  perLabel: Record<string, PerClassMetric>;
+  gate: GateResult;
+}
+
+export interface SummarizationDeterministicChecks {
+  noPreambleRate: number;
+  noHeadingRate: number;
+  noFenceRate: number;
+  compressionInRangeRate: number;
+  protectedTokensPreservedRate: number;
+  noForbiddenClaimsRate: number;
+}
+
+export interface SummarizationRubricScores {
+  faithfulness: number;
+  salientCoverage: number;
+  retrievalUtility: number;
+  concision: number;
+  weighted: number;
+}
+
+export interface SummarizationTaskMetrics {
+  taskType: 'summarization';
+  deterministic: SummarizationDeterministicChecks;
+  /** Median across cases of each case's median-of-3-judge-passes rubric scores. */
+  medianRubric: SummarizationRubricScores;
+  criticalUnsupportedClaimRate: number;
+  /** True when the judge model is also one of the models under evaluation — scores are advisory only. */
+  selfJudgeGuardViolated: boolean;
+  gate: GateResult;
+}
+
+export type TaskMetrics = ClassificationTaskMetrics | TaggingTaskMetrics | SummarizationTaskMetrics;
 
 export interface EvalPurposeTemplate {
   id: string;

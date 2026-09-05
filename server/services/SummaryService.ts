@@ -9,11 +9,365 @@ import type {
   TestCaseSummary,
   TestCaseModelResult,
   AssertionSummary,
+  TestCase,
+  AssertionStrategy,
+  PurposeCategory,
+  TaskMetrics,
+  ClassificationTaskMetrics,
+  TaggingTaskMetrics,
+  SummarizationTaskMetrics,
+  PerClassMetric,
 } from '../../src/types/eval';
+import { checkSummaryDeterministics, DEFAULT_COMPRESSION_RANGE } from './summarizationChecks';
 
 // Minimum relative change required before a metric is considered regressed or improved
 const SCORE_REGRESSION_THRESHOLD = 0.02; // 2% change in composite score
 const LATENCY_REGRESSION_THRESHOLD = 0.05; // 5% change in latency
+
+function f1(precision: number, recall: number): number {
+  return (precision + recall) > 0 ? (2 * precision * recall) / (precision + recall) : 0;
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+/**
+ * R4: classification metrics. Accuracy/exact-match uses a trimmed exact-string
+ * comparison to expectedOutput — deliberately not case- or punctuation-folded,
+ * since that leniency is exactly what R1 removed (expectedKeywords prose
+ * matching). A response outside the declared label set buckets into 'INVALID'
+ * in the confusion matrix rather than being silently dropped.
+ */
+function computeClassificationMetrics(
+  cells: EvalMatrixCell[],
+  testCaseById: Map<string, TestCase>,
+  labels: string[],
+  runsPerCell: number
+): ClassificationTaskMetrics {
+  const labelSet = new Set(labels);
+  const completed = cells.filter(c => c.status === 'completed');
+  const scoredCells = completed
+    .map(cell => {
+      const tc = testCaseById.get(cell.testCaseId);
+      const expected = tc?.expectedOutput?.trim() || tc?.expectedKeywords?.[0]?.trim();
+      if (!expected) return null;
+      const predicted = (cell.response ?? '').trim();
+      return { cell, expected, predicted };
+    })
+    .filter((x): x is { cell: EvalMatrixCell; expected: string; predicted: string } => x != null);
+
+  const confusionMatrix: Record<string, Record<string, number>> = {};
+  let exactCount = 0;
+  let invalidCount = 0;
+  let formatCompliantCount = 0;
+
+  for (const { expected, predicted } of scoredCells) {
+    const validLabel = labelSet.has(predicted);
+    const bucket = validLabel ? predicted : 'INVALID';
+    confusionMatrix[expected] ??= {};
+    confusionMatrix[expected][bucket] = (confusionMatrix[expected][bucket] ?? 0) + 1;
+    if (predicted === expected) exactCount++;
+    if (!validLabel) invalidCount++;
+    if (validLabel) formatCompliantCount++; // format-compliant == exactly one declared label, no wrapper text
+  }
+
+  const total = scoredCells.length || 1;
+  const perClass: Record<string, PerClassMetric> = {};
+  for (const label of labels) {
+    let tp = 0, fp = 0, support = 0;
+    for (const [expected, predictions] of Object.entries(confusionMatrix)) {
+      const count = predictions[label] ?? 0;
+      if (expected === label) { tp += count; support += Object.values(predictions).reduce((a, b) => a + b, 0); }
+      else fp += count;
+    }
+    const fn = support - tp;
+    const precision = (tp + fp) > 0 ? tp / (tp + fp) : 0;
+    const recall = support > 0 ? tp / (tp + fn) : 0;
+    perClass[label] = { precision, recall, f1: f1(precision, recall), support };
+  }
+
+  const withSupport = Object.values(perClass).filter(c => c.support > 0);
+  const macroF1 = withSupport.length > 0 ? withSupport.reduce((s, c) => s + c.f1, 0) / withSupport.length : 0;
+
+  let runToRunAgreement: number | undefined;
+  if (runsPerCell > 1) {
+    const groups = new Map<string, string[]>();
+    for (const { cell, predicted } of scoredCells) {
+      const key = `${cell.promptId}::${cell.modelId}::${cell.testCaseId}`;
+      const arr = groups.get(key) ?? [];
+      arr.push(predicted);
+      groups.set(key, arr);
+    }
+    const multi = [...groups.values()].filter(arr => arr.length > 1);
+    if (multi.length > 0) {
+      const agreeing = multi.filter(arr => arr.every(p => p === arr[0])).length;
+      runToRunAgreement = agreeing / multi.length;
+    }
+  }
+
+  const invalidLabelRate = invalidCount / total;
+  const formatComplianceRate = formatCompliantCount / total;
+  const failures: string[] = [];
+  if (macroF1 < 0.90) failures.push(`macro-F1 ${macroF1.toFixed(2)} < 0.90`);
+  const lowRecallClasses = withSupport.filter(c => c.recall < 0.80);
+  if (lowRecallClasses.length > 0) failures.push(`${lowRecallClasses.length} class(es) below 0.80 recall`);
+  if (invalidLabelRate > 0) failures.push(`invalid-label rate ${(invalidLabelRate * 100).toFixed(1)}% > 0`);
+  if (formatComplianceRate < 1) failures.push(`format-compliance rate ${(formatComplianceRate * 100).toFixed(1)}% < 100%`);
+
+  return {
+    taskType: 'classification',
+    accuracy: exactCount / total,
+    macroF1,
+    perClass,
+    invalidLabelRate,
+    formatComplianceRate,
+    confusionMatrix,
+    runToRunAgreement,
+    gate: { pass: failures.length === 0, failures },
+  };
+}
+
+/**
+ * R5: tagging metrics. Raw output is split on commas and trimmed — nothing is
+ * "repaired" (no fuzzy-matching a near-miss token onto the vocabulary, no
+ * dropping obviously-wrong tokens before scoring) so unknown-tag and
+ * duplicate-tag rates reflect exactly what the model emitted.
+ */
+function computeTaggingMetrics(
+  cells: EvalMatrixCell[],
+  testCaseById: Map<string, TestCase>,
+  vocabulary: string[]
+): TaggingTaskMetrics {
+  const vocabSet = new Set(vocabulary);
+  const completed = cells.filter(c => c.status === 'completed');
+
+  let sumTP = 0, sumFP = 0, sumFN = 0;
+  let jaccardSum = 0;
+  let exactSetMatches = 0;
+  let unknownTokens = 0, duplicateTokens = 0, totalTokens = 0;
+  let formatCompliantCount = 0;
+  let caseCount = 0;
+  const perLabelCounts = new Map<string, { tp: number; fp: number; fn: number }>();
+
+  for (const cell of completed) {
+    const tc = testCaseById.get(cell.testCaseId);
+    if (!tc?.tags) continue;
+    caseCount++;
+
+    const rawTokens = (cell.response ?? '').split(',').map(t => t.trim()).filter(Boolean);
+    totalTokens += rawTokens.length;
+    const seen = new Set<string>();
+    for (const t of rawTokens) {
+      if (seen.has(t)) duplicateTokens++;
+      seen.add(t);
+      if (!vocabSet.has(t)) unknownTokens++;
+    }
+    const predictedSet = new Set(rawTokens);
+    const expectedSet = new Set(tc.tags);
+
+    const formatCompliant = !/[[\]{}]/.test(cell.response ?? '') && !(cell.response ?? '').includes('\n');
+    if (formatCompliant) formatCompliantCount++;
+
+    const intersection = [...expectedSet].filter(t => predictedSet.has(t));
+    const union = new Set([...expectedSet, ...predictedSet]);
+    const tp = intersection.length;
+    const fp = predictedSet.size - tp;
+    const fn = expectedSet.size - tp;
+    sumTP += tp; sumFP += fp; sumFN += fn;
+    jaccardSum += union.size > 0 ? tp / union.size : 1;
+    if (predictedSet.size === expectedSet.size && intersection.length === expectedSet.size) exactSetMatches++;
+
+    const labelsInvolved = new Set([...expectedSet, ...predictedSet]);
+    for (const label of labelsInvolved) {
+      const entry = perLabelCounts.get(label) ?? { tp: 0, fp: 0, fn: 0 };
+      const inExpected = expectedSet.has(label);
+      const inPredicted = predictedSet.has(label);
+      if (inExpected && inPredicted) entry.tp++;
+      else if (inPredicted && !inExpected) entry.fp++;
+      else if (inExpected && !inPredicted) entry.fn++;
+      perLabelCounts.set(label, entry);
+    }
+  }
+
+  const total = caseCount || 1;
+  const microPrecision = (sumTP + sumFP) > 0 ? sumTP / (sumTP + sumFP) : 0;
+  const microRecall = (sumTP + sumFN) > 0 ? sumTP / (sumTP + sumFN) : 0;
+  const microF1 = f1(microPrecision, microRecall);
+
+  const perLabel: Record<string, PerClassMetric> = {};
+  for (const [label, { tp, fp, fn }] of perLabelCounts) {
+    const precision = (tp + fp) > 0 ? tp / (tp + fp) : 0;
+    const recall = (tp + fn) > 0 ? tp / (tp + fn) : 0;
+    perLabel[label] = { precision, recall, f1: f1(precision, recall), support: tp + fn };
+  }
+  const labelF1s = Object.values(perLabel).map(l => l.f1);
+  const macroLabelF1 = labelF1s.length > 0 ? labelF1s.reduce((a, b) => a + b, 0) / labelF1s.length : 0;
+
+  const jaccardMean = jaccardSum / total;
+  const exactSetMatchRate = exactSetMatches / total;
+  const unknownTagRate = totalTokens > 0 ? unknownTokens / totalTokens : 0;
+  const duplicateTagRate = totalTokens > 0 ? duplicateTokens / totalTokens : 0;
+  const formatComplianceRate = formatCompliantCount / total;
+
+  const failures: string[] = [];
+  if (microF1 < 0.85) failures.push(`micro-F1 ${microF1.toFixed(2)} < 0.85`);
+  if (macroLabelF1 < 0.70) failures.push(`macro label-F1 ${macroLabelF1.toFixed(2)} < 0.70`);
+  if (exactSetMatchRate < 0.60) failures.push(`exact-set match rate ${(exactSetMatchRate * 100).toFixed(1)}% < 60%`);
+  if (unknownTagRate > 0) failures.push(`unknown-tag rate ${(unknownTagRate * 100).toFixed(1)}% > 0`);
+
+  return {
+    taskType: 'tagging',
+    microPrecision,
+    microRecall,
+    microF1,
+    macroLabelF1,
+    jaccardMean,
+    exactSetMatchRate,
+    unknownTagRate,
+    duplicateTagRate,
+    formatComplianceRate,
+    perLabel,
+    gate: { pass: failures.length === 0, failures },
+  };
+}
+
+/**
+ * R6: summarization metrics. Deterministic checks reuse
+ * `checkSummaryDeterministics` (shared with PromptfooAdapter's per-cell
+ * assertion) so aggregate rates and per-cell pass/fail can never disagree.
+ * Judge scores come from the 3-pass llm-rubric assertions PromptfooAdapter
+ * emits per perspective (metric `${perspectiveName}#1..3`); this groups by the
+ * base perspective name, medians the 3 rescaled (1-5) scores per case, then
+ * medians across cases — "three independent judge passes...aggregated by
+ * median" applied at both levels the plan's language could mean.
+ */
+function computeSummarizationMetrics(
+  cells: EvalMatrixCell[],
+  testCaseById: Map<string, TestCase>,
+  compressionRange: [number, number],
+  selfJudgeGuardViolated: boolean
+): SummarizationTaskMetrics {
+  const completed = cells.filter(c => c.status === 'completed');
+  const total = completed.length || 1;
+
+  let noPreambleCount = 0, noHeadingCount = 0, noFenceCount = 0;
+  let compressionOkCount = 0, protectedOkCount = 0, noForbiddenCount = 0;
+
+  // perspectiveBase -> caseKey -> [rescaled scores from the 3 passes]
+  const perPerspectiveCaseScores = new Map<string, Map<string, number[]>>();
+
+  for (const cell of completed) {
+    const tc = testCaseById.get(cell.testCaseId);
+    if (tc) {
+      const det = checkSummaryDeterministics(cell.response ?? '', tc, compressionRange);
+      if (det.noPreamble) noPreambleCount++;
+      if (det.noHeading) noHeadingCount++;
+      if (det.noFence) noFenceCount++;
+      if (det.compressionInRange) compressionOkCount++;
+      if (det.protectedTokensPreserved) protectedOkCount++;
+      if (det.noForbiddenClaims) noForbiddenCount++;
+    }
+
+    const caseKey = `${cell.promptId}::${cell.modelId}::${cell.testCaseId}::${cell.run}`;
+    for (const ar of cell.assertionResults ?? []) {
+      if (ar.type !== 'llm-rubric' || ar.score == null || !ar.metric) continue;
+      const hashIdx = ar.metric.lastIndexOf('#');
+      const base = hashIdx > -1 ? ar.metric.slice(0, hashIdx) : ar.metric;
+      const rescaled = 1 + Math.max(0, Math.min(1, ar.score)) * 4;
+      const byCase = perPerspectiveCaseScores.get(base) ?? new Map<string, number[]>();
+      const arr = byCase.get(caseKey) ?? [];
+      arr.push(rescaled);
+      byCase.set(caseKey, arr);
+      perPerspectiveCaseScores.set(base, byCase);
+    }
+  }
+
+  // Median-of-3-passes per case, then median across cases, per perspective.
+  const perspectiveMedians: Record<string, number> = {};
+  for (const [perspective, byCase] of perPerspectiveCaseScores) {
+    const caseMedians = [...byCase.values()].map(median);
+    perspectiveMedians[perspective] = median(caseMedians);
+  }
+
+  const faithfulness = perspectiveMedians['Faithfulness'] ?? 0;
+  const salientCoverage = perspectiveMedians['Salient Coverage'] ?? 0;
+  const retrievalUtility = perspectiveMedians['Retrieval Utility'] ?? 0;
+  const concision = perspectiveMedians['Concision'] ?? 0;
+  const weighted = faithfulness * 0.40 + salientCoverage * 0.30 + retrievalUtility * 0.20 + concision * 0.10;
+
+  // A "critical unsupported claim" is a faithfulness score of 1 (the rubric's
+  // "multiple fabrications" floor) on any individual case — no per-dimension
+  // finding-level judge output exists yet (that's A8/A11 territory), so this
+  // is the coarsest honest signal available from the 1-5 scale today.
+  const faithfulnessByCase = perPerspectiveCaseScores.get('Faithfulness');
+  let criticalCount = 0;
+  if (faithfulnessByCase) {
+    for (const scores of faithfulnessByCase.values()) {
+      if (median(scores) <= 1) criticalCount++;
+    }
+  }
+  const criticalUnsupportedClaimRate = faithfulnessByCase && faithfulnessByCase.size > 0
+    ? criticalCount / faithfulnessByCase.size
+    : 0;
+
+  const deterministic = {
+    noPreambleRate: noPreambleCount / total,
+    noHeadingRate: noHeadingCount / total,
+    noFenceRate: noFenceCount / total,
+    compressionInRangeRate: compressionOkCount / total,
+    protectedTokensPreservedRate: protectedOkCount / total,
+    noForbiddenClaimsRate: noForbiddenCount / total,
+  };
+
+  const failures: string[] = [];
+  if (selfJudgeGuardViolated) failures.push('judge model is also under evaluation — result is advisory only');
+  if (weighted < 4.2) failures.push(`median weighted score ${weighted.toFixed(2)} < 4.2`);
+  if (faithfulness < 4.5) failures.push(`median Faithfulness ${faithfulness.toFixed(2)} < 4.5`);
+  if (criticalUnsupportedClaimRate > 0) failures.push(`${(criticalUnsupportedClaimRate * 100).toFixed(1)}% of cases have a critical unsupported claim`);
+  if (deterministic.protectedTokensPreservedRate < 1) failures.push('protected tokens not preserved in all cases');
+  if (deterministic.noForbiddenClaimsRate < 1) failures.push('forbidden claim present in at least one case');
+
+  return {
+    taskType: 'summarization',
+    deterministic,
+    medianRubric: { faithfulness, salientCoverage, retrievalUtility, concision, weighted },
+    criticalUnsupportedClaimRate,
+    selfJudgeGuardViolated,
+    gate: { pass: failures.length === 0, failures },
+  };
+}
+
+function computeTaskMetrics(
+  cells: EvalMatrixCell[],
+  testCases: TestCase[] | undefined,
+  purposeCategory: PurposeCategory | undefined,
+  assertionStrategy: AssertionStrategy | null | undefined,
+  runsPerCell: number,
+  selfJudgeGuardViolated: boolean
+): TaskMetrics | undefined {
+  if (!testCases || testCases.length === 0 || !purposeCategory) return undefined;
+  const testCaseById = new Map(testCases.map(tc => [tc.id, tc]));
+
+  if (purposeCategory === 'classification' && assertionStrategy?.type === 'exact-label') {
+    return computeClassificationMetrics(cells, testCaseById, assertionStrategy.config.labels, runsPerCell);
+  }
+  if (purposeCategory === 'tagging' && assertionStrategy?.type === 'label-overlap') {
+    return computeTaggingMetrics(cells, testCaseById, assertionStrategy.config.vocabulary);
+  }
+  if (purposeCategory === 'summarization' && assertionStrategy?.type === 'grounded-summary') {
+    return computeSummarizationMetrics(
+      cells,
+      testCaseById,
+      assertionStrategy.config.compressionRange ?? DEFAULT_COMPRESSION_RANGE,
+      selfJudgeGuardViolated
+    );
+  }
+  return undefined;
+}
 
 export const SummaryService = {
   computeSummary(
@@ -25,6 +379,10 @@ export const SummaryService = {
       perspectiveOrder?: string[];
       resolvedInference?: EvaluationSummary['resolvedInference'];
       transportProvenance?: EvaluationSummary['transportProvenance'];
+      testCases?: TestCase[];
+      purposeCategory?: PurposeCategory;
+      assertionStrategy?: AssertionStrategy | null;
+      selfJudgeGuardViolated?: boolean;
     }
   ): EvaluationSummary {
     const completed = cells.filter(c => c.status === 'completed');
@@ -225,6 +583,15 @@ export const SummaryService = {
       ? this.computeConsistency(cells)
       : undefined;
 
+    const taskMetrics = computeTaskMetrics(
+      cells,
+      options?.testCases,
+      options?.purposeCategory,
+      options?.assertionStrategy,
+      options?.runsPerCell ?? 1,
+      options?.selfJudgeGuardViolated ?? false
+    );
+
     return {
       evalId,
       totalCells: cells.length,
@@ -241,6 +608,7 @@ export const SummaryService = {
       truncationRate,
       resolvedInference: options?.resolvedInference,
       transportProvenance: options?.transportProvenance,
+      taskMetrics,
     };
   },
 

@@ -8,10 +8,11 @@
   "defaultComparisonMode": "prompt",
   "inference": { "temperature": 0.3, "maxTokens": 1000 },
   "assertionStrategy": {
-    "type": "llm-rubric",
+    "type": "grounded-summary",
     "config": {
       "templateId": "summarization-quality",
-      "dimensions": ["conciseness", "faithfulness", "coverage"]
+      "dimensions": ["faithfulness", "salient-coverage", "retrieval-utility", "concision"],
+      "compressionRange": [0.05, 0.6]
     }
   },
   "starterTestCases": [

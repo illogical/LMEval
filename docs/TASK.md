@@ -4,7 +4,7 @@
 > [`features/eval-wizard/TASK.md`](features/eval-wizard/TASK.md) (wizard/UX track). Both remain in the
 > repository as historical records of completed work; **all open work lives here.**
 >
-> **Last reconciled against the working tree:** 2026-09-04 (A1 closed this pass)
+> **Last reconciled against the working tree:** 2026-09-04 (A1 and MemoryApi's A2 implementation closed)
 
 ---
 
@@ -28,9 +28,9 @@ the two-phase protocol in §4 Track A is what makes it mean something.
 ### Relationship to MemoryApi
 
 MemoryApi is LMEval's first real consumer and its source of ground truth. It runs three ingestion
-tasks per memory — classification (8 categories), tagging (61 tags), summarization — today all on
-one shared `LLM_MODEL`. LMEval's three built-in purpose templates were seeded directly from
-MemoryApi's `src/prompts/` and `src/samples/`.
+tasks per memory — classification (8 categories), tagging (61 tags), summarization — with separate
+task-model overrides that fall back to the shared `LLM_MODEL`. LMEval's three built-in purpose
+templates were seeded directly from MemoryApi's `src/prompts/` and `src/samples/`.
 
 The direction of the relationship is deliberately asymmetric, and neither project calls the other
 at runtime or writes into the other's repository:
@@ -71,11 +71,107 @@ and the cross-project review in [`plans/2026-09-04-ingestion-eval-alignment-revi
 | F5 | AI-generated test cases | ⛔ deferred (dogfood candidate) |
 | W1–W8 | Prepare wizard layout polish | ✅ complete |
 | I1–I4 | Test case import/export | ✅ complete (verified in tree 2026-09-04) |
-| PME | Professional memory evaluations | ⚠️ Track A1 complete; A2–A11 remain — see §4 |
+| PME | Professional memory evaluations | ⚠️ A1, A3, A6 complete (2026-09-04, per [`plans/2026-09-04-2053-feat-core-task-measurement-excellence-plan.md`](plans/2026-09-04-2053-feat-core-task-measurement-excellence-plan.md)) and MemoryApi's A2 transport implementation complete; A2 verification/snapshot work, A4-A5, A7-A11 remain — see §4; A3/A6 owe live model verification, tracked in Track E |
 
 ---
 
 ## 3 — Completed in this pass (2026-09-04)
+
+**Track A3/A6 — Typed assertion strategies and task-appropriate scoring** (R1-R8 of
+[`plans/2026-09-04-2053-feat-core-task-measurement-excellence-plan.md`](plans/2026-09-04-2053-feat-core-task-measurement-excellence-plan.md)),
+scoped to exactly the three built-in task types per that plan's Key Decisions (no generalized
+plugin/custom-task-type system built — that stays deferred in Track F):
+
+- `tsc -b`, `npm run build` clean. `npm run lint`: 24 pre-existing errors, unchanged before/after
+  (confirmed via `git stash`) and none in a file this pass touched.
+- `npx vitest run` **could not be executed to a passing baseline in this environment** — every test
+  file (frontend and backend, `26`/`5`+ files respectively) fails at the top-level `describe()` call
+  with `TypeError: Cannot read properties of undefined (reading 'config')`, confirmed via `git stash`
+  to reproduce identically on a clean `main` before this pass's changes. This is a pre-existing
+  vitest 4.1.0 / environment breakage, unrelated to R1-R8 and out of this pass's scope to fix; new
+  and touched tests below are logic-verified by hand-trace, not machine-executed. Flagged as owed
+  verification, not claimed as passing.
+- **`src/types/eval.ts`**: `AssertionStrategy.config: Record<string, unknown>` replaced with a
+  discriminated union (`ExactLabelConfig`/`LabelOverlapConfig`/`GroundedSummaryConfig`/
+  `CustomAssertionConfig`) keyed by `type: 'exact-label' | 'label-overlap' | 'grounded-summary' |
+  'custom'` (R1-R3; `'llm-rubric'` retired as a type name — normalizes into `'grounded-summary'`).
+  Added `TestCase.protectedTokens?`/`forbiddenClaims?` (minimal fields needed for R6's deterministic
+  checks — not full A4). Added the R4-R7 discriminated `TaskMetrics` union
+  (`ClassificationTaskMetrics`/`TaggingTaskMetrics`/`SummarizationTaskMetrics`, each with its own
+  `GateResult`) and `EvaluationSummary.taskMetrics?`.
+- **`server/services/AssertionStrategyService.ts`** (new): `normalizeAssertionStrategy()` validates
+  and normalizes a raw assertion strategy, accepting either legacy or current keys on read
+  (`categories`→`labels`, `tagVocabulary`→`vocabulary`, `threshold`→`minimumCaseF1`,
+  `llm-rubric`+`dimensions`→`grounded-summary`+`templateId`) and always emitting normalized keys;
+  throws `AssertionStrategyValidationError` for a structurally invalid strategy (R2), most notably an
+  invalid `custom` config (must carry a non-empty `description` — deliberately not a plugin point,
+  see the plan's Scope Boundaries).
+- **`server/routes/purposeTemplates.ts`**: `POST`/`PUT` now run the strategy through
+  `normalizeAssertionStrategy()` and return `400` with the validation message on failure, instead of
+  silently accepting (and, for `custom`, silently no-op-ing) whatever shape was sent.
+- **`server/services/PromptfooAdapter.ts`**: `buildExactLabelAssertion()` wires `exact-label` (R1) —
+  a `javascript` assertion comparing the trimmed response against `TestCase.expectedOutput` exactly,
+  replacing classification's previous `expectedKeywords` prose-matching (which accepted explanatory
+  text containing the label). `buildLabelOverlapAssertion()` now reads the normalized
+  `vocabulary`/`minimumCaseF1` keys. `buildSummaryDeterministicAssertion()` (R6) runs the
+  preamble/heading/fence/compression/protected-token/forbidden-claim checks per cell, via the new
+  shared `server/services/summarizationChecks.ts` module (also used by `SummaryService`, so the
+  per-cell pass/fail and the aggregate rates can never disagree). `buildGroundedSummaryRubricAssertions()`
+  emits 3 metric-suffixed (`${perspective}#1..3`) `llm-rubric` assertions per rubric dimension instead
+  of 1 — the plan's own Outstanding Questions left the 3-pass mechanism's implementation open; this
+  choice reuses Promptfoo's existing dispatch/parsing untouched. `buildJudgeProvider()` now forces
+  `temperature: 0` on the grading call (R6's "t=0" judge passes).
+- **`data/evals/templates/summarization-quality.json`**: perspectives revised to Faithfulness 0.40 /
+  Salient Coverage 0.30 (renamed from Coverage) / Retrieval Utility 0.20 (new) / Concision 0.10
+  (renamed from Conciseness), matching R6's weights exactly.
+- **`data/evals/purpose-templates/{classification,tagging,summarization}.json`**: rewritten to the
+  normalized key shapes (`labels`, `vocabulary`+`minimumCaseF1`, `grounded-summary`+`templateId`+
+  `compressionRange`) per R3.
+- **`server/services/SummaryService.ts`**: added `computeClassificationMetrics()`,
+  `computeTaggingMetrics()`, `computeSummarizationMetrics()`, dispatched by the new
+  `computeTaskMetrics()` and wired into `computeSummary()`'s options
+  (`testCases`/`purposeCategory`/`assertionStrategy`/`selfJudgeGuardViolated`). Classification and
+  tagging assertions are `javascript`, never `llm-rubric`, so `compositeScore` stays naturally absent
+  for them — R7's "never manufacture a rubric composite for classification/tagging" holds without
+  extra guarding. Summarization's median-of-3-judge-passes aggregation happens at both the per-case
+  and cross-case level (median of the 3 pass scores per case, then median of those medians).
+- **`server/services/ExecutionService.ts`**: threads `testCases`/`purposeCategory`/`assertionStrategy`
+  through to `aggregate()`/`computeSummary()`; computes the R6 self-judge guard
+  (`config.judgeModelId` also present in `config.modelIds`, on a summarization purpose template) and
+  passes it through as `selfJudgeGuardViolated`.
+- **`src/components/results/VerdictHeader.tsx`** (R8, minimal): when `summary.taskMetrics` is
+  present, the headline becomes the gate verdict ("X clears/does NOT clear the &lt;task&gt; gate —
+  &lt;first failure&gt;") with the previous score-based headline demoted to supporting detail. Scoped
+  to `comparisonMode: 'model'`; a genuine multi-model per-task gate comparison panel is A11, not this
+  pass.
+- **Fixed 3 call sites** left on the old `AssertionStrategy` shape by the type change:
+  `src/pages/ConfigPage.tsx`, `src/contexts/purposeTemplateStorage.ts`,
+  `server/services/__tests__/ExecutionService.inference.test.ts`.
+- **New/extended tests** (not machine-verified per the vitest note above, but logic hand-traced):
+  `server/services/__tests__/AssertionStrategyService.test.ts` (new — bidirectional legacy key
+  normalization, custom-config rejection, unknown-type rejection); `server/services/__tests__/
+  PromptfooAdapter.test.ts` (extended — exact-label rejects label-containing prose, flags an
+  out-of-set label, is skipped without `expectedOutput`; summary-deterministic assertion catches a
+  preamble); `server/services/__tests__/SummaryService.test.ts` (extended — classification accuracy/
+  macro-F1/confusion-matrix/gate/run-to-run-agreement; tagging TP-FP-FN-derived P/R/F1/Jaccard/
+  unknown-and-duplicate-rate without repair; summarization self-judge-guard gating, 3-pass median
+  aggregation, deterministic-check independence from the judge).
+
+**Deferred/partial, stated plainly:**
+- **R6's "critical unsupported claim"** is approximated as a per-case median Faithfulness score ≤ 1
+  (the rubric's "multiple fabrications" floor) — there is no per-finding judge output to identify a
+  *specific* unsupported claim yet; that's A8/A11 territory (judge qualification, finding-level
+  reporting), not built here.
+- **A7 (statistics/CIs)** and **A8 (judge qualification)** are untouched, as scoped — the gates above
+  are point-estimate thresholds, not confidence-interval-aware ones, and a summarization result's
+  judge is not qualified against a calibration set.
+- **A11 (task-specific reporting)** beyond the single VerdictHeader gate-first headline (confusion-
+  matrix panels, per-tag drill-down, multi-model gate comparison) is not built.
+- **A4 (test case grounding fields)** is not built beyond the two minimal fields (`protectedTokens`/
+  `forbiddenClaims`) R6 needed; `expectedLabels`/`caseTags`/`requiredFacts`, CSV/JSON import wiring,
+  and the `tags`-deprecation warning remain open.
+- **Live model verification** (a real LMApi + Ollama round trip exercising `exact-label`, the tagging
+  parse-without-repair path, and the 3-pass judge) is owed — see the new Track E entry below.
 
 **Track A1 — Inference parameters and provenance**, in full (`npx vitest run` → 169 passing,
 29 files, up from 152/23; `tsc -b`, `npm run build`, `npm run lint` clean for the touched files):
@@ -95,8 +191,14 @@ own ingestion-prompt-refinement plan, not a competing one). **The LMApi sampling
 closed the same day** — LMApi added `seed` to its chat-completions schema, so `seedHonored` ships
 `true`. Ollama's compatible endpoint also supports `top_p`; request-level `top_k`/`num_ctx` do not,
 but LMEval has no current consumer for them and can use Modelfile-derived model aliases if a fixed
-configuration is needed. See `docs/plans/2026-09-04-lmapi-native-options-available.md`. A2's actual
-transport fix remains open and cross-repo — see A2 below.
+configuration is needed. See `docs/plans/2026-09-04-lmapi-native-options-available.md`.
+
+**MemoryApi transport-parity implementation handoff received and revision-verified:** MemoryApi
+revision `c7ecb9e292947f88199c16548b88dc4fc8557a60` implements ordered `[system, user]` messages to
+`/api/chat/completions/any`, the canonical `<memory>` wrapper and closing-delimiter escaping,
+task-specific model/inference resolution, transport/prompt identities, and finish-reason capture.
+See `docs/plans/2026-09-04-memoryapi-implementation-handoff.md`. This closes the MemoryApi
+implementation dependency, not LMEval's snapshot import or live cross-process verification.
 
 Phase 7 items closed against the working tree, all covered by tests (`npx vitest run` → 152 passing,
 23 files; `tsc -b`, `npm run build`, and `npm run lint` clean for the touched files):
@@ -138,8 +240,12 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 
 > Plan: [`plans/2026-09-03-professional-memory-evaluations.md`](plans/2026-09-03-professional-memory-evaluations.md)
 >
-> **Nothing else in this list produces a trustworthy number until A1 and A2 land.** LMEval currently
-> measures a configuration that MemoryApi does not run.
+> **A1, A3, and A6 have landed** (A6 minus the statistics/CI layer, which is A7, and minus judge
+> qualification, which is A8). MemoryApi's A2 transport implementation has also landed. Promotion
+> evidence still requires the exact imported MemoryApi snapshot contract plus a live cross-project
+> parity check; neither is implied by documentation or unit tests. A3/A6's task-appropriate scoring
+> is itself implemented but **not yet live-verified** against a real LMApi + Ollama round trip — see
+> the new Track E entry below.
 
 **A1 — Inference parameters and provenance** *(first, because every later measurement is untrustworthy without it)* — ✅ **complete 2026-09-04**
 - [x] Add `inference?: { temperature: number; maxTokens: number; seed?: number }` to `EvaluationConfig`
@@ -152,15 +258,15 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 - [x] Record the LMApi endpoint path and message shape in each evaluation's provenance (`EvaluationConfig.transportProvenance` / mirrored on `EvaluationSummary`) — this is the recording half only; the A10 import-guard that *refuses* a mismatched transport is not built yet
 - [x] `seed` threaded through and honored end-to-end (`seedHonored: true` in provenance) — shipped inert-but-present first (LMApi didn't accept it yet), then LMApi added `seed` to `ChatCompletionSchema` the same day in response to the handoff doc filed at `LMApi/docs/plans/2026-09-04-sampling-parameter-support.md`. **LMApi handoff closed.** Ollama's compatible endpoint supports `top_p`, but not request-level `top_k`/`num_ctx`; neither is in A1's contract or needed by a current LMEval consumer. Use a provenance-recorded Modelfile-derived model alias for a fixed `top_k`/`num_ctx`, or revisit LMApi native `/api/chat` translation only when per-run control is required. See `docs/plans/2026-09-04-lmapi-native-options-available.md`
 
-**A2 — Transport parity with MemoryApi** *(provenance recording landed in A1; the actual transport fix is still open and cross-repo)*
-- [ ] LMEval posts `messages: [system, user]` to `/api/chat/completions/any`; MemoryApi's `LMApiClient` flattens messages into one `ROLE: content` string and posts it as `prompt` to `/api/generate/any`. The plan assumes MemoryApi moves to structured chat messages. **Coordinate before benchmarking** — a prompt that wins in LMEval is otherwise not the prompt MemoryApi executes. Handoff doc filed at `MemoryApi/docs/plans/2026-09-04-lmeval-transport-parity-handoff.md`, an addendum to MemoryApi's own `2026-09-03-ingestion-prompt-refinement.md` plan (which already proposes the `TaskModelConfig` + structured-message fix) recording exactly what LMEval needs from it
+**A2 — Transport parity with MemoryApi** *(MemoryApi implementation complete; LMEval snapshot consumption and live parity verification remain)*
+- [x] MemoryApi now posts ordered `messages: [system, user]` without flattening to `/api/chat/completions/any`, matching LMEval's endpoint and `chat-messages` provenance vocabulary. It also resolves task-specific models and inference values and captures `finish_reason`. Verified at MemoryApi revision `c7ecb9e292947f88199c16548b88dc4fc8557a60`; see `docs/plans/2026-09-04-memoryapi-implementation-handoff.md`
 - [ ] Imported snapshot cases must carry the `<memory>` delimiter wrapper inside `userMessage` exactly as production sends it, including the escaping rule for a literal closing delimiter
 
-**A3 — Typed assertion strategies**
-- [ ] Replace `AssertionStrategy.config: Record<string, unknown>` with the discriminated union: `exact-label` | `label-overlap` | `grounded-summary` | `custom`; validate at the service boundary, `400` on invalid custom templates
-- [ ] Legacy key normalization in both directions: `categories`→`labels`, `tagVocabulary`→`vocabulary`, `threshold`→`minimumCaseF1`, `llm-rubric`+`dimensions`→`grounded-summary`+`templateId`. Read accepts either, write emits normalized
-- [ ] Rewrite the three files under `data/evals/purpose-templates/` in the same change
-- [ ] **Wire `exact-label`** — it is declared as a purpose strategy but `PromptfooAdapter` builds no assertion for it, and `TestCase.expectedOutput` is ignored entirely. Classification is currently graded by `expectedKeywords`, which accepts explanatory prose containing the label
+**A3 — Typed assertion strategies** — ✅ **complete 2026-09-04**
+- [x] Replace `AssertionStrategy.config: Record<string, unknown>` with the discriminated union: `exact-label` | `label-overlap` | `grounded-summary` | `custom`; validate at the service boundary, `400` on invalid custom templates
+- [x] Legacy key normalization in both directions: `categories`→`labels`, `tagVocabulary`→`vocabulary`, `threshold`→`minimumCaseF1`, `llm-rubric`+`dimensions`→`grounded-summary`+`templateId`. Read accepts either, write emits normalized
+- [x] Rewrite the three files under `data/evals/purpose-templates/` in the same change
+- [x] **Wire `exact-label`** — it is declared as a purpose strategy but `PromptfooAdapter` builds no assertion for it, and `TestCase.expectedOutput` is ignored entirely. Classification is currently graded by `expectedKeywords`, which accepts explanatory prose containing the label
 
 **A4 — Test case grounding fields**
 - [ ] Extend `TestCase` with `expectedLabels?`, `caseTags?`, `requiredFacts?`, `forbiddenClaims?`, `protectedTokens?`
@@ -168,6 +274,8 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 - [ ] Update JSON/CSV parse + serialize (semicolon-delimited arrays), the suite editor, and API types together
 
 **A5 — Built-in benchmark suites**
+> Blocked on MemoryApi's reviewed v1 datasets and versioned snapshot export. Temporary LMEval
+> fixtures may exercise generic plumbing but must not claim MemoryApi provenance.
 - [ ] Extend `TestSuite` with `builtIn`, `purposeCategory`, `version`, `provenance{source, sourceRevision, taxonomySha256, datasetSha256, importedAt}`
 - [ ] Version-controlled built-ins at `<repoRoot>/data/evals/test-suites/built-in/`; writable suites at `<dataRoot>/evals/test-suites/custom/`; legacy suites read as custom, never auto-migrated
 - [ ] `TestSuiteService.list()` merges all three; updates/deletes rejected when `builtIn`
@@ -175,11 +283,11 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 - [ ] Import the reviewed MemoryApi v1 datasets: `memory-classification-v1` (64 cases), `memory-tagging-v1` (72), `memory-summarization-v1` (36), each with 25% marked `split:regression`
 - [ ] Dataset linter rejecting duplicate IDs, out-of-taxonomy labels, coverage gaps, malformed slice tags, prompt-example leakage, and provenance hash mismatches
 
-**A6 — Task-appropriate scoring**
-- [ ] **Classification**: `exactOutput`, `normalizedCorrect`, `formatCompliant`, `validLabel` per response; aggregate accuracy, macro-F1, per-class P/R/F1, invalid-label rate, format-compliance rate, confusion matrix, run-to-run agreement. Gate: macro-F1 ≥ 0.90, per-class recall ≥ 0.80, zero invalid labels, 100% format compliance
-- [ ] **Tagging**: parse raw output without silently repairing it; per case TP/FP/FN, P/R/F1, Jaccard, exact-set match, unknown tags, duplicates, format compliance. Gate: micro-F1 ≥ 0.85, macro label-F1 ≥ 0.70, exact-set ≥ 0.60, zero invalid labels
-- [ ] **Summarization**: deterministic checks (no preamble/heading/fence, compression ratio in range, protected tokens preserved, no literal forbidden claims) *before* model grading; revise `summarization-quality` to Faithfulness 0.40 / Salient Coverage 0.30 / Retrieval Utility 0.20 / Concision 0.10; three independent judge passes at t=0 aggregated by median; a model may not judge itself. Gate: median weighted ≥ 4.2, median Faithfulness ≥ 4.5, no critical unsupported claim
-- [ ] Persist metrics in a discriminated `EvaluationSummary.taskMetrics` union — do **not** manufacture rubric composite scores for classification and tagging
+**A6 — Task-appropriate scoring** — ✅ **complete 2026-09-04** (statistics/CIs remain A7, judge qualification remains A8 — neither was in this pass's scope)
+- [x] **Classification**: `exactOutput`/`formatCompliant`/`validLabel` derived per response in `SummaryService.computeClassificationMetrics()`; aggregate accuracy, macro-F1, per-class P/R/F1, invalid-label rate, format-compliance rate, confusion matrix, run-to-run agreement (when `runsPerCell` > 1). Gate: macro-F1 ≥ 0.90, per-class recall ≥ 0.80, zero invalid labels, 100% format compliance
+- [x] **Tagging**: raw output parsed by comma-split + trim only, no repair; per-case TP/FP/FN, P/R/F1, Jaccard, exact-set match, unknown-tag rate, duplicate-tag rate, format compliance. Gate: micro-F1 ≥ 0.85, macro label-F1 ≥ 0.70, exact-set ≥ 0.60, zero invalid (unknown) tags
+- [x] **Summarization**: deterministic checks (no preamble/heading/fence, compression ratio in range, protected tokens preserved, no literal forbidden claims) run *before* and independent of model grading (`server/services/summarizationChecks.ts`, shared by the per-cell assertion and the aggregate rates so they can't disagree); `summarization-quality.json` revised to Faithfulness 0.40 / Salient Coverage 0.30 / Retrieval Utility 0.20 / Concision 0.10; three independent judge passes at t=0 aggregated by median (implementation choice, since the plan left this open: three metric-suffixed `llm-rubric` assertions per perspective rather than a bespoke repeated-grading harness — see `buildGroundedSummaryRubricAssertions`'s doc comment); a self-judge guard flags (and gates） the result advisory-only when the judge model is also under evaluation. Gate: median weighted ≥ 4.2, median Faithfulness ≥ 4.5, zero cases with a critical unsupported claim (approximated today as a per-case median Faithfulness ≤ 1 — no per-finding judge output exists yet; a real "critical unsupported claim" *finding* extractor is A8/A11 territory)
+- [x] Persisted in a discriminated `EvaluationSummary.taskMetrics` union (`ClassificationTaskMetrics` | `TaggingTaskMetrics` | `SummarizationTaskMetrics`) — classification and tagging assertions are `javascript`, never `llm-rubric`, so `compositeScore` is naturally absent for them; no composite is manufactured
 
 **A7 — Statistics that match the data's resolution**
 - [ ] Bootstrap 95% confidence intervals over cases; McNemar paired test for baseline-vs-candidate
@@ -204,6 +312,7 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 - [ ] Emit `ModelRecommendation` per task as a first-class artifact to LMEval's own export directory
 
 **A10 — Interchange contract**
+> Blocked on MemoryApi publishing the authoritative schemas and versioned snapshot artifacts.
 - [ ] Vendor `memory-eval-snapshot.v1.schema.json` and `prompt-promotion-record.v1.schema.json` under `data/evals/schemas/`; validate on import; schema-version or hash mismatch is a **hard failure**, never a best-effort parse
 
 **A11 — Task-specific reporting**
@@ -288,9 +397,54 @@ available in the implementing pass. None are code changes; all are owed before t
 behavior can be called verified.
 
 - [ ] **A1 seed runtime verification** — send repeated identical evaluations with the same explicit seed through a real LMApi + Ollama model and confirm reproducible output on the same model and Modelfile configuration; this verifies the closed handoff without reopening its implementation
+- [ ] **A2 cross-project transport parity** — against MemoryApi revision `c7ecb9e292947f88199c16548b88dc4fc8557a60`, run a real LMApi evaluation containing `</MEMORY   >`; confirm endpoint, ordered messages, exact wrapper/escaping, task temperature/token ceiling, prompt identity/taxonomy hash, routable model, response content, and `finish_reason`, then reproduce the headline result with MemoryApi's evaluator under `MEMORY_DATA_ENV=test`
 - [ ] **Phase 11** — Model Comparison renders one editor and blocks Next below 2 models; Prompt Comparison renders both and allows 1 model with a visible nudge
 - [ ] **Phase 12** — Session Hub → New Evaluation → gallery shows 3 built-ins + Start Blank → selecting Classification lands on Step 1 pre-filled with the provenance badge, and Step 2's assertion card and test cases populated → Start Blank behaves like today's wizard
 - [ ] **Phase 7 (this pass)** — blockers panel, Run tooltip, `Saving prompts…` label, judge-call count, error-boundary fallback, and Compare copy/stats confirmed in a running browser
+- [ ] **A3/A6 task-appropriate scoring (this pass, 2026-09-04)** — a real LMApi + Ollama round trip
+  for all three built-in purpose templates, confirming: `exact-label` actually rejects a real model's
+  explanatory prose (not just the hand-written unit-test strings); tagging's parse-without-repair
+  path against real (possibly malformed) model output; the 3-pass `llm-rubric` judge calls actually
+  fire 3 times per perspective per case with `temperature: 0`, and `SummaryService`'s median
+  aggregation reads the resulting `assertionResults` correctly; the self-judge guard fires when
+  `judgeModelId` really does overlap `modelIds`. Also owed: getting `npx vitest run` to a clean
+  baseline in this environment (currently broken pre-existing, see §3) so the new/extended unit tests
+  added this pass can actually execute rather than being logic-verified by hand alone.
+
+---
+
+### Track F — Future use cases *(captured, not scheduled)*
+
+> Surfaced during the 2026-09-04 brainstorm behind
+> [`plans/2026-09-04-2053-feat-core-task-measurement-excellence-plan.md`](plans/2026-09-04-2053-feat-core-task-measurement-excellence-plan.md).
+> Deliberately **not** designed or scoped yet — each needs its own brainstorm before planning. Listed
+> here so they aren't lost, not as a commitment to build them next. LMEval's first real use case is
+> MemoryApi, but the tool exists to evaluate *any* local-model use case; these are where that shows up.
+
+- [ ] **Generalized custom task-type support** — today, adding a task type beyond classification/tagging/
+  summarization means teaching `PromptfooAdapter`/`ExecutionService`/`SummaryService` a new name (see
+  A3/A6). A real fourth use case should motivate designing `assertionStrategy: 'custom'` and a generic
+  metric/gate spec as an actual plugin boundary — declarative assertions (Promptfoo's native types)
+  plus a named metric rollup, so a new task type needs no core-service code changes. Deliberately
+  deferred until a concrete new use case exists to design against, rather than guessing the right
+  abstraction now.
+- [ ] **Deeper tool-calling effectiveness evaluation** — a Tool Calling `EvalTemplate` already ships;
+  strengthening its assertions/metrics (beyond today's basic tool-call matching) for evaluating agentic
+  tool-use quality is future work once a concrete tool-calling use case needs it.
+- [ ] **Evaluating MemoryApi's multi-source retrieval merge/fusion step** — MemoryApi assembles context
+  from multiple separate databases into one LLM/MCP-consumable response for downstream decision-making;
+  evaluating the quality of that merge/fusion is a materially different, more complex evaluation shape
+  than single-call classification/tagging/summarization and needs its own design.
+- [ ] **Agent-drivable API** — a stable, documented API/CLI contract so an LLM agent (not just this
+  tool's own wizard) can configure and run an evaluation set programmatically. A first concrete step
+  discussed: a small read-only API endpoint (evaluation summary + failing cells) backing a Claude Code
+  agent skill that reads a completed evaluation and proposes prompt-wording refinements in chat —
+  diff-only, no auto-apply. Better scoped once the wizard UX and Track A's core scoring (R1–R8 above)
+  are proven out against MemoryApi's real prompts.
+- [ ] **Automated refinement-loop harness** — a further-out extension of the above: an agent loop that
+  iterates on prompt (and eventually eval) refinements automatically. Candidate approach floated: an
+  agent SDK, possibly as a separate project outside this repo. Explicitly longer-term; not the same
+  scope as Track C's in-app human-in-the-loop suggestion UI (C1–C2), which stays LMEval-internal.
 
 ---
 

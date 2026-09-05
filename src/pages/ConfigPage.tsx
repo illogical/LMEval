@@ -29,7 +29,7 @@ export function ConfigPage() {
     if (!state.purposeTemplateId) { setJudgeRequired(false); return; }
     let cancelled = false;
     getPurposeTemplate(state.purposeTemplateId)
-      .then(t => { if (!cancelled) setJudgeRequired(t.assertionStrategy.type === 'llm-rubric'); })
+      .then(t => { if (!cancelled) setJudgeRequired(t.assertionStrategy.type === 'grounded-summary'); })
       .catch(() => { if (!cancelled) setJudgeRequired(false); });
     return () => { cancelled = true; };
   }, [state.purposeTemplateId]);
@@ -48,16 +48,15 @@ export function ConfigPage() {
     if (!newTemplateName.trim()) return;
     setSavingTemplate(true);
     try {
-      const strategyType = state.judgeModelId && state.templateId ? 'llm-rubric' as const : 'custom' as const;
+      const strategyType = state.judgeModelId && state.templateId ? 'grounded-summary' as const : 'custom' as const;
       await createPurposeTemplate({
         name: newTemplateName.trim(),
         description: '',
         seedPromptContent: state.promptA.content,
         defaultComparisonMode: state.comparisonMode,
-        assertionStrategy: {
-          type: strategyType,
-          config: strategyType === 'llm-rubric' ? { templateId: state.templateId } : {},
-        },
+        assertionStrategy: strategyType === 'grounded-summary'
+          ? { type: 'grounded-summary', config: { templateId: state.templateId! } }
+          : { type: 'custom', config: { description: newTemplateName.trim() } },
         starterTestCases: state.inlineTestCases,
       });
       setNewTemplateName('');

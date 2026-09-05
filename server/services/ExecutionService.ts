@@ -11,6 +11,7 @@ import { TestSuiteService } from './TestSuiteService';
 import type {
   EvaluationConfig, EvalMatrixCell, EvaluationSummary, TestCase,
   EvalTemplate, PairwiseRanking, EvalStreamEvent, AssertionStrategy, EvalPurposeTemplate,
+  PurposeCategory,
 } from '../../src/types/eval';
 
 const CONCURRENCY_LIMIT = Math.max(1, parseInt(process.env.EVAL_CONCURRENCY ?? '8', 10) || 8);
@@ -360,6 +361,10 @@ export const ExecutionService = {
       perspectiveOrder?: string[];
       resolvedInference?: EvaluationConfig['resolvedInference'];
       transportProvenance?: EvaluationConfig['transportProvenance'];
+      testCases?: TestCase[];
+      purposeCategory?: PurposeCategory;
+      assertionStrategy?: AssertionStrategy | null;
+      selfJudgeGuardViolated?: boolean;
     }
   ): Promise<EvaluationSummary> {
     const summary = SummaryService.computeSummary(evalId, cells, pairwiseRankings, options);
@@ -434,11 +439,22 @@ export const ExecutionService = {
         ? this.buildPairwiseRankings(finalCells)
         : undefined;
 
+      // R6 self-judge guard: a model may never judge its own summarization output.
+      const selfJudgeGuardViolated = !!(
+        purposeTemplate?.purposeCategory === 'summarization' &&
+        config.judgeModelId &&
+        config.modelIds.includes(config.judgeModelId)
+      );
+
       await this.aggregate(evalId, finalCells, pairwiseRankings, {
         runsPerCell: config.runsPerCell,
         perspectiveOrder: template?.perspectives.map(p => p.name),
         resolvedInference: config.resolvedInference,
         transportProvenance: config.transportProvenance,
+        testCases,
+        purposeCategory: purposeTemplate?.purposeCategory,
+        assertionStrategy: purposeStrategy,
+        selfJudgeGuardViolated,
       });
 
       const wasCancelled = cancelledEvals.has(evalId);

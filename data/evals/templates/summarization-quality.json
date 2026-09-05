@@ -1,17 +1,9 @@
 {
   "id": "summarization-quality",
   "name": "Summarization Quality",
-  "description": "Evaluates summaries on conciseness, faithfulness to the source, and coverage of key points. Backs the built-in Summarization purpose template.",
+  "description": "Evaluates summaries on faithfulness, salient coverage, retrieval utility, and concision. Backs the built-in Summarization purpose template. Weights match R6: Faithfulness 0.40 / Salient Coverage 0.30 / Retrieval Utility 0.20 / Concision 0.10.",
   "builtIn": true,
   "perspectives": [
-    {
-      "id": "conciseness",
-      "name": "Conciseness",
-      "description": "The summary is appropriately brief for the source content",
-      "weight": 0.3,
-      "criteria": "Is the summary concise, avoiding restating the source verbatim or padding with filler?",
-      "scoringGuide": "1=As long as or longer than the source, 2=Barely condensed, 3=Reasonably condensed, 4=Concise, 5=Optimally concise"
-    },
     {
       "id": "faithfulness",
       "name": "Faithfulness",
@@ -21,14 +13,30 @@
       "scoringGuide": "1=Multiple fabrications, 2=Some fabrication, 3=Minor unsupported claims, 4=Faithful, 5=Perfectly faithful to source"
     },
     {
-      "id": "coverage",
-      "name": "Coverage",
+      "id": "salient-coverage",
+      "name": "Salient Coverage",
       "description": "The summary retains the source's key points",
       "weight": 0.3,
       "criteria": "Does the summary retain the key points and salient details of the source content?",
       "scoringGuide": "1=Misses the point entirely, 2=Misses major points, 3=Covers most key points, 4=Covers key points well, 5=Captures all salient points"
+    },
+    {
+      "id": "retrieval-utility",
+      "name": "Retrieval Utility",
+      "description": "The summary would surface this memory for the queries a person would actually use to find it again",
+      "weight": 0.2,
+      "criteria": "Would this summary, indexed in a vector database, be retrieved by the natural-language queries someone would use to recall this memory later?",
+      "scoringGuide": "1=Would not surface for any plausible query, 2=Surfaces only for very specific/unlikely queries, 3=Surfaces for some plausible queries, 4=Surfaces for most plausible queries, 5=Surfaces for essentially any plausible query about this memory"
+    },
+    {
+      "id": "concision",
+      "name": "Concision",
+      "description": "The summary is appropriately brief for the source content",
+      "weight": 0.1,
+      "criteria": "Is the summary concise, avoiding restating the source verbatim or padding with filler?",
+      "scoringGuide": "1=As long as or longer than the source, 2=Barely condensed, 3=Reasonably condensed, 4=Concise, 5=Optimally concise"
     }
   ],
   "createdAt": "2026-09-03T00:00:00.000Z",
-  "updatedAt": "2026-09-03T00:00:00.000Z"
+  "updatedAt": "2026-09-04T00:00:00.000Z"
 }

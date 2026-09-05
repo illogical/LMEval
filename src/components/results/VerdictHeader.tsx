@@ -17,6 +17,27 @@ interface VerdictHeaderProps {
   onOpenSummary: () => void;
 }
 
+/**
+ * R8: when a built-in purpose template's gate verdict is available, it is the
+ * primary read — pass/fail before ranked score. "granite4.1:8b is the only
+ * candidate that clears the classification gate" rather than "scored 4.2."
+ * This only fires for comparisonMode: 'model' (a gate is a property of a
+ * model's output quality, not of a prompt pairing) with exactly one model
+ * summary standing in for the run's overall gate outcome; multi-model gate
+ * comparison (which models individually clear/miss the gate) is A11's
+ * per-task reporting work, not this pass's VerdictHeader scope.
+ */
+function buildGateVerdict(config: EvaluationConfig, summary: EvaluationSummary): string | null {
+  const gate = summary.taskMetrics?.gate;
+  if (!gate) return null;
+  const top = [...summary.modelSummaries].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))[0];
+  const subject = top ? modelShortName(top.modelId) : (config.name || 'This candidate');
+  if (gate.pass) {
+    return `${subject} clears the ${summary.taskMetrics!.taskType} gate`;
+  }
+  return `${subject} does NOT clear the ${summary.taskMetrics!.taskType} gate — ${gate.failures[0] ?? 'see task metrics'}`;
+}
+
 function buildVerdict(config: EvaluationConfig, summary: EvaluationSummary): { headline: string; detail: string } {
   const models = [...summary.modelSummaries].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
   const top = models[0];
@@ -72,7 +93,12 @@ export function VerdictHeader({
   const [slugDraft, setSlugDraft] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const { headline, detail } = buildVerdict(config, summary);
+  const gateHeadline = buildGateVerdict(config, summary);
+  const { headline: scoreHeadline, detail } = buildVerdict(config, summary);
+  // R8: gate verdict is the primary read when available; the score-based
+  // headline becomes supporting detail rather than disappearing.
+  const headline = gateHeadline ?? scoreHeadline;
+  const scoreAsDetail = gateHeadline ? scoreHeadline : null;
 
   const caveats: string[] = [];
   if ((config.runsPerCell ?? 1) <= 1) caveats.push('n=1 run per cell — differences under ±0.3 are noise');
@@ -103,7 +129,8 @@ export function VerdictHeader({
       <div className="vh-top">
         <div className="vh-verdict">
           <span className="vh-headline">{headline}</span>
-          {detail && <span className="vh-detail"> — {detail}</span>}
+          {scoreAsDetail && <span className="vh-detail"> — {scoreAsDetail}</span>}
+          {detail && !scoreAsDetail && <span className="vh-detail"> — {detail}</span>}
         </div>
         <div className="vh-actions">
           {baselines.length > 0 && (

@@ -10,7 +10,7 @@
   "assertionStrategy": {
     "type": "exact-label",
     "config": {
-      "categories": ["Preference", "Reminder", "Snippet", "Event", "Note", "Prompt", "Idea", "History"]
+      "labels": ["Preference", "Reminder", "Snippet", "Event", "Note", "Prompt", "Idea", "History"]
     }
   },
   "starterTestCases": [

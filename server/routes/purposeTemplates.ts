@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { PurposeTemplateService } from '../services/PurposeTemplateService';
+import { normalizeAssertionStrategy, AssertionStrategyValidationError } from '../services/AssertionStrategyService';
 
 export const purposeTemplatesRouter = Router();
 
@@ -19,13 +20,22 @@ purposeTemplatesRouter.post('/', (req, res) => {
   if (!body.name || !body.assertionStrategy) {
     return void res.status(400).json({ error: 'name and assertionStrategy are required' });
   }
+  let assertionStrategy;
+  try {
+    assertionStrategy = normalizeAssertionStrategy(body.assertionStrategy);
+  } catch (err) {
+    if (err instanceof AssertionStrategyValidationError) {
+      return void res.status(400).json({ error: err.message });
+    }
+    throw err;
+  }
   const template = PurposeTemplateService.create({
     name: body.name,
     description: body.description ?? '',
     purposeCategory: 'custom',
     seedPromptContent: body.seedPromptContent,
     defaultComparisonMode: body.defaultComparisonMode ?? 'prompt',
-    assertionStrategy: body.assertionStrategy,
+    assertionStrategy,
     starterTestCases: body.starterTestCases ?? [],
   });
   res.status(201).json(template);
@@ -33,8 +43,19 @@ purposeTemplatesRouter.post('/', (req, res) => {
 
 purposeTemplatesRouter.put('/:id', (req, res) => {
   const { id } = req.params;
+  const body = { ...req.body };
+  if (body.assertionStrategy) {
+    try {
+      body.assertionStrategy = normalizeAssertionStrategy(body.assertionStrategy);
+    } catch (err) {
+      if (err instanceof AssertionStrategyValidationError) {
+        return void res.status(400).json({ error: err.message });
+      }
+      throw err;
+    }
+  }
   try {
-    const updated = PurposeTemplateService.update(id, req.body);
+    const updated = PurposeTemplateService.update(id, body);
     if (!updated) return void res.status(404).json({ error: 'Purpose template not found' });
     res.json(updated);
   } catch (err) {

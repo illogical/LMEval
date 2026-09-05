@@ -6,8 +6,8 @@ export { STORAGE_KEY };
 export function purposeTemplateToState(t: EvalPurposeTemplate): Pick<EvalWizardState,
   'comparisonMode' | 'promptA' | 'promptB' | 'inlineTestCases' | 'templateId' | 'purposeTemplateId' | 'purposeTemplateName'
 > {
-  const templateId = t.assertionStrategy.type === 'llm-rubric'
-    ? (typeof t.assertionStrategy.config.templateId === 'string' ? t.assertionStrategy.config.templateId : null)
+  const templateId = t.assertionStrategy.type === 'grounded-summary'
+    ? t.assertionStrategy.config.templateId
     : null;
   return {
     comparisonMode: t.defaultComparisonMode,

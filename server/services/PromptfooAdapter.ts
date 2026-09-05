@@ -2,6 +2,7 @@ import Ajv from 'ajv';
 import type { Assertion, ApiProvider } from 'promptfoo';
 import { LmapiClient } from './LmapiClient';
 import { config as serverConfig } from '../config';
+import { checkSummaryDeterministics } from './summarizationChecks';
 import type {
   EvaluationConfig, TestCase, EvalTemplate, ToolDefinition, AssertionStrategy, InferenceParams,
 } from '../../src/types/eval';
@@ -89,6 +90,10 @@ export function buildJudgeProvider(judgeModelId: string, evalId: string): ApiPro
           messages: [{ role: 'user', content: prompt }],
           stream: false,
           groupId: `judge-${evalId}`,
+          // R6: judge passes run at t=0 — the grading call should be as
+          // reproducible as the backend allows, independent of the run's own
+          // sampling temperature.
+          temperature: 0,
         });
         return { output: response.choices[0]?.message.content ?? '' };
       } catch (err) {
@@ -201,6 +206,44 @@ function buildLabelOverlapAssertion(testCase: TestCase, threshold: number): Asse
   };
 }
 
+/**
+ * R1: classification, replacing `expectedKeywords` prose-matching. The response
+ * must equal (after trimming only — no stripping of punctuation or case-folding
+ * on the pass/fail check itself, since a trailing period or wrong case is
+ * exactly the format-compliance failure this assertion exists to catch) one of
+ * the declared labels, and it must match TestCase.expectedOutput specifically —
+ * `expectedKeywords` is no longer consulted for grading a classification case.
+ */
+function buildExactLabelAssertion(testCase: TestCase, labels: string[]): Assertion | null {
+  const expected = testCase.expectedOutput?.trim();
+  if (!expected) return null;
+  const labelSet = new Set(labels);
+  return {
+    type: 'javascript',
+    metric: 'exact-label',
+    value: (output: string) => {
+      const predicted = output.trim();
+      const validLabel = labelSet.has(predicted);
+      const pass = predicted === expected;
+      return {
+        pass,
+        score: pass ? 1 : 0,
+        reason: pass
+          ? `Matched expected label "${expected}"`
+          : `Expected "${expected}", got "${predicted}"${validLabel ? '' : ' (not a declared label)'}`,
+      };
+    },
+  };
+}
+
+/**
+ * R2: 'custom' has a validated config (see AssertionStrategyService) but,
+ * per the plan's Key Decisions, no generalized plugin execution — a custom
+ * strategy is recorded and its description surfaces in the UI, but it adds no
+ * assertion of its own. Building a declarative custom-check runner is the
+ * deferred plugin-architecture work in TASK.md Track F, not this pass.
+ */
+
 function buildRubricAssertions(template: EvalTemplate, judgeProvider: ApiProvider): Assertion[] {
   return template.perspectives.map(p => ({
     type: 'llm-rubric' as const,
@@ -209,6 +252,59 @@ function buildRubricAssertions(template: EvalTemplate, judgeProvider: ApiProvide
     metric: p.name,
     provider: judgeProvider,
   }));
+}
+
+const JUDGE_PASS_COUNT = 3;
+
+/**
+ * R6: "three independent judge passes at t=0 aggregated by median." Chosen
+ * implementation (the plan's Outstanding Questions left this open): three
+ * separate llm-rubric assertions per rubric dimension, metric-suffixed
+ * `${perspectiveName}#1..3`, rather than a bespoke repeated-grading harness —
+ * this reuses promptfoo's existing llm-rubric dispatch/parsing untouched and
+ * SummaryService only has to group-by-stripped-suffix and take the median
+ * (see SummaryService.medianOfJudgePasses). buildJudgeProvider forces t=0 on
+ * the judge call itself; "independent" here means each pass is a separate
+ * dispatched grading call, not that they are guaranteed to diverge under a
+ * deterministic backend — three agreeing passes is itself a legitimate,
+ * informative outcome (self-consistency), not a wasted call.
+ */
+function buildGroundedSummaryRubricAssertions(template: EvalTemplate, judgeProvider: ApiProvider): Assertion[] {
+  const assertions: Assertion[] = [];
+  for (const p of template.perspectives) {
+    for (let pass = 1; pass <= JUDGE_PASS_COUNT; pass++) {
+      assertions.push({
+        type: 'llm-rubric',
+        value: `${p.criteria}\n\nScoring guide: ${p.scoringGuide}`,
+        weight: p.weight,
+        metric: `${p.name}#${pass}`,
+        provider: judgeProvider,
+      });
+    }
+  }
+  return assertions;
+}
+
+/**
+ * R6 deterministic guards, run before model grading: no preamble/heading/fence
+ * wrapper text, compression ratio within range, protected tokens preserved
+ * verbatim, and no literal forbidden claim substring present. Each sub-check
+ * is reported in `reason` so a failure is diagnosable without re-reading the
+ * raw response.
+ */
+function buildSummaryDeterministicAssertion(testCase: TestCase, compressionRange: [number, number]): Assertion {
+  return {
+    type: 'javascript',
+    metric: 'summary-deterministic',
+    value: (output: string) => {
+      const result = checkSummaryDeterministics(output, testCase, compressionRange);
+      return {
+        pass: result.pass,
+        score: result.pass ? 1 : 0,
+        reason: result.pass ? 'Passes all deterministic checks' : result.failures.join('; '),
+      };
+    },
+  };
 }
 
 /**
@@ -276,22 +372,33 @@ export const PromptfooAdapter = {
     const providers = config.modelIds.map(modelId => buildLmapiProvider(modelId, evalId, config.resolvedInference));
     const judgeProvider = config.judgeModelId ? buildJudgeProvider(config.judgeModelId, evalId) : null;
     const overlapThreshold =
-      purposeStrategy?.type === 'label-overlap' && typeof purposeStrategy.config.threshold === 'number'
-        ? purposeStrategy.config.threshold
-        : 0.5;
+      purposeStrategy?.type === 'label-overlap' ? purposeStrategy.config.minimumCaseF1 : 0.5;
 
     const tests = testCases.map(tc => {
       const assertions: Assertion[] = [
         ...buildDeterministicAssertions(tc, promptContents[0]?.tools),
       ];
 
+      if (purposeStrategy?.type === 'exact-label') {
+        const exactLabelAssertion = buildExactLabelAssertion(tc, purposeStrategy.config.labels);
+        if (exactLabelAssertion) assertions.push(exactLabelAssertion);
+      }
+
       if (purposeStrategy?.type === 'label-overlap') {
         const overlapAssertion = buildLabelOverlapAssertion(tc, overlapThreshold);
         if (overlapAssertion) assertions.push(overlapAssertion);
       }
 
+      if (purposeStrategy?.type === 'grounded-summary') {
+        assertions.push(buildSummaryDeterministicAssertion(tc, purposeStrategy.config.compressionRange ?? [0.05, 0.6]));
+      }
+
       if (template && judgeProvider) {
-        assertions.push(...buildRubricAssertions(template, judgeProvider));
+        assertions.push(
+          ...(purposeStrategy?.type === 'grounded-summary'
+            ? buildGroundedSummaryRubricAssertions(template, judgeProvider)
+            : buildRubricAssertions(template, judgeProvider))
+        );
       }
 
       // enablePairwise / select-best intentionally not wired — see
