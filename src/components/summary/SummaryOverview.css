@@ -1,0 +1,25 @@
+.so-panel {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.so-headline {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.so-detail {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.so-overview {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}

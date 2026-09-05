@@ -136,6 +136,24 @@
   gap: 6px;
 }
 
+/* ── Import from suite ── */
+.tce-import-suite {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tce-import-suite-select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  max-width: 160px;
+}
+
 /* ── Buttons ── */
 .tce-btn {
   display: inline-flex;
@@ -362,6 +380,32 @@
   width: 32px;
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+/* ── Row drag-to-reorder ── */
+.tce-drag-handle {
+  width: 20px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.tce-drag-handle span {
+  display: inline-flex;
+  cursor: grab;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.tce-drag-handle span:hover {
+  opacity: 1;
+}
+
+.tce-row-dragging {
+  opacity: 0.4;
+}
+
+.tce-row-drag-over td {
+  border-top: 2px solid var(--accent);
 }
 
 .tce-input {

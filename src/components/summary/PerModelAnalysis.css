@@ -1,0 +1,11 @@
+.pma-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pma-gates {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

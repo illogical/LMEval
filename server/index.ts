@@ -51,7 +51,11 @@ export function buildApp(): { router: Router; dispose: () => Promise<void> } {
   router.use('/api/eval/model-selection', modelSelectionRouter);
 
   router.get('/api/eval/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      refinementModelConfigured: config.refinementModel != null,
+    });
   });
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

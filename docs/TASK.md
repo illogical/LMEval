@@ -4,7 +4,7 @@
 > [`features/eval-wizard/TASK.md`](features/eval-wizard/TASK.md) (wizard/UX track). Both remain in the
 > repository as historical records of completed work; **all open work lives here.**
 >
-> **Last reconciled against the working tree:** 2026-09-05 (A1, A3, A6, MemoryApi's A2, A7, A8, A9, and A10 closed)
+> **Last reconciled against the working tree:** 2026-09-05 (A1, A3, A6, MemoryApi's A2, A7, A8, A9, A10, and B1/B2/B3 closed)
 
 ---
 
@@ -71,9 +71,9 @@ and the cross-project review in [`plans/2026-09-04-ingestion-eval-alignment-revi
 | 5 | Frontend config + execution | ✅ complete |
 | 6 | Frontend results + analysis | ✅ complete |
 | 6.5 | Run dashboard fixes + redesign | ✅ complete |
-| 7 | Prepare & Results refinement | ⚠️ mostly complete — see Track B |
+| 7 | Prepare & Results refinement | ✅ complete 2026-09-05 (B1/B2), browser walkthrough owed — see Track B/E |
 | 8 | Automated refinement loop | ⛔ not started |
-| 9 | Wizard Step 5: AI summary | ⛔ not started (placeholder page ships) |
+| 9 | Wizard Step 5: AI summary | ✅ complete 2026-09-05 (B3), browser walkthrough owed — see Track B/E |
 | 10 | Promptfoo engine migration | ⚠️ complete except pairwise + live verification |
 | 11 | Evaluation mode strip | ✅ complete except Full-Matrix N-slot UI |
 | 12 | Purpose templates + gallery | ✅ complete, browser walkthrough unverified |
@@ -404,24 +404,54 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 
 ### Track B — Wizard completion
 
-**B1 — Prepare page (Phase 7 remainder)**
-- [ ] Drag-to-reorder for inline test case rows
-- [ ] "Import from test suite" shortcut in the inline table (copies a suite's cases in as editable inline rows)
+> **Before picking up B1–B6, read
+> [`plans/2026-09-05-a9-a10-ux-and-track-b-lessons-plan.md`](plans/2026-09-05-a9-a10-ux-and-track-b-lessons-plan.md).**
+> It argues that A9/A10 shipping with zero UI (by deliberate scope boundary, above) leaves LMEval's two
+> newest measurement features reachable only via `curl`, and recommends building that UI — a new
+> `/campaigns` section, a judge-qualification status badge, and a small `/settings` page — **before**
+> Track B's wizard-polish items, since Track B is incremental UX on an already-usable flow while A9/A10
+> currently have no flow at all. It also extracts reusable precedent (the `BreakdownView` scatter chart,
+> `VerdictHeader`'s gate-first framing, `DashboardPage`'s polling loop) that Track B's own items should
+> check against before building anything new.
+>
+> **B1–B3 implemented 2026-09-05**, per
+> [`plans/2026-09-05-b1-b3-track-b-implementation-plan.md`](plans/2026-09-05-b1-b3-track-b-implementation-plan.md).
+> `tsc -b`, `npm run build`, `npm run lint` (23 pre-existing errors, unchanged, none in a touched file),
+> and `npx vitest run` (278 passing, 37 files, up from 266/35 — 12 new tests) all clean. **Verification
+> split, stated plainly**: the backend was live-verified against a real running server and real
+> filesystem state (see the Track E entry below) — LMApi itself was unreachable in that environment, so
+> only paths that don't require a live model response were exercised end-to-end; no live model call
+> completed. The frontend (B1's drag-reorder and suite-import button, B2's failure drawer and skeleton,
+> B3's Summary page) is `tsc`/lint-clean and follows existing component patterns but was **not**
+> exercised in a browser — owed, tracked in Track E.
 
-**B2 — Results page (Phase 7 remainder)**
-- [ ] Failure detail panel: clicking a failed cell opens a drawer with error message + type, retry history (attempt, timestamp, error), full raw response, deterministic check breakdown, and a **↻ Retry this cell** button calling `POST /api/eval/evaluations/:id/retry` with `{ failedCellsOnly: true }`
-- [ ] Add `rawJudgeResponse?: string` to `JudgeResult`; store it in the `JudgeService` parse fallback chain; display it in the failure panel
-- [ ] Eval run selector when a session has multiple runs — a tab bar of run number + completion status
-- [ ] Skeleton loaders for heatmap cells while results fetch; spinner in the model leaderboard
+**B1 — Prepare page (Phase 7 remainder)** — ✅ **complete 2026-09-05, browser walkthrough owed**
+- [x] Drag-to-reorder for inline test case rows — native HTML5 drag events (no new dependency), `TestCaseEditor.tsx`
+- [x] "Import from test suite" shortcut in the inline table (copies a suite's cases in as editable inline rows), distinct from the existing suite-*linking* "Use benchmark suite" affordance — reuses `listTestSuites()` + `serializeJSON()`/`processText()`, live-confirmed `GET /test-suites` returns full `testCases[]` so no extra fetch is needed
 
-**B3 — Step 5: Summary & AI suggestions (Phase 9)**
-- [ ] `SummaryPage.tsx` replacing the placeholder — `SummaryOverview`, `ModelRecommendation`, `PerModelAnalysis`, `ImprovementSuggestions` components
-- [ ] `POST /api/eval/evaluations/:id/summary-analysis` — accepts `{ refinementModel? }`, builds the analysis prompt, dispatches via LMApi, parses into typed sections, caches to `data/evals/evaluations/{id}/analysis.json`
-- [ ] "Apply Suggestion" → new prompt version + session version; "Apply & Re-run" → apply and start a new run
-- [ ] Wire the "View Summary & Suggestions →" button on `ResultsPage.tsx`
-- [ ] Graceful degradation: no `REFINEMENT_MODEL` configured → raw summary without AI sections
+**B2 — Results page (Phase 7 remainder)** — ✅ **complete 2026-09-05, browser walkthrough owed**
+- [x] Failure detail panel (`FailureDrawer.tsx`, wrapping `DetailView.tsx` in a modal shell) opens from a failed heatmap cell with error message + type, retry history, full raw response, deterministic check breakdown, and a **↻ Retry this cell** button
+- [x] **Fixed, not just wired**: `POST /:id/retry`'s `failedCellsOnly` was accepted but never implemented (always re-ran the whole evaluation) — `ExecutionService.run()` now accepts an optional `cellFilter` (exported pure helpers `narrowForCellFilter()`/`filterCellsByAllowList()`, unit-tested) that narrows prompts/models/test-cases to exactly the requested triples before promptfoo builds its matrix. The route derives the filter from either `cellIds` (single-cell retry) or `failedCellsOnly` (bulk), reading `results.json` (the post-execution status) rather than `cells.json` (the pre-execution pending snapshot) — **this file choice was itself a bug caught by live curl testing**, not review: reading `cells.json` made every `failedCellsOnly` retry report "No failed cells to retry" since that file's cells never leave `status: 'pending'`
+- [x] `JudgeResult.rawResponse` (already existed, `src/types/eval.ts:193`) is now displayed in the drawer, collapsed by default
+- [x] Eval run selector when a session has multiple runs — a tab bar of run number + completion status, `GET /sessions/:id/runs`
+- [x] Skeleton loader (`ResultsSkeleton.tsx`) replacing the bare "Loading results…" text
+- **Not built**: cross-eval retry history (attempt N against a *previous* retry's separate eval id) — `Cell.retryAttempts` displayed in the drawer is the existing per-run provider-level retry bookkeeping, not a new ledger across manual retries; scoped out as bigger than what B2 asked for
 
-**B4 — Git integration frontend (Phase 2.5 remainder)**
+**B3 — Step 5: Summary & AI suggestions (Phase 9)** — ✅ **complete 2026-09-05, browser walkthrough owed**
+- [x] `SummaryPage.tsx` replacing the placeholder — `SummaryOverview` (reuses `VerdictHeader`'s gate-first headline logic, extracted to `src/lib/verdict.ts` so both surfaces share one implementation instead of two), `GateMetricsPanel` (new: the Summary page's first home for `EvaluationSummary.taskMetrics`/`perModelTaskMetrics`, mirroring `ReportService.renderTaskMetrics()`'s data), `PerModelAnalysis` (embeds `BreakdownView` wholesale rather than a second chart set), `ImprovementSuggestions`
+- [x] `POST /api/eval/evaluations/:id/summary-analysis` (`SummaryAnalysisService.ts`) — accepts `{ refinementModel? }`, builds the analysis prompt from the eval's model/prompt rankings and current prompt content, dispatches via `LmapiClient`, parses into typed sections via a 4-step fallback chain matching `JudgeService`'s convention (unit-tested: direct JSON, fenced, regex-extracted, malformed-suggestion-dropped, unknown-prompt-id), caches to `data/evals/evaluations/{id}/analysis.json`; `GET` reads the cache, `404` before one exists
+- [x] "Apply Suggestion" → new prompt version (`PromptService.addVersion()`) + session version (`SessionService.createVersion()`) when the eval has a two-prompt session; "Apply & Re-run" → same, then `POST /evaluations` with the updated prompt
+- [x] "View Summary & Suggestions →" on `ResultsPage.tsx` already pointed at `/eval/summary/:evalId` — wiring was already correct, the stub page was the only gap
+- [x] Graceful degradation: `GET /api/eval/health` now reports `refinementModelConfigured` (`config.refinementModel`, shared with Track C1 — `REFINEMENT_MODEL` added to `.example.env`); `ImprovementSuggestions` shows a note instead of a Generate button when unset. Live-confirmed both states (unset → `false` + `400` on POST; set → `true` + request reaches `LmapiClient` and fails only on LMApi being unreachable, not on model resolution)
+
+**B4 — Git integration frontend (Phase 2.5 remainder)** — **on hold, pending a dedicated re-scoping session**
+> The git-backed commit/revert flow below is still what's implemented today (`GitService.ts` — `init`/
+> `commit`/`log`/`revert`/`status` over `DATA_ROOT`, which already holds prompt/session/eval-output
+> version history and is already separate from the read-only `REPO_ROOT` seed content). Before building
+> the frontend buttons, revisit whether git is the right versioning mechanism at all versus an
+> app-native version store with a purpose-built diff view — see the forward-note in
+> [`plans/2026-09-05-b1-b3-track-b-implementation-plan.md`](plans/2026-09-05-b1-b3-track-b-implementation-plan.md#b4--forward-note-only-not-designed-in-this-plan)
+> for what's already confirmed about the current architecture, so that session starts from facts.
 - [ ] "Commit Improvement" button (visible after a positive `scoreDelta`) pre-filling `feat(prompt): improve {session.name} (+{delta} score)`
 - [ ] "Revert to Previous" button with confirmation dialog
 - [ ] Verification: init → commit → log → revert round trip
@@ -511,6 +541,31 @@ behavior can be called verified.
   Slice Breakdown / Model Selection sections render correctly against a real evaluation with a
   configured latency budget and a qualified judge. None of unit tests or static review count as this
   verification, per this repo's standing convention (TASK.md §6).
+- [x] / [ ] **B1/B2/B3 (2026-09-05) — partially verified, split stated precisely**:
+  - **Live-verified against a real running server + real filesystem state** (LMApi unreachable in the
+    implementing environment, so no path requiring an actual model response could complete):
+    `POST /:id/retry` with `cellIds` on a single failed cell produces a new evaluation whose matrix
+    contains *exactly* that one (promptId, modelId, testCaseId) triple, not the original's full set;
+    the same with `failedCellsOnly: true` against two failed cells produces exactly two, matching the
+    originals; an invalid `cellIds` value returns `400`, an unknown evaluation id returns `404`;
+    `GET /test-suites` returns full `testCases[]` (confirms B1's suite-import button needs no extra
+    fetch); `GET /summary-analysis` returns `404` before generation; `POST /summary-analysis` returns
+    `400` with a clear message when `REFINEMENT_MODEL` is unset, and — once set — proceeds far enough
+    to reach `LmapiClient` and fail only on the network call, not on model resolution; `GET /health`'s
+    `refinementModelConfigured` flips correctly with the env var in both directions. **This live pass
+    caught two real bugs no amount of review or unit testing had**: the retry route originally read
+    `cells.json` (the pre-execution 'pending' snapshot) instead of `results.json` (the actual
+    post-execution status), which made every `failedCellsOnly` retry report "No failed cells to retry"
+    even with real failed cells on disk; and exporting `VerdictHeader`'s verdict-string builders
+    directly triggered a `react-refresh/only-export-components` lint error, fixed by extracting them to
+    `src/lib/verdict.ts`. Both are fixed in the current tree, not just noted here.
+  - **Not verified — owed**: a real LMApi + Ollama round trip completing an actual retry or
+    summary-analysis call (only structural/validation behavior was reachable without one); a browser
+    walkthrough of every new frontend surface — B1's drag-to-reorder and suite-import button, B2's
+    failure drawer (including the collapsible raw-judge-response toggle and the loading skeleton), B3's
+    full Summary page (gate panels, per-model `BreakdownView` embed, suggestion cards, Apply / Apply &
+    Re-run round trip). None of `tsc`/lint/vitest passing, nor the curl-level checks above, stand in for
+    either.
 
 ---
 

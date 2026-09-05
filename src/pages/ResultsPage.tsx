@@ -6,14 +6,18 @@ import { DetailView } from '../components/results/DetailView';
 import { BreakdownView } from '../components/results/BreakdownView';
 import { TrendView } from '../components/results/TrendView';
 import { VerdictHeader } from '../components/results/VerdictHeader';
+import { FailureDrawer } from '../components/results/FailureDrawer';
+import { ResultsSkeleton } from '../components/results/ResultsSkeleton';
 import {
   getEvaluation, getEvaluationResults, getEvaluationSummary, getEvaluationTestCases,
   getEvaluationHistory, getEvaluationRegression, listBaselines, exportEvaluation, saveBaseline,
+  retryEvaluationCells, listSessionRuns,
 } from '../api/eval';
 import type {
   EvalMatrixCell, EvaluationSummary, EvaluationConfig, TestCase, EvaluationHistoryEntry,
   BaselineSummary, RegressionResult,
 } from '../types/eval';
+import type { EvalRun } from '../types/session';
 import './ResultsPage.css';
 
 type Tab = 'scoreboard' | 'breakdown' | 'compare' | 'detail' | 'trend';
@@ -42,6 +46,9 @@ export function ResultsPage() {
   const [compareDeepLink, setCompareDeepLink] = useState<{ cellId: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [failureDrawerCell, setFailureDrawerCell] = useState<EvalMatrixCell | null>(null);
+  const [retryingCellId, setRetryingCellId] = useState<string | null>(null);
+  const [sessionRuns, setSessionRuns] = useState<EvalRun[]>([]);
 
   useEffect(() => {
     if (!evalId) return;
@@ -61,6 +68,7 @@ export function ResultsPage() {
         setTestCases(testCasesData);
         setHistory(historyData);
         setBaselines(baselinesData);
+        setSessionRuns([]);
       })
       .catch(err => setError((err as Error).message))
       .finally(() => setLoading(false));
@@ -72,6 +80,11 @@ export function ResultsPage() {
       .then(setRegression)
       .catch(() => setRegression(undefined));
   }, [evalId, selectedBaselineSlug]);
+
+  useEffect(() => {
+    if (!config?.sessionId) return;
+    listSessionRuns(config.sessionId).then(setSessionRuns).catch(() => setSessionRuns([]));
+  }, [config?.sessionId]);
 
   function handleSelectBaseline(slug: string) {
     setSelectedBaselineSlug(slug);
@@ -98,6 +111,10 @@ export function ResultsPage() {
   }, [evalId]);
 
   function handleHeatmapCellClick(cell: EvalMatrixCell) {
+    if (cell.status === 'failed') {
+      setFailureDrawerCell(cell);
+      return;
+    }
     setCompareDeepLink({ cellId: cell.id });
     setActiveTab('compare');
   }
@@ -114,7 +131,19 @@ export function ResultsPage() {
     setActiveTab('compare');
   }
 
-  if (loading) return <div className="rp-loading">Loading results…</div>;
+  const handleRetryCell = useCallback(async (cellId: string) => {
+    if (!evalId) return;
+    setRetryingCellId(cellId);
+    try {
+      const result = await retryEvaluationCells(evalId, { cellIds: [cellId] });
+      navigate(`/eval/run/${result.evalId}`);
+    } catch (err) {
+      setError((err as Error).message);
+      setRetryingCellId(null);
+    }
+  }, [evalId, navigate]);
+
+  if (loading) return <ResultsSkeleton />;
   if (error) return <div className="rp-error">{error}</div>;
   if (!summary || !config) return <div className="rp-error">No results found</div>;
 
@@ -122,6 +151,27 @@ export function ResultsPage() {
 
   return (
     <div className="results-page">
+      {sessionRuns.length > 1 && (
+        <div className="rp-run-selector" role="tablist" aria-label="Evaluation runs">
+          {sessionRuns
+            .slice()
+            .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+            .map((run, idx) => (
+              <button
+                key={run.id}
+                role="tab"
+                aria-selected={run.evalId === evalId}
+                className={`rp-run-tab rp-run-tab-${run.status}${run.evalId === evalId ? ' rp-run-tab-active' : ''}`}
+                onClick={() => run.evalId !== evalId && navigate(`/eval/results/${run.evalId}`)}
+                title={`${run.status}${run.completedAt ? ` · ${new Date(run.completedAt).toLocaleString()}` : ''}`}
+              >
+                Run {idx + 1}
+                <span className={`rp-run-status-dot rp-run-status-${run.status}`} />
+              </button>
+            ))}
+        </div>
+      )}
+
       <VerdictHeader
         config={config}
         summary={summary}
@@ -170,6 +220,8 @@ export function ResultsPage() {
             testCases={testCases}
             onSelectCell={setSelectedCell}
             onCompareCell={handleCompareFromDetail}
+            onRetryCell={handleRetryCell}
+            retryingCellId={retryingCellId}
           />
         )}
         {activeTab === 'trend' && (
@@ -183,6 +235,19 @@ export function ResultsPage() {
           />
         )}
       </div>
+
+      {failureDrawerCell && (
+        <FailureDrawer
+          cell={failureDrawerCell}
+          cells={cells}
+          testCases={testCases}
+          onClose={() => setFailureDrawerCell(null)}
+          onSelectCell={setFailureDrawerCell}
+          onCompareCell={cellId => { setFailureDrawerCell(null); handleCompareFromDetail(cellId); }}
+          onRetryCell={handleRetryCell}
+          retryingCellId={retryingCellId}
+        />
+      )}
     </div>
   );
 }

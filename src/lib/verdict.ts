@@ -1,0 +1,88 @@
+import type { EvaluationConfig, EvaluationSummary } from '../types/eval';
+import { formatScore, formatLatency } from './scoring';
+import { modelShortName } from './labels';
+
+/**
+ * R8: when a built-in purpose template's gate verdict is available, it is the
+ * primary read — pass/fail before ranked score. "granite4.1:8b is the only
+ * candidate that clears the classification gate" rather than "scored 4.2."
+ * This only fires for comparisonMode: 'model' (a gate is a property of a
+ * model's output quality, not of a prompt pairing) with exactly one model
+ * summary standing in for the run's overall gate outcome; multi-model gate
+ * comparison (which models individually clear/miss the gate) is A11's
+ * per-task reporting work, not this pass's scope.
+ *
+ * A7/A8: the gate verdict now distinguishes pass / fail / inconclusive (CI
+ * straddles the threshold — not a false pass) / advisory (judge unqualified
+ * or self-judging) rather than a bare boolean.
+ *
+ * Shared by VerdictHeader (Results page) and SummaryOverview (Summary page,
+ * B3) so both surfaces report the exact same gate-first language rather than
+ * re-deriving it twice.
+ */
+export function buildGateVerdict(config: EvaluationConfig, summary: EvaluationSummary): string | null {
+  const gate = summary.taskMetrics?.gate;
+  if (!gate) return null;
+  const top = [...summary.modelSummaries].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))[0];
+  const subject = top ? modelShortName(top.modelId) : (config.name || 'This candidate');
+  const taskType = summary.taskMetrics!.taskType;
+  const caseNote = `${gate.caseCount} case${gate.caseCount === 1 ? '' : 's'}`;
+  switch (gate.verdict) {
+    case 'pass':
+      return `${subject} clears the ${taskType} gate (${caseNote})`;
+    case 'inconclusive':
+      return `${subject}'s ${taskType} gate is inconclusive at ${caseNote}${gate.neededCases ? ` — need ~${gate.neededCases} more to resolve` : ''}`;
+    case 'advisory':
+      return `${subject}'s ${taskType} result is advisory only — ${gate.failures[0] ?? 'judge not qualified'}`;
+    case 'fail':
+    default:
+      return `${subject} does NOT clear the ${taskType} gate — ${gate.failures[0] ?? 'see task metrics'}`;
+  }
+}
+
+export function buildVerdict(config: EvaluationConfig, summary: EvaluationSummary): { headline: string; detail: string } {
+  const models = [...summary.modelSummaries].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  const top = models[0];
+  const runnerUp = models[1];
+
+  if (config.comparisonMode === 'prompt' && config.promptIds.length >= 2) {
+    const a = summary.promptSummaries.find(p => p.promptId === config.promptIds[0]);
+    const b = summary.promptSummaries.find(p => p.promptId === config.promptIds[1]);
+    if (a?.avgCompositeScore != null && b?.avgCompositeScore != null) {
+      const delta = b.avgCompositeScore - a.avgCompositeScore;
+      const verb = delta > 0 ? 'improves on' : delta < 0 ? 'falls behind' : 'ties';
+      return {
+        headline: `Prompt B ${verb} Prompt A by ${delta >= 0 ? '+' : ''}${delta.toFixed(1)}`,
+        detail: `${formatScore(a.avgCompositeScore)} → ${formatScore(b.avgCompositeScore)}`,
+      };
+    }
+  }
+
+  if (config.comparisonMode === 'model' || !config.comparisonMode) {
+    if (top) {
+      const name = modelShortName(top.modelId);
+      const scoreText = top.avgCompositeScore != null ? `${formatScore(top.avgCompositeScore)}/5` : 'no score';
+      const detailParts = [
+        `${scoreText}`,
+        `${(top.successRate * 100).toFixed(0)}% pass`,
+        `${formatLatency(top.avgDurationMs)} avg`,
+      ];
+      let detail = detailParts.join(' · ');
+      if (runnerUp && top.avgCompositeScore != null && runnerUp.avgCompositeScore != null) {
+        const gap = top.avgCompositeScore - runnerUp.avgCompositeScore;
+        detail += `. Runner-up ${modelShortName(runnerUp.modelId)} trails by ${gap.toFixed(1)}`;
+      }
+      return { headline: `${name} is the best fit`, detail };
+    }
+  }
+
+  // matrix mode / fallback: report the two axes independently rather than
+  // fabricating a per-(prompt×model) combo the summary data can't back up.
+  const bestPrompt = [...summary.promptSummaries].sort(
+    (a, b) => (b.avgCompositeScore ?? 0) - (a.avgCompositeScore ?? 0)
+  )[0];
+  const parts: string[] = [];
+  if (top) parts.push(`Best model: ${modelShortName(top.modelId)}${top.avgCompositeScore != null ? ` (${formatScore(top.avgCompositeScore)})` : ''}`);
+  if (bestPrompt) parts.push(`Best prompt: v${bestPrompt.promptVersion}${bestPrompt.avgCompositeScore != null ? ` (${formatScore(bestPrompt.avgCompositeScore)})` : ''}`);
+  return { headline: parts.join(' · ') || 'Evaluation complete', detail: '' };
+}

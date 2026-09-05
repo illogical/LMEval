@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight, GitCompare } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, ChevronDown, GitCompare, RotateCw } from 'lucide-react';
 import type { EvalMatrixCell, TestCase } from '../../types/eval';
 import { formatLatency } from '../../lib/scoring';
 import { testCaseLabel } from '../../lib/labels';
@@ -10,9 +11,13 @@ interface DetailViewProps {
   testCases: TestCase[];
   onSelectCell: (cell: EvalMatrixCell) => void;
   onCompareCell?: (cellId: string) => void;
+  onRetryCell?: (cellId: string) => void | Promise<void>;
+  retryingCellId?: string | null;
 }
 
-export function DetailView({ cell, cells, testCases, onSelectCell, onCompareCell }: DetailViewProps) {
+export function DetailView({ cell, cells, testCases, onSelectCell, onCompareCell, onRetryCell, retryingCellId }: DetailViewProps) {
+  const [rawResponseOpenFor, setRawResponseOpenFor] = useState<string | null>(null);
+
   if (!cell) return <div className="dv-empty">Click a cell in the heatmap, or a failure in Breakdown, to view details</div>;
 
   const index = cells.findIndex(c => c.id === cell.id);
@@ -52,9 +57,21 @@ export function DetailView({ cell, cells, testCases, onSelectCell, onCompareCell
         <pre className="dv-response">{cell.response ?? cell.error ?? 'No response'}</pre>
       </section>
 
-      {cell.status === 'failed' && (cell.error || cell.errorType || cell.retryAttempts?.length) && (
+      {cell.status === 'failed' && (cell.error || cell.errorType || cell.retryAttempts?.length || onRetryCell) && (
         <section className="dv-section">
-          <h4 className="dv-section-title">Failure</h4>
+          <div className="dv-failure-header">
+            <h4 className="dv-section-title">Failure</h4>
+            {onRetryCell && (
+              <button
+                className="dv-retry-btn"
+                disabled={retryingCellId === cell.id}
+                onClick={() => onRetryCell(cell.id)}
+              >
+                <RotateCw size={12} className={retryingCellId === cell.id ? 'dv-retry-spin' : undefined} />
+                {retryingCellId === cell.id ? 'Retrying…' : 'Retry this cell'}
+              </button>
+            )}
+          </div>
           <table className="dv-table">
             <tbody>
               {cell.errorType && <tr><td>Error Type</td><td className="dv-err">{cell.errorType}</td></tr>}
@@ -135,15 +152,31 @@ export function DetailView({ cell, cells, testCases, onSelectCell, onCompareCell
       {cell.judgeResults && cell.judgeResults.length > 0 && (
         <section className="dv-section">
           <h4 className="dv-section-title">Judge Scores</h4>
-          {cell.judgeResults.map(jr => (
-            <div key={jr.perspectiveId} className="dv-judge-row">
-              <div className="dv-judge-header">
-                <span className="dv-judge-name">{jr.perspectiveId}</span>
-                <span className="dv-judge-score">{jr.score.toFixed(1)}</span>
+          {cell.judgeResults.map(jr => {
+            const rawKey = `${cell.id}::${jr.perspectiveId}`;
+            const rawOpen = rawResponseOpenFor === rawKey;
+            return (
+              <div key={jr.perspectiveId} className="dv-judge-row">
+                <div className="dv-judge-header">
+                  <span className="dv-judge-name">{jr.perspectiveId}</span>
+                  <span className="dv-judge-score">{jr.score.toFixed(1)}</span>
+                </div>
+                {jr.justification && <p className="dv-judge-just">{jr.justification}</p>}
+                {jr.rawResponse && (
+                  <>
+                    <button
+                      className="dv-collapse-toggle"
+                      onClick={() => setRawResponseOpenFor(rawOpen ? null : rawKey)}
+                    >
+                      {rawOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                      Raw judge response
+                    </button>
+                    {rawOpen && <pre className="dv-raw-response">{jr.rawResponse}</pre>}
+                  </>
+                )}
               </div>
-              {jr.justification && <p className="dv-judge-just">{jr.justification}</p>}
-            </div>
-          ))}
+            );
+          })}
         </section>
       )}
 

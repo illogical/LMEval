@@ -8,8 +8,9 @@ import { SessionService } from '../services/SessionService';
 import { ReportService } from '../services/ReportService';
 import { SummaryService } from '../services/SummaryService';
 import { TestSuiteService } from '../services/TestSuiteService';
+import { SummaryAnalysisService } from '../services/SummaryAnalysisService';
 import type {
-  EvaluationConfig, EvaluationSummary, TestCase, EvaluationHistoryEntry, BaselineSummary,
+  EvaluationConfig, EvaluationSummary, TestCase, EvaluationHistoryEntry, BaselineSummary, EvalMatrixCell,
 } from '../../src/types/eval';
 
 export const evaluationsRouter = Router();
@@ -248,12 +249,38 @@ evaluationsRouter.post('/:id/retry', (req, res) => {
   const { id } = req.params;
   const body = (req.body ?? {}) as {
     failedCellsOnly?: boolean;
+    cellIds?: string[];
     sessionId?: string;
     sessionVersion?: number;
   };
 
   const originalConfig = readJson<EvaluationConfig>(join(EVALUATIONS_DIR, id, 'config.json'));
   if (!originalConfig) return void res.status(404).json({ error: 'Evaluation not found' });
+
+  // `cellIds` (single/multi cell "Retry this cell") takes precedence over
+  // `failedCellsOnly` (bulk retry) when both are somehow present. Either
+  // produces an explicit (promptId, modelId, testCaseId) allow-list that
+  // ExecutionService.run() uses to shrink the re-run's matrix — previously
+  // `failedCellsOnly` was accepted here but never actually implemented,
+  // so a "retry failed cells" request silently re-ran the entire evaluation.
+  // `results.json` (written post-execution by ExecutionService.aggregate()) carries the
+  // real per-cell status/error; `cells.json` is only the pre-execution 'pending' snapshot
+  // buildMatrix() wrote before any cell ran, so a failedCellsOnly lookup against it would
+  // never find a 'failed' cell. Cell id/promptId/modelId/testCaseId are stable across both,
+  // so `cells.json` is still a safe fallback for a not-yet-completed evaluation.
+  const originalCells = readJson<EvalMatrixCell[]>(join(EVALUATIONS_DIR, id, 'results.json'))
+    ?? readJson<EvalMatrixCell[]>(join(EVALUATIONS_DIR, id, 'cells.json'))
+    ?? [];
+  let cellFilter: Array<{ promptId: string; modelId: string; testCaseId: string }> | undefined;
+  if (body.cellIds && body.cellIds.length > 0) {
+    const targeted = originalCells.filter(c => body.cellIds!.includes(c.id));
+    if (targeted.length === 0) return void res.status(400).json({ error: 'No matching cells found for the given cellIds' });
+    cellFilter = targeted.map(c => ({ promptId: c.promptId, modelId: c.modelId, testCaseId: c.testCaseId }));
+  } else if (body.failedCellsOnly) {
+    const failed = originalCells.filter(c => c.status === 'failed');
+    if (failed.length === 0) return void res.status(400).json({ error: 'No failed cells to retry' });
+    cellFilter = failed.map(c => ({ promptId: c.promptId, modelId: c.modelId, testCaseId: c.testCaseId }));
+  }
 
   const now = new Date().toISOString();
   const newEvalId = generateId('eval');
@@ -278,11 +305,33 @@ evaluationsRouter.post('/:id/retry', (req, res) => {
     evalRunId = run?.id;
   }
 
-  ExecutionService.run(newEvalId).catch(err => {
+  ExecutionService.run(newEvalId, cellFilter ? { cellFilter } : undefined).catch(err => {
     console.error(`[ExecutionService] retry run(${newEvalId}) failed:`, err);
   });
 
-  res.status(202).json({ evalId: newEvalId, evalRunId });
+  res.status(202).json({ evalId: newEvalId, evalRunId, retriedCells: cellFilter?.length });
+});
+
+// B3: Step 5 Summary page. GET returns the cached analysis (if any) without
+// dispatching a model call; POST (re)generates it. Cached to
+// data/evals/evaluations/{id}/analysis.json so repeat page visits don't
+// re-spend a refinement-model call.
+evaluationsRouter.get('/:id/summary-analysis', (req, res) => {
+  const { id } = req.params;
+  const cached = SummaryAnalysisService.getCached(id);
+  if (!cached) return void res.status(404).json({ error: 'No analysis has been generated for this evaluation yet' });
+  res.json(cached);
+});
+
+evaluationsRouter.post('/:id/summary-analysis', async (req, res) => {
+  const { id } = req.params;
+  const body = (req.body ?? {}) as { refinementModel?: string };
+  try {
+    const analysis = await SummaryAnalysisService.analyze(id, body.refinementModel);
+    res.json(analysis);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
 });
 
 evaluationsRouter.get('/:id/export', (req, res) => {

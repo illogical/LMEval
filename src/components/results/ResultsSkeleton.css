@@ -1,0 +1,46 @@
+.rs-skeleton {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@keyframes rs-shimmer {
+  0% { opacity: 0.35; }
+  50% { opacity: 0.7; }
+  100% { opacity: 0.35; }
+}
+
+.rs-sk-header,
+.rs-sk-card,
+.rs-sk-cell {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  animation: rs-shimmer 1.4s ease-in-out infinite;
+}
+
+.rs-sk-header {
+  height: 72px;
+  border-radius: 8px;
+}
+
+.rs-sk-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rs-sk-card {
+  height: 44px;
+}
+
+.rs-sk-heatmap {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+
+.rs-sk-cell {
+  height: 40px;
+}

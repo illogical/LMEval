@@ -48,6 +48,45 @@ export function resolveInferenceAndProvenance(
   };
 }
 
+export type CellFilterTriple = { promptId: string; modelId: string; testCaseId: string };
+
+/**
+ * B2 cell-scoped retry: narrows a config's promptIds/modelIds and the
+ * resolved test-case list down to exactly what a cellFilter's triples touch,
+ * so the matrix promptfoo builds shrinks with the filter instead of the
+ * `failedCellsOnly` bug this replaces (accepted but never implemented,
+ * silently re-running the whole evaluation — see TASK.md B2). A scoped retry
+ * is also always a single fresh attempt, not another run-to-run sample.
+ * Pure and exported so it's unit-testable without mocking promptfoo/FileService.
+ */
+export function narrowForCellFilter(
+  promptIds: string[],
+  modelIds: string[],
+  testCases: TestCase[],
+  cellFilter: CellFilterTriple[]
+): { promptIds: string[]; modelIds: string[]; testCases: TestCase[] } {
+  const filterTestCaseIds = new Set(cellFilter.map(f => f.testCaseId));
+  const filterPromptIds = new Set(cellFilter.map(f => f.promptId));
+  const filterModelIds = new Set(cellFilter.map(f => f.modelId));
+  return {
+    promptIds: promptIds.filter(id => filterPromptIds.has(id)),
+    modelIds: modelIds.filter(id => filterModelIds.has(id)),
+    testCases: testCases.filter(tc => filterTestCaseIds.has(tc.id)),
+  };
+}
+
+/**
+ * Trims any residual combos a narrowed prompt/model/test-case cross product
+ * still produces beyond the exact requested triples (e.g. 2 prompts x 2
+ * models but only 2 of the 4 combos were actually requested) — a documented
+ * tradeoff: a handful of extra graded cells in that edge case, never a
+ * silent full re-run.
+ */
+export function filterCellsByAllowList(cells: EvalMatrixCell[], cellFilter: CellFilterTriple[]): EvalMatrixCell[] {
+  const allow = new Set(cellFilter.map(f => `${f.promptId}::${f.modelId}::${f.testCaseId}`));
+  return cells.filter(c => allow.has(`${c.promptId}::${c.modelId}::${c.testCaseId}`));
+}
+
 type BroadcastFn = (event: EvalStreamEvent) => void;
 
 let broadcast: BroadcastFn = () => {};
@@ -388,7 +427,10 @@ export const ExecutionService = {
     return true;
   },
 
-  async run(evalId: string): Promise<void> {
+  async run(
+    evalId: string,
+    options?: { cellFilter?: CellFilterTriple[] }
+  ): Promise<void> {
     const evalDir = join(EVALUATIONS_DIR, evalId);
     const config = readJson<EvaluationConfig>(join(evalDir, 'config.json'));
     if (!config) {
@@ -406,10 +448,24 @@ export const ExecutionService = {
     writeJson(join(evalDir, 'config.json'), config);
 
     try {
-      const testCases = this.resolveTestCases(config);
+      let testCases = this.resolveTestCases(config);
 
-      if (testCases.length === 0) {
-        throw new Error('No test cases found for evaluation');
+      if (options?.cellFilter && options.cellFilter.length > 0) {
+        const narrowed = narrowForCellFilter(config.promptIds, config.modelIds, testCases, options.cellFilter);
+        config.promptIds = narrowed.promptIds;
+        config.modelIds = narrowed.modelIds;
+        testCases = narrowed.testCases;
+        // A scoped retry is a single fresh attempt, not another run-to-run
+        // agreement sample.
+        config.runsPerCell = 1;
+      }
+
+      if (testCases.length === 0 || config.promptIds.length === 0 || config.modelIds.length === 0) {
+        throw new Error(
+          options?.cellFilter?.length
+            ? 'No matching cells found to retry'
+            : 'No test cases found for evaluation'
+        );
       }
 
       // Persisted so /:id/testcases can label rows with the real user message
@@ -441,7 +497,10 @@ export const ExecutionService = {
         config.inference = { temperature: 0.3, maxTokens: 1000 };
       }
 
-      const cells = this.buildMatrix(config, testCases);
+      let cells = this.buildMatrix(config, testCases);
+      if (options?.cellFilter && options.cellFilter.length > 0) {
+        cells = filterCellsByAllowList(cells, options.cellFilter);
+      }
       if (config.testSuiteId) {
         const suite = TestSuiteService.get(config.testSuiteId);
         if (suite?.builtIn && suite.provenance) {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { GripVertical } from 'lucide-react';
 import { listTestSuites, createTestSuite } from '../../api/eval';
 import type { TestCase, TestSuite } from '../../types/eval';
 import {
@@ -54,6 +55,9 @@ export function TestCaseEditor({
   const [saveInput, setSaveInput] = useState('');
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [importSuiteId, setImportSuiteId] = useState('');
+  const [dragRowIndex, setDragRowIndex] = useState<number | null>(null);
+  const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importMenuRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -108,6 +112,44 @@ export function TestCaseEditor({
     }));
   }
 
+  // ── Row reorder (native HTML5 drag-and-drop) ────────────────────────────
+
+  function onRowDragStart(e: React.DragEvent, index: number) {
+    e.stopPropagation();
+    setDragRowIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function onRowDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragRowIndex === null || dragRowIndex === index) return;
+    setDragOverRowIndex(index);
+  }
+
+  function onRowDragLeave(e: React.DragEvent) {
+    e.stopPropagation();
+    setDragOverRowIndex(null);
+  }
+
+  function onRowDrop(e: React.DragEvent, index: number) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverRowIndex(null);
+    if (dragRowIndex === null || dragRowIndex === index) { setDragRowIndex(null); return; }
+    const reordered = [...inlineTestCases];
+    const [moved] = reordered.splice(dragRowIndex, 1);
+    reordered.splice(index, 0, moved);
+    onInlineTestCasesChange(reordered);
+    setDragRowIndex(null);
+  }
+
+  function onRowDragEnd(e: React.DragEvent) {
+    e.stopPropagation();
+    setDragRowIndex(null);
+    setDragOverRowIndex(null);
+  }
+
   // ── Import flow ───────────────────────────────────────────────────────
 
   async function processText(text: string, filename: string) {
@@ -147,6 +189,15 @@ export function TestCaseEditor({
     } catch {
       setImportStatus({ type: 'error', message: 'Could not read clipboard. Make sure the browser has clipboard permission.' });
     }
+  }
+
+  async function handleImportFromSuite() {
+    const suite = suites.find(s => s.id === importSuiteId);
+    if (!suite) return;
+    // Route suite cases through the same parse pipeline as file import, so the
+    // rows land in the table as independent editable copies rather than a link.
+    await processText(serializeJSON(suite.testCases), `${suite.name}.json`);
+    setImportSuiteId('');
   }
 
   function confirmReplace(incoming: Omit<TestCase, 'id'>[]) {
@@ -300,6 +351,29 @@ export function TestCaseEditor({
 
             {!testSuiteId && (
               <div className="tce-toolbar-actions">
+                {/* Import from suite as editable rows */}
+                {suites.length > 0 && (
+                  <div className="tce-import-suite">
+                    <select
+                      className="tce-import-suite-select"
+                      value={importSuiteId}
+                      disabled={isLoading}
+                      onChange={e => setImportSuiteId(e.target.value)}
+                    >
+                      <option value="">Import from suite…</option>
+                      {suites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <button
+                      className="tce-btn"
+                      disabled={!importSuiteId || isLoading}
+                      onClick={handleImportFromSuite}
+                      title="Copy this suite's cases in as editable rows"
+                    >
+                      Import as rows
+                    </button>
+                  </div>
+                )}
+
                 {/* Import */}
                 <div className="tce-menu-wrap" ref={importMenuRef}>
                   <button
@@ -400,6 +474,7 @@ export function TestCaseEditor({
               <table className="tce-table">
                 <thead>
                   <tr>
+                    <th></th>
                     <th>#</th>
                     <th>Description</th>
                     <th>User Message</th>
@@ -412,7 +487,23 @@ export function TestCaseEditor({
                 </thead>
                 <tbody>
                   {inlineTestCases.map((tc, idx) => (
-                    <tr key={tc.id}>
+                    <tr
+                      key={tc.id}
+                      className={`tce-row${dragRowIndex === idx ? ' tce-row-dragging' : ''}${dragOverRowIndex === idx ? ' tce-row-drag-over' : ''}`}
+                      onDragOver={e => onRowDragOver(e, idx)}
+                      onDragLeave={onRowDragLeave}
+                      onDrop={e => onRowDrop(e, idx)}
+                    >
+                      <td className="tce-drag-handle">
+                        <span
+                          draggable
+                          onDragStart={e => onRowDragStart(e, idx)}
+                          onDragEnd={onRowDragEnd}
+                          title="Drag to reorder"
+                        >
+                          <GripVertical size={14} />
+                        </span>
+                      </td>
                       <td className="tce-num">{idx + 1}</td>
                       <td>
                         <input

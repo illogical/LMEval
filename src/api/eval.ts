@@ -1,6 +1,6 @@
 import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset, EvalPurposeTemplate, EvaluationHistoryEntry, BaselineSummary, RegressionResult } from '../types/eval';
 import type { ParseResult } from '../utils/testCaseIO';
-import type { SessionManifest, SessionSlot } from '../types/session';
+import type { SessionManifest, SessionSlot, EvalRun, SummaryAnalysis } from '../types/session';
 
 // "/api/eval" standalone, "/lmeval/api/eval" when hosted under HomeBase —
 // derived from Vite's BASE_URL (docs/plans/2026-08-23-homebase-integration.md §4).
@@ -147,6 +147,27 @@ export async function getEvaluationHistory(id: string): Promise<EvaluationHistor
 }
 export async function getEvaluationRegression(id: string, baselineSlug: string): Promise<RegressionResult> {
   return apiFetch(`/evaluations/${id}/regression?baselineSlug=${encodeURIComponent(baselineSlug)}`);
+}
+export async function retryEvaluationCells(
+  id: string,
+  body: { cellIds?: string[]; failedCellsOnly?: boolean }
+): Promise<{ evalId: string; evalRunId?: string; retriedCells?: number }> {
+  return apiFetch(`/evaluations/${id}/retry`, { method: 'POST', body: JSON.stringify(body) });
+}
+export async function listSessionRuns(sessionId: string): Promise<EvalRun[]> {
+  return apiFetch(`/sessions/${sessionId}/runs`);
+}
+export async function getHealth(): Promise<{ status: string; refinementModelConfigured: boolean }> {
+  return apiFetch('/health');
+}
+export async function getSummaryAnalysis(evalId: string): Promise<SummaryAnalysis | null> {
+  const res = await fetch(`${BASE}/evaluations/${evalId}/summary-analysis`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error((await res.json().catch(() => ({ error: res.statusText })) as { error?: string }).error ?? res.statusText);
+  return res.json() as Promise<SummaryAnalysis>;
+}
+export async function generateSummaryAnalysis(evalId: string, refinementModel?: string): Promise<SummaryAnalysis> {
+  return apiFetch(`/evaluations/${evalId}/summary-analysis`, { method: 'POST', body: JSON.stringify({ refinementModel }) });
 }
 
 // Models

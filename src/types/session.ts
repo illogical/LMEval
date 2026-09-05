@@ -61,3 +61,14 @@ export interface ImprovementSuggestion {
   rationale: string;
   estimatedImpact?: string;
 }
+
+/** B3: cached result of POST /api/eval/evaluations/:id/summary-analysis. */
+export interface SummaryAnalysis {
+  evalId: string;
+  generatedAt: string;
+  refinementModel: string;
+  overview: string;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: ImprovementSuggestion[];
+}

@@ -8,6 +8,9 @@ export const config = {
   lmapiBaseUrl: process.env.LMAPI_BASE_URL ?? defaults.lmapiBaseUrl,
   // Mirrors Ollama's default keep-alive; set to 0 to unload immediately after each request
   ollamaKeepAlive: process.env.OLLAMA_KEEP_ALIVE ?? '5m',
+  // B3's Summary-page AI suggestions and Track C's refinement loop both gate
+  // on this being set — shared here so both read one source of truth.
+  refinementModel: process.env.REFINEMENT_MODEL || undefined,
 };
 
 /**
