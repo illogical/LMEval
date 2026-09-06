@@ -8,6 +8,7 @@ import { SessionHubPage } from './pages/SessionHubPage.tsx'
 import { TemplateGalleryPage } from './pages/TemplateGalleryPage.tsx'
 import { PromptsPage } from './pages/PromptsPage.tsx'
 import { ConfigPage } from './pages/ConfigPage.tsx'
+import { EvaluationConfigPage } from './pages/EvaluationConfigPage.tsx'
 import { DashboardPage } from './pages/DashboardPage.tsx'
 import { ResultsPage } from './pages/ResultsPage.tsx'
 import { SummaryPage } from './pages/SummaryPage.tsx'
@@ -25,6 +26,7 @@ createRoot(document.getElementById('root')!).render(
           <Route index element={<Navigate to="prompts" replace />} />
           <Route path="prompts" element={<PromptsPage />} />
           <Route path="config" element={<ConfigPage />} />
+          <Route path="config/:evalId" element={<EvaluationConfigPage />} />
           <Route path="run/:evalId" element={<DashboardPage />} />
           <Route path="results/:evalId" element={<ResultsPage />} />
           <Route path="summary/:evalId" element={<SummaryPage />} />

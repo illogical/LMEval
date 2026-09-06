@@ -3,13 +3,14 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { pathToFileURL } from 'url';
 import { join } from 'path';
+import { readFileSync } from 'fs';
 import { templatesRouter } from './routes/templates';
 import { purposeTemplatesRouter } from './routes/purposeTemplates';
 import { promptsRouter } from './routes/prompts';
 import { testSuitesRouter } from './routes/testSuites';
 import { modelsRouter } from './routes/models';
 import { sessionsRouter } from './routes/sessions';
-import { evaluationsRouter } from './routes/evaluations';
+import { evaluationsRouter, configureEvaluationRoutes } from './routes/evaluations';
 import { gitRouter } from './routes/git';
 import { presetsRouter } from './routes/presets';
 import { judgesRouter } from './routes/judges';
@@ -18,7 +19,7 @@ import { TemplateService } from './services/TemplateService';
 import { PurposeTemplateService } from './services/PurposeTemplateService';
 import { TestSuiteService } from './services/TestSuiteService';
 import { GitService } from './services/GitService';
-import { configurePaths } from './services/FileService';
+import { configurePaths, REPO_ROOT } from './services/FileService';
 import { setupWebSocket } from './ws';
 import { config } from './config';
 
@@ -34,8 +35,9 @@ import { config } from './config';
  * directly to HomeBase's `HostedApplication.router` contract field. The
  * standalone guard mounts it into its own `express()` instance at root.
  */
-export function buildApp(): { router: Router; dispose: () => Promise<void> } {
+export function buildApp(options: { appBasePath?: string } = {}): { router: Router; dispose: () => Promise<void> } {
   const router = Router();
+  configureEvaluationRoutes({ appBasePath: options.appBasePath ?? '/' });
   router.use(express.json());
 
   router.use('/api/eval/templates', templatesRouter);
@@ -49,6 +51,15 @@ export function buildApp(): { router: Router; dispose: () => Promise<void> } {
   router.use('/api/eval/presets', presetsRouter);
   router.use('/api/eval/judges', judgesRouter);
   router.use('/api/eval/model-selection', modelSelectionRouter);
+
+  router.get('/api/eval/openapi.json', (_req, res) => {
+    try {
+      const document = JSON.parse(readFileSync(join(REPO_ROOT, 'docs', 'openapi', 'lmeval-eval-api.v1.json'), 'utf-8'));
+      res.json(document);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message, code: 'OPENAPI_UNAVAILABLE' });
+    }
+  });
 
   router.get('/api/eval/health', (req, res) => {
     res.json({
@@ -97,7 +108,7 @@ const isMainModule = process.argv[1] !== undefined
 if (isMainModule) {
   configurePaths({ dataRoot: join(process.cwd(), 'data'), repoRoot: process.cwd() });
 
-  const { router } = buildApp();
+  const { router } = buildApp({ appBasePath: '/' });
 
   const app = express();
   app.use(cors());

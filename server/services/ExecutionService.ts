@@ -161,7 +161,8 @@ export const ExecutionService = {
     for (const promptId of config.promptIds) {
       const prompt = PromptService.get(promptId);
       if (!prompt) continue;
-      const promptVersion = prompt.versions.at(-1)?.version ?? 1;
+      const promptVersion = config.promptVersions?.find(pin => pin.promptId === promptId)?.version
+        ?? prompt.versions.at(-1)?.version ?? 1;
 
       for (const modelId of config.modelIds) {
         for (const testCase of testCases) {
@@ -229,7 +230,8 @@ export const ExecutionService = {
     for (const promptId of config.promptIds) {
       const prompt = PromptService.get(promptId);
       if (!prompt) continue;
-      const version = prompt.versions.at(-1)?.version ?? 1;
+      const version = config.promptVersions?.find(pin => pin.promptId === promptId)?.version
+        ?? prompt.versions.at(-1)?.version ?? 1;
       const content = PromptService.getVersionContent(promptId, version) ?? '';
       promptContents.push({ promptId, content, tools: prompt.tools });
     }
@@ -247,6 +249,12 @@ export const ExecutionService = {
       abortSignal: controller.signal,
       progressCallback: () => {
         completedSoFar++;
+        writeJson(join(EVALUATIONS_DIR, evalId, 'progress.json'), {
+          total: totalSteps,
+          completed: Math.min(completedSoFar, totalSteps),
+          failed: 0,
+          updatedAt: new Date().toISOString(),
+        });
         broadcast({
           type: 'eval:progress',
           evalId,
@@ -437,6 +445,10 @@ export const ExecutionService = {
       console.error(`[ExecutionService] No config found for eval ${evalId}`);
       return;
     }
+    if (config.status !== 'pending' || activeControllers.has(evalId)) {
+      console.error(`[ExecutionService] Refusing to start ${evalId} from status ${config.status}`);
+      return;
+    }
 
     const controller = new AbortController();
     activeControllers.set(evalId, controller);
@@ -519,6 +531,12 @@ export const ExecutionService = {
         }
       }
       writeJson(join(evalDir, 'cells.json'), cells);
+      writeJson(join(evalDir, 'progress.json'), {
+        total: cells.length,
+        completed: 0,
+        failed: 0,
+        updatedAt: new Date().toISOString(),
+      });
 
       Object.assign(config, resolveInferenceAndProvenance(config, purposeTemplate));
       writeJson(join(evalDir, 'config.json'), config);
@@ -560,6 +578,12 @@ export const ExecutionService = {
         benchmarkProvenance: config.benchmarkProvenance,
         comparisonMode: config.comparisonMode,
       });
+      writeJson(join(evalDir, 'progress.json'), {
+        total: finalCells.length,
+        completed: finalCells.filter(cell => cell.status === 'completed').length,
+        failed: finalCells.filter(cell => cell.status === 'failed').length,
+        updatedAt: new Date().toISOString(),
+      });
 
       const wasCancelled = cancelledEvals.has(evalId);
       cancelledEvals.delete(evalId);
@@ -600,12 +624,15 @@ export const ExecutionService = {
         }
       }
     } catch (err) {
-      config.status = 'failed';
+      const wasCancelled = cancelledEvals.has(evalId);
+      cancelledEvals.delete(evalId);
+      config.status = wasCancelled ? 'cancelled' : 'failed';
       config.updatedAt = new Date().toISOString();
       writeJson(join(evalDir, 'config.json'), config);
+      writeJson(join(evalDir, 'error.json'), { error: (err as Error).message, updatedAt: config.updatedAt });
 
       broadcast({
-        type: 'eval:failed',
+        type: wasCancelled ? 'eval:cancelled' : 'eval:failed',
         evalId,
         data: { error: (err as Error).message },
         timestamp: Date.now(),

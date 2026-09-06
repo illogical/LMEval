@@ -1,4 +1,4 @@
-export type EvalStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type EvalStatus = 'draft' | 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface JudgePerspective {
   id: string;
@@ -138,6 +138,8 @@ export interface EvaluationConfig {
   id: string;
   name: string;
   promptIds: string[];
+  /** Exact prompt versions selected for this evaluation. New records always persist this field. */
+  promptVersions?: Array<{ promptId: string; version: number }>;
   modelIds: string[];
   comparisonMode?: EvalComparisonMode;
   purposeTemplateId?: string;
@@ -150,7 +152,6 @@ export interface EvaluationConfig {
   runsPerCell?: number;
   sessionId?: string;
   sessionVersion?: number;
-  baselineId?: string;
   status: EvalStatus;
   startedAt?: string;
   createdAt: string;
@@ -168,6 +169,73 @@ export interface EvaluationConfig {
   transportProvenance?: TransportProvenance;
   benchmarkMode?: 'calibration' | 'promotion-check';
   benchmarkProvenance?: BenchmarkRunProvenance;
+}
+
+/** Caller-controlled evaluation fields. Server-derived lifecycle and provenance fields are excluded. */
+export interface EvaluationInput {
+  name: string;
+  promptIds: string[];
+  promptVersions?: Array<{ promptId: string; version: number }>;
+  modelIds: string[];
+  comparisonMode?: EvalComparisonMode;
+  purposeTemplateId?: string;
+  testSuiteId?: string;
+  userMessage?: string;
+  inlineTestCases?: TestCase[];
+  templateId?: string;
+  judgeModelId?: string;
+  enablePairwise?: boolean;
+  runsPerCell?: number;
+  sessionId?: string;
+  sessionVersion?: number;
+  inference?: InferenceParams;
+  benchmarkMode?: 'calibration' | 'promotion-check';
+}
+
+export interface EvaluationValidationIssue {
+  code: string;
+  field?: keyof EvaluationInput | string;
+  message: string;
+}
+
+export interface EvaluationValidationResult {
+  valid: boolean;
+  errors: EvaluationValidationIssue[];
+  warnings: EvaluationValidationIssue[];
+}
+
+export interface EvaluationProgress {
+  total: number;
+  completed: number;
+  failed: number;
+  updatedAt: string;
+}
+
+export interface EvaluationBrowserPaths {
+  config: string;
+  run: string;
+  results: string;
+  summary: string;
+}
+
+export interface EvaluationFeedbackVerdict {
+  taskType: TaskMetrics['taskType'];
+  verdict: GateResult['verdict'];
+  primaryMetric?: { name: string; value: number; confidenceInterval?: ConfidenceInterval };
+  caseCount: number;
+  reason?: string;
+}
+
+export interface EvaluationFeedback {
+  evalId: string;
+  status: EvalStatus;
+  progress: EvaluationProgress;
+  validation: EvaluationValidationResult;
+  failures: Array<{ cellId?: string; promptId?: string; modelId?: string; error: string }>;
+  readiness: { results: boolean; summary: boolean; regression: boolean; summaryAnalysis: boolean };
+  verdict: EvaluationFeedbackVerdict | null;
+  appBasePath: string;
+  browserPaths: EvaluationBrowserPaths;
 }
 
 export interface BenchmarkRunProvenance {

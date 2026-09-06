@@ -1,4 +1,4 @@
-import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset, EvalPurposeTemplate, EvaluationHistoryEntry, BaselineSummary, RegressionResult } from '../types/eval';
+import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset, EvalPurposeTemplate, EvaluationHistoryEntry, BaselineSummary, RegressionResult, EvaluationInput, EvaluationValidationResult, EvaluationBrowserPaths, EvaluationFeedback } from '../types/eval';
 import type { ParseResult } from '../utils/testCaseIO';
 import type { SessionManifest, SessionSlot, EvalRun, SummaryAnalysis } from '../types/session';
 
@@ -115,12 +115,27 @@ export async function listEvaluations(params?: { status?: string; promptId?: str
   return apiFetch(`/evaluations${q}`);
 }
 export async function createEvaluation(
-  config: Omit<EvaluationConfig, 'id' | 'status' | 'createdAt' | 'updatedAt'>
+  config: EvaluationInput
 ): Promise<EvaluationConfig & { evalRunId?: string }> {
   return apiFetch('/evaluations', { method: 'POST', body: JSON.stringify(config) });
 }
 export async function getEvaluation(id: string): Promise<EvaluationConfig> {
   return apiFetch(`/evaluations/${id}`);
+}
+export async function validateEvaluation(config: EvaluationInput): Promise<EvaluationValidationResult> {
+  return apiFetch('/evaluations/validate', { method: 'POST', body: JSON.stringify(config) });
+}
+export async function createEvaluationDraft(config: EvaluationInput): Promise<{ evaluation: EvaluationConfig; validation: EvaluationValidationResult; browserPaths: EvaluationBrowserPaths }> {
+  return apiFetch('/evaluations/drafts', { method: 'POST', body: JSON.stringify(config) });
+}
+export async function patchEvaluationDraft(id: string, patch: Partial<EvaluationInput>): Promise<{ evaluation: EvaluationConfig; validation: EvaluationValidationResult; browserPaths: EvaluationBrowserPaths }> {
+  return apiFetch(`/evaluations/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
+}
+export async function startEvaluationDraft(id: string): Promise<{ evaluation: EvaluationConfig; validation: EvaluationValidationResult; browserPaths: EvaluationBrowserPaths }> {
+  return apiFetch(`/evaluations/${id}/run`, { method: 'POST' });
+}
+export async function getEvaluationFeedback(id: string): Promise<EvaluationFeedback> {
+  return apiFetch(`/evaluations/${id}/feedback`);
 }
 export async function getEvaluationResults(id: string): Promise<EvalMatrixCell[]> {
   return apiFetch(`/evaluations/${id}/results`);
@@ -172,7 +187,7 @@ export async function generateSummaryAnalysis(evalId: string, refinementModel?: 
 
 // Models
 export async function listModels(): Promise<{ servers: Array<{ name: string; models: string[] }> }> {
-  return apiFetch('/models');
+  return apiFetch('/models/by-server');
 }
 
 // Presets

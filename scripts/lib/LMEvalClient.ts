@@ -21,6 +21,11 @@ import type {
   EvalMatrixCell,
   EvaluationSummary,
   EvalPreset,
+  EvalPurposeTemplate,
+  EvaluationInput,
+  EvaluationValidationResult,
+  EvaluationBrowserPaths,
+  EvaluationFeedback,
 } from '../../src/types/eval';
 import type { SessionManifest, SessionSlot } from '../../src/types/session';
 import type { ParseResult } from '../../src/utils/testCaseIO';
@@ -62,6 +67,11 @@ export interface CreateEvaluationInput {
   runsPerCell?: number;
   sessionId?: string;
   sessionVersion?: number;
+  comparisonMode?: EvaluationInput['comparisonMode'];
+  purposeTemplateId?: string;
+  promptVersions?: EvaluationInput['promptVersions'];
+  inference?: EvaluationInput['inference'];
+  benchmarkMode?: EvaluationInput['benchmarkMode'];
 }
 
 export interface ModelList {
@@ -168,6 +178,10 @@ export class LMEvalClient {
     return this.fetch('/test-suites', { method: 'POST', body: JSON.stringify(data) });
   }
 
+  listPurposeTemplates(): Promise<EvalPurposeTemplate[]> {
+    return this.fetch('/purpose-templates');
+  }
+
   /** Parse CSV or JSON text server-side and return TestCase objects with IDs assigned. */
   parseTestCases(content: string, format: 'csv' | 'json'): Promise<ParsedTestCases> {
     return this.fetch('/test-suites/parse', {
@@ -188,6 +202,26 @@ export class LMEvalClient {
       body: JSON.stringify(config),
     });
     return { evalId: result.id, evalRunId: result.evalRunId };
+  }
+
+  validateEvaluation(config: EvaluationInput): Promise<EvaluationValidationResult> {
+    return this.fetch('/evaluations/validate', { method: 'POST', body: JSON.stringify(config) });
+  }
+
+  createEvaluationDraft(config: EvaluationInput): Promise<{ evaluation: EvaluationConfig; validation: EvaluationValidationResult; browserPaths: EvaluationBrowserPaths }> {
+    return this.fetch('/evaluations/drafts', { method: 'POST', body: JSON.stringify(config) });
+  }
+
+  patchEvaluationDraft(id: string, patch: Partial<EvaluationInput>): Promise<{ evaluation: EvaluationConfig; validation: EvaluationValidationResult; browserPaths: EvaluationBrowserPaths }> {
+    return this.fetch(`/evaluations/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
+  }
+
+  startEvaluationDraft(id: string): Promise<{ evaluation: EvaluationConfig; validation: EvaluationValidationResult; browserPaths: EvaluationBrowserPaths }> {
+    return this.fetch(`/evaluations/${id}/run`, { method: 'POST' });
+  }
+
+  getFeedback(id: string): Promise<EvaluationFeedback> {
+    return this.fetch(`/evaluations/${id}/feedback`);
   }
 
   getEvaluation(id: string): Promise<EvaluationConfig> {
@@ -343,7 +377,7 @@ export class LMEvalClient {
   // ── Models ───────────────────────────────────────────────────────────────────
 
   listModels(): Promise<ModelList> {
-    return this.fetch('/models');
+    return this.fetch('/models/by-server');
   }
 
   // ── Presets ──────────────────────────────────────────────────────────────────

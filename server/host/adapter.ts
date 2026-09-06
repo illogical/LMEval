@@ -78,7 +78,7 @@ export default function createLmEvalAdapter(options: HostedApplicationOptions): 
       const homebasePort = process.env.HOMEBASE_PORT ?? DEFAULT_HOMEBASE_PORT;
       reconfigureLmapiBaseUrl(`http://127.0.0.1:${homebasePort}/lmapi`);
 
-      const built = buildApp();
+      const built = buildApp({ appBasePath: options.basePath });
       router = built.router;
       state.appDispose = built.dispose;
 

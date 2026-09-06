@@ -8,8 +8,8 @@ import { ExecutionPreview } from '../components/config/ExecutionPreview';
 import { PresetSelector } from '../components/config/PresetSelector';
 import { useEvalWizard } from '../contexts/EvalWizardContext';
 import { useEvalHeaderAction } from '../contexts/EvalHeaderActionContext';
-import { createEvaluation, createPrompt, createPurposeTemplate, getPurposeTemplate, getTemplate, getTestSuite, listEvaluations } from '../api/eval';
-import type { EvalPurposeTemplate, TestSuite } from '../types/eval';
+import { createEvaluation, createPrompt, createPurposeTemplate, getPurposeTemplate, getTemplate, getTestSuite, listEvaluations, validateEvaluation } from '../api/eval';
+import type { EvalPurposeTemplate, EvaluationValidationResult, TestSuite } from '../types/eval';
 import './ConfigPage.css';
 
 export function ConfigPage() {
@@ -28,6 +28,7 @@ export function ConfigPage() {
   const [showSaveTemplateForm, setShowSaveTemplateForm] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [templateSaved, setTemplateSaved] = useState(false);
+  const [serverValidation, setServerValidation] = useState<EvaluationValidationResult | null>(null);
 
   useEffect(() => {
     if (!state.purposeTemplateId) { setJudgeRequired(false); setPurposeTemplate(null); return; }
@@ -115,6 +116,25 @@ export function ConfigPage() {
   }
   const testCaseCount = calcTestCaseCount();
 
+  useEffect(() => {
+    const promptIds = [state.promptA.id, state.promptB.id].filter((id): id is string => id != null);
+    const modelIds = state.selectedModels.map(model => `${model.serverName}::${model.modelName}`);
+    if (promptIds.length === 0 || modelIds.length === 0) { setServerValidation(null); return; }
+    const timer = setTimeout(() => {
+      validateEvaluation({
+        name: 'Draft evaluation', promptIds,
+        promptVersions: [state.promptA, state.promptB].filter(prompt => prompt.id).map(prompt => ({ promptId: prompt.id!, version: prompt.version })),
+        modelIds, comparisonMode: state.comparisonMode, purposeTemplateId: state.purposeTemplateId ?? undefined,
+        templateId: state.templateId ?? undefined, testSuiteId: state.testSuiteId ?? undefined,
+        benchmarkMode: state.testSuiteId ? state.benchmarkMode : undefined,
+        inlineTestCases: state.inlineTestCases.length ? state.inlineTestCases : undefined,
+        userMessage: state.userMessage || undefined, judgeModelId: state.judgeModelId ?? undefined,
+        enablePairwise: state.enablePairwise, runsPerCell: state.runsPerCell,
+      }).then(setServerValidation).catch(() => setServerValidation(null));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [state]);
+
   // Hard blockers stop the run; warnings let it proceed but flag a weak result.
   const blockers: string[] = [];
   if (promptCount === 0) blockers.push('At least one prompt is required — go back to Step 1 and enter a prompt.');
@@ -133,8 +153,14 @@ export function ConfigPage() {
   if (blockers.length === 0 && !state.testSuiteId && state.inlineTestCases.length === 0 && !state.userMessage.trim()) {
     warnings.push('No test cases defined — the run will send an empty user message.');
   }
+  for (const validationError of serverValidation?.errors ?? []) {
+    if (!blockers.includes(validationError.message)) blockers.push(validationError.message);
+  }
   if (blockers.length === 0 && selectedSuite?.provenance?.reviewStatus === 'pending-human-review') {
     warnings.push('This benchmark is pending human review, so its result is advisory and not promotion-capable.');
+  }
+  for (const validationWarning of serverValidation?.warnings ?? []) {
+    if (!warnings.includes(validationWarning.message)) warnings.push(validationWarning.message);
   }
 
   const runDisabled = running || blockers.length > 0;
@@ -172,6 +198,9 @@ export function ConfigPage() {
       const result = await createEvaluation({
         name: `Eval ${new Date().toLocaleString()}`,
         promptIds,
+        promptVersions: [state.promptA, state.promptB]
+          .filter((prompt): prompt is typeof prompt & { id: string } => prompt.id != null)
+          .map(prompt => ({ promptId: prompt.id, version: prompt.version })),
         modelIds,
         comparisonMode: state.comparisonMode,
         purposeTemplateId: state.purposeTemplateId ?? undefined,

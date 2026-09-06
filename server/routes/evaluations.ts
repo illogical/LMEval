@@ -7,13 +7,33 @@ import { ExecutionService } from '../services/ExecutionService';
 import { SessionService } from '../services/SessionService';
 import { ReportService } from '../services/ReportService';
 import { SummaryService } from '../services/SummaryService';
-import { TestSuiteService } from '../services/TestSuiteService';
 import { SummaryAnalysisService } from '../services/SummaryAnalysisService';
+import { EvaluationService, browserPaths } from '../services/EvaluationService';
+import { EvaluationFeedbackService } from '../services/EvaluationFeedbackService';
+import { ModelCatalogUnavailableError } from '../services/EvaluationValidationService';
 import type {
-  EvaluationConfig, EvaluationSummary, TestCase, EvaluationHistoryEntry, BaselineSummary, EvalMatrixCell,
+  EvaluationConfig, EvaluationSummary, TestCase, EvaluationHistoryEntry, BaselineSummary, EvalMatrixCell, EvaluationInput,
 } from '../../src/types/eval';
 
 export const evaluationsRouter = Router();
+let appBasePath = '/';
+
+export function configureEvaluationRoutes(options: { appBasePath: string }) {
+  appBasePath = options.appBasePath;
+}
+
+function sendEvaluationError(res: import('express').Response, error: unknown) {
+  const err = error as Error & { code?: string; validation?: unknown };
+  if (error instanceof ModelCatalogUnavailableError) {
+    return void res.status(503).json({ error: err.message, code: 'MODEL_CATALOG_UNAVAILABLE' });
+  }
+  if (err.code === 'EVALUATION_NOT_FOUND') return void res.status(404).json({ error: err.message, code: err.code });
+  if (err.code === 'EVALUATION_NOT_DRAFT' || err.code === 'EVALUATION_ALREADY_STARTED') {
+    return void res.status(409).json({ error: err.message, code: err.code });
+  }
+  if (err.validation) return void res.status(400).json({ error: err.message, code: 'EVALUATION_VALIDATION_FAILED', validation: err.validation });
+  return void res.status(400).json({ error: err.message, code: err.code ?? 'EVALUATION_REQUEST_FAILED' });
+}
 
 evaluationsRouter.get('/', (req, res) => {
   const status = req.query.status as string | undefined;
@@ -167,63 +187,57 @@ evaluationsRouter.get('/:id/regression', (req, res) => {
   });
 });
 
-evaluationsRouter.post('/', (req, res) => {
-  const body = req.body as Partial<EvaluationConfig> & {
-    sessionId?: string;
-    sessionVersion?: number;
-  };
-
-  if (!body.name || !body.promptIds?.length || !body.modelIds?.length) {
-    return void res.status(400).json({ error: 'name, promptIds, and modelIds are required' });
+evaluationsRouter.post('/validate', async (req, res) => {
+  try {
+    const checked = await EvaluationService.validate(req.body as EvaluationInput);
+    res.json(checked.validation);
+  } catch (error) {
+    sendEvaluationError(res, error);
   }
-  if (body.testSuiteId && body.inlineTestCases?.length) {
-    return void res.status(400).json({ error: 'testSuiteId and inlineTestCases are mutually exclusive' });
+});
+
+evaluationsRouter.post('/drafts', async (req, res) => {
+  try {
+    const created = await EvaluationService.create(req.body as EvaluationInput, 'draft');
+    res.status(201).json({ ...created, browserPaths: browserPaths(created.evaluation.id, appBasePath) });
+  } catch (error) {
+    sendEvaluationError(res, error);
   }
-  if (body.benchmarkMode === 'promotion-check') {
-    const suite = body.testSuiteId ? TestSuiteService.get(body.testSuiteId) : null;
-    if (!suite?.builtIn) return void res.status(400).json({ error: 'promotion-check requires a built-in test suite' });
+});
+
+evaluationsRouter.post('/', async (req, res) => {
+  try {
+    const created = await EvaluationService.create(req.body as EvaluationInput, 'pending');
+    ExecutionService.run(created.evaluation.id).catch(err => console.error(`[ExecutionService] run(${created.evaluation.id}) failed:`, err));
+    res.status(202).json({ ...created.evaluation, evalRunId: created.evalRunId });
+  } catch (error) {
+    sendEvaluationError(res, error);
   }
+});
 
-  const now = new Date().toISOString();
-  const evalId = generateId('eval');
-  const evalDir = join(EVALUATIONS_DIR, evalId);
-  ensureDir(evalDir);
-
-  const config: EvaluationConfig = {
-    id: evalId,
-    name: body.name,
-    promptIds: body.promptIds,
-    modelIds: body.modelIds,
-    comparisonMode: body.comparisonMode,
-    purposeTemplateId: body.purposeTemplateId,
-    testSuiteId: body.testSuiteId,
-    userMessage: body.userMessage,
-    inlineTestCases: body.inlineTestCases,
-    templateId: body.templateId,
-    judgeModelId: body.judgeModelId,
-    enablePairwise: body.enablePairwise,
-    runsPerCell: body.runsPerCell ?? 1,
-    benchmarkMode: body.benchmarkMode,
-    sessionId: body.sessionId,
-    sessionVersion: body.sessionVersion,
-    status: 'pending',
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  writeJson(join(evalDir, 'config.json'), config);
-
-  let evalRunId: string | undefined;
-  if (body.sessionId && body.sessionVersion != null) {
-    const run = SessionService.addEvalRun(body.sessionId, body.sessionVersion, evalId);
-    evalRunId = run?.id;
+evaluationsRouter.patch('/:id', async (req, res) => {
+  try {
+    const updated = await EvaluationService.patchDraft(req.params.id, req.body as Partial<EvaluationInput>);
+    res.json({ ...updated, browserPaths: browserPaths(updated.evaluation.id, appBasePath) });
+  } catch (error) {
+    sendEvaluationError(res, error);
   }
+});
 
-  ExecutionService.run(evalId).catch(err => {
-    console.error(`[ExecutionService] run(${evalId}) failed:`, err);
-  });
+evaluationsRouter.post('/:id/run', async (req, res) => {
+  try {
+    const started = await EvaluationService.startDraft(req.params.id);
+    ExecutionService.run(started.evaluation.id).catch(err => console.error(`[ExecutionService] run(${started.evaluation.id}) failed:`, err));
+    res.status(202).json({ ...started, browserPaths: browserPaths(started.evaluation.id, appBasePath) });
+  } catch (error) {
+    sendEvaluationError(res, error);
+  }
+});
 
-  res.status(202).json({ ...config, evalRunId });
+evaluationsRouter.get('/:id/feedback', async (req, res) => {
+  const feedback = await EvaluationFeedbackService.get(req.params.id, appBasePath);
+  if (!feedback) return void res.status(404).json({ error: 'Evaluation not found', code: 'EVALUATION_NOT_FOUND' });
+  res.json(feedback);
 });
 
 evaluationsRouter.delete('/:id', (req, res) => {
