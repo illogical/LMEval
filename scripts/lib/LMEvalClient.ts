@@ -341,7 +341,7 @@ export class LMEvalClient {
           else if (config.status === 'failed') finish('failed', 'Evaluation failed');
           else if (config.status === 'cancelled') finish('cancelled', 'Evaluation was cancelled');
           else pollTimer = setTimeout(poll, 2000);
-        } catch (e) {
+        } catch {
           pollTimer = setTimeout(poll, 2000);
         }
       };

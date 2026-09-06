@@ -2,8 +2,13 @@ import { join } from 'path';
 import { ensureDir, EVALUATIONS_DIR, generateId, readJson, writeJson } from './FileService';
 import { PromptService } from './PromptService';
 import { SessionService } from './SessionService';
-import { EvaluationValidationService } from './EvaluationValidationService';
+import { EvaluationValidationService, validateEvaluationInputShape } from './EvaluationValidationService';
 import type { EvaluationConfig, EvaluationInput, EvaluationValidationResult } from '../../src/types/eval';
+
+// startDraft performs asynchronous validation before persisting the pending
+// transition. Reserve the ID across that await so concurrent callers cannot
+// both dispatch the same evaluation in this process.
+const startingDrafts = new Set<string>();
 
 export function browserPaths(evalId: string, appBasePath = '/') {
   const base = `/${appBasePath.split('/').filter(Boolean).join('/')}`;
@@ -63,6 +68,8 @@ export const EvaluationService = {
   },
 
   async validate(input: EvaluationInput): Promise<{ input: EvaluationInput; validation: EvaluationValidationResult }> {
+    const shapeFailure = validateEvaluationInputShape(input);
+    if (shapeFailure) return { input, validation: shapeFailure };
     const normalized = normalizeEvaluationInput(input);
     return { input: normalized, validation: await EvaluationValidationService.validate(normalized) };
   },
@@ -96,14 +103,22 @@ export const EvaluationService = {
   async startDraft(id: string): Promise<{ evaluation: EvaluationConfig; validation: EvaluationValidationResult; evalRunId?: string }> {
     const existing = this.get(id);
     if (!existing) throw Object.assign(new Error('Evaluation not found'), { code: 'EVALUATION_NOT_FOUND' });
-    if (existing.status !== 'draft') throw Object.assign(new Error('Evaluation has already been started'), { code: 'EVALUATION_ALREADY_STARTED' });
-    const checked = await this.validate(existing);
-    if (!checked.validation.valid) throw Object.assign(new Error('Evaluation configuration is invalid'), { validation: checked.validation });
-    const evaluation = toConfig(checked.input, 'pending', existing);
-    writeJson(join(EVALUATIONS_DIR, id, 'config.json'), evaluation);
-    const evalRunId = evaluation.sessionId && evaluation.sessionVersion != null
-      ? SessionService.addEvalRun(evaluation.sessionId, evaluation.sessionVersion, evaluation.id)?.id
-      : undefined;
-    return { evaluation, validation: checked.validation, evalRunId };
+    if (existing.status !== 'draft' || startingDrafts.has(id)) {
+      throw Object.assign(new Error('Evaluation has already been started'), { code: 'EVALUATION_ALREADY_STARTED' });
+    }
+
+    startingDrafts.add(id);
+    try {
+      const checked = await this.validate(existing);
+      if (!checked.validation.valid) throw Object.assign(new Error('Evaluation configuration is invalid'), { validation: checked.validation });
+      const evaluation = toConfig(checked.input, 'pending', existing);
+      writeJson(join(EVALUATIONS_DIR, id, 'config.json'), evaluation);
+      const evalRunId = evaluation.sessionId && evaluation.sessionVersion != null
+        ? SessionService.addEvalRun(evaluation.sessionId, evaluation.sessionVersion, evaluation.id)?.id
+        : undefined;
+      return { evaluation, validation: checked.validation, evalRunId };
+    } finally {
+      startingDrafts.delete(id);
+    }
   },
 };

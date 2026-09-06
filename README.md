@@ -692,6 +692,22 @@ GET  /api/eval/prompts/:id/history
 
 ## API Endpoints
 
+The checked-in OpenAPI 3.1 document at `docs/openapi/lmeval-eval-api.v1.json` is the machine-readable
+source of truth and is served at `GET /api/eval/openapi.json`. Paths returned by evaluation feedback
+already include `/lmeval/` when hosted by HomeBase.
+
+### Agent-driven evaluation workflow
+
+1. Discover purpose templates, prompts, suites, grouped `server::model` identifiers, and judge qualifications.
+2. Create or reuse prompts, then call `POST /api/eval/evaluations/validate`.
+3. Save a reviewable configuration with `POST /api/eval/evaluations/drafts` and give the user its returned configuration path.
+4. Start it exactly once with `POST /api/eval/evaluations/:id/run`.
+5. Poll `GET /api/eval/evaluations/:id/feedback`; use the detailed results, summary, regression, and analysis endpoints after their readiness flags become true.
+
+`POST /api/eval/evaluations` remains the compatibility shortcut for immediate create-and-run. Draft
+creation, reads, and patches never start model calls. Deletion, nested-data Git operations, and
+promotion actions are separate operations and require explicit intent.
+
 ### Templates (`/api/eval/templates`)
 | Endpoint | Description |
 |---|---|
@@ -737,10 +753,21 @@ GET  /api/eval/prompts/:id/history
 | `GET /api/eval/evaluations/:id/results` | Get cell results |
 | `GET /api/eval/evaluations/:id/summary` | Get aggregated summary |
 | `POST /api/eval/evaluations` | Create and start evaluation |
-| `DELETE /api/eval/evaluations/:id` | Cancel running evaluation |
+| `POST /api/eval/evaluations/validate` | Validate a configuration without saving it |
+| `POST /api/eval/evaluations/drafts` | Save a validated draft without model calls |
+| `PATCH /api/eval/evaluations/:id` | Edit a draft; started evaluations are immutable |
+| `POST /api/eval/evaluations/:id/run` | Validate and start a draft exactly once |
+| `GET /api/eval/evaluations/:id/feedback` | Poll status, progress, readiness, failures, verdict, and browser paths |
+| `POST /api/eval/evaluations/:id/cancel` | Cancel an in-flight evaluation without deleting it |
+| `DELETE /api/eval/evaluations/:id` | Permanently delete an evaluation and its artifacts |
 | `POST /api/eval/evaluations/:id/retry` | Re-run failed evaluation |
+| `GET /api/eval/evaluations/:id/testcases` | Get the resolved cases actually run |
+| `GET /api/eval/evaluations/:id/history` | Get related evaluation history |
+| `GET /api/eval/evaluations/:id/regression?baselineSlug=...` | Compare with a saved baseline |
+| `GET\|POST /api/eval/evaluations/:id/summary-analysis` | Read or generate summary analysis |
 | `GET /api/eval/evaluations/:id/export?format=html\|md` | Download report |
 | `POST /api/eval/evaluations/:id/baseline` | Save summary as baseline |
+| `GET /api/eval/evaluations/baselines` | List saved baselines |
 
 ### Presets (`/api/eval/presets`)
 | Endpoint | Description |
@@ -748,13 +775,14 @@ GET  /api/eval/prompts/:id/history
 | `GET /api/eval/presets` | List all saved evaluation presets |
 | `GET /api/eval/presets/:id` | Get preset by ID |
 | `POST /api/eval/presets` | Create a new preset |
-| `PUT /api/eval/presets/:id` | Update an existing preset |
+| `PATCH /api/eval/presets/:id` | Update an existing preset |
 | `DELETE /api/eval/presets/:id` | Delete a preset |
 
 ### Models (`/api/eval/models`)
 | Endpoint | Description |
 |---|---|
-| `GET /api/eval/models` | List models from LMApi (grouped by server) |
+| `GET /api/eval/models` | List flat loaded model names (`{ models: string[] }`) |
+| `GET /api/eval/models/by-server` | Canonical grouped model discovery (`{ servers: [{ name, models }] }`) |
 | `GET /api/eval/models/leaderboard` | Aggregate composite scores across all evals |
 
 ### Judges (`/api/eval/judges`)

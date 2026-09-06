@@ -214,7 +214,7 @@ describe('SummaryService.computeSummary — R4 classification taskMetrics', () =
 describe('SummaryService.computeSummary — R5 tagging taskMetrics', () => {
   const vocabulary = ['Family', 'Reminder', 'Food', 'Favorite'];
   function tc(id: string, tags: string[]): TestCase {
-    return { id, userMessage: 'x', tags };
+    return { id, userMessage: 'x', expectedLabels: tags };
   }
 
   it('computes TP/FP/FN-derived precision/recall/F1, Jaccard, and unknown/duplicate rates without repairing raw output', () => {

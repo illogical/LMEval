@@ -355,7 +355,7 @@ evaluationsRouter.get('/:id/export', (req, res) => {
   if (format === 'html') {
     const html = ReportService.generateHtml(id);
     if (!html) return void res.status(404).json({ error: 'Report could not be generated' });
-    const safeId = id.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '_');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="eval-${safeId}.html"`);
     return void res.send(html);
@@ -364,7 +364,7 @@ evaluationsRouter.get('/:id/export', (req, res) => {
   if (format === 'md') {
     const md = ReportService.generateMarkdown(id);
     if (!md) return void res.status(404).json({ error: 'Report could not be generated' });
-    const safeId = id.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '_');
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="eval-${safeId}.md"`);
     return void res.send(md);

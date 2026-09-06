@@ -19,12 +19,12 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json());
   app.use('/api/eval/evaluations', evaluationsRouter);
-  await new Promise<void>(resolve => { server = app.listen(0, resolve); });
+  await new Promise<void>(resolve => { server = app.listen(0, () => resolve()); });
   const address = server.address();
   baseUrl = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}/api/eval/evaluations`;
 });
 
-afterAll(async () => { await new Promise<void>(resolve => server.close(() => resolve())); });
+afterAll(async () => { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); });
 
 beforeEach(() => {
   dataRoot = mkdtempSync(join(tmpdir(), 'lmeval-evaluation-route-'));
@@ -78,6 +78,27 @@ describe('agent-drivable evaluation routes', () => {
     expect(ExecutionService.run).toHaveBeenCalledTimes(1);
   });
 
+  it('reserves a draft while asynchronous start validation is in flight', async () => {
+    const create = await fetch(`${baseUrl}/drafts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body()) });
+    const created = await create.json();
+
+    let releaseCatalog!: () => void;
+    const catalogGate = new Promise<void>(resolve => { releaseCatalog = resolve; });
+    vi.mocked(LmapiClient.getServers).mockImplementation(async () => {
+      await catalogGate;
+      return [{ config: { name: 'local' }, isOnline: true, models: ['model-a'] } as never];
+    });
+
+    const first = fetch(`${baseUrl}/${created.evaluation.id}/run`, { method: 'POST' });
+    await new Promise(resolve => setTimeout(resolve, 10));
+    const second = fetch(`${baseUrl}/${created.evaluation.id}/run`, { method: 'POST' });
+    releaseCatalog();
+    const responses = await Promise.all([first, second]);
+
+    expect(responses.map(response => response.status).sort()).toEqual([202, 409]);
+    expect(ExecutionService.run).toHaveBeenCalledTimes(1);
+  });
+
   it('returns machine-readable validation and feedback states', async () => {
     const invalid = await fetch(`${baseUrl}/validate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: '', promptIds: [], modelIds: [] }) });
     expect(invalid.status).toBe(200);
@@ -88,5 +109,12 @@ describe('agent-drivable evaluation routes', () => {
     const feedback = await fetch(`${baseUrl}/${created.evaluation.id}/feedback`);
     expect(feedback.status).toBe(200);
     expect(await feedback.json()).toMatchObject({ status: 'draft', readiness: { results: false, summary: false } });
+  });
+
+  it('returns 503 when the LMApi model catalog cannot be reached', async () => {
+    vi.mocked(LmapiClient.getServers).mockRejectedValueOnce(new Error('offline'));
+    const response = await fetch(`${baseUrl}/validate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body()) });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: 'MODEL_CATALOG_UNAVAILABLE' });
   });
 });

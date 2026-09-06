@@ -26,6 +26,5 @@ dist-ssr
 data/.git/
 data/evals/prompts/
 .claude/
-.agents/
+.agents/skills/ce-brainstorm/
 data/evals/evaluations/
-

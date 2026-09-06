@@ -49,8 +49,10 @@ The canonical type definitions live in `src/types/eval.ts` (re-exported for back
 - An evaluation can instead use `inlineTestCases` (ad hoc, not saved as a suite) or a single `userMessage` (quick mode).
 
 ### Evaluation configuration
-- `EvaluationConfig` — the full setup for one run: `promptIds[]`, `modelIds[]`, one of `testSuiteId`/`inlineTestCases`/`userMessage`, `templateId`, judge settings (`judgeModelId`, `enablePairwise`, `runsPerCell`), optional `baselineId` for regression comparison, optional `sessionId`/`sessionVersion` linking.
-- **(planned)** `comparisonMode: 'model' | 'prompt' | 'matrix'` — new field, see §5.1. Purely a UI-affordance field; the matrix-building formula (`promptIds.length × modelIds.length × testCaseCount × runsPerCell`) is unchanged and doesn't branch on it.
+- `EvaluationConfig` — the full setup for one run: ordered `promptIds[]` plus pinned `promptVersions[]`, `modelIds[]`, exactly one of `testSuiteId`/`inlineTestCases`/`userMessage`, `templateId`, judge settings (`judgeModelId`, `enablePairwise`, `runsPerCell`), optional per-run inference, and optional `sessionId`/`sessionVersion` linking. New records pin prompt versions at creation; historical records without pins remain readable. Regression comparison uses saved baseline slugs, not an evaluation `baselineId` field.
+- `comparisonMode: 'model' | 'prompt' | 'matrix'` records the experimental axis. The matrix-building formula (`promptIds.length × modelIds.length × testCaseCount × runsPerCell`) remains unchanged.
+- Evaluations may be persisted as server-backed `draft` records. Draft creation never starts model calls; only drafts can be patched; starting performs the one-way `draft` → `pending` transition and started evidence is immutable.
+- `EvaluationValidationService` is the shared API/browser experiment-shape boundary. It returns stable error and warning codes for references, comparison cardinality, test-source exclusivity, inference/repetition bounds, benchmark eligibility, judge caveats, and unsupported settings.
 
 ### Templates
 - `EvalTemplate` — judge rubric: `perspectives: JudgePerspective[]` (each with `weight`, `criteria`, `scoringGuide`), plus a `deterministicChecks` block (being superseded — see §4). Four built-in templates ship today: General Quality, Tool Calling, Code Generation, Instruction Following.
@@ -144,7 +146,7 @@ A **"Save as Template"** action on Step 2 lets a user capture their own refined 
 
 **Step 1 — Prompts & Models** (`/eval/prompts`): Evaluation Mode strip (§5.1) → prompt editor(s) with drag-and-drop upload, saved-prompt version selector, collapsible side-by-side JetBrains-style diff (word-level highlights) → multi-model selector grouped by LMApi server.
 
-**Step 2 — Prepare** (`/eval/config`): template/assertion configuration (pre-filled if arrived via a purpose template, §5.2), test case editor (Quick single-message mode / Suite table mode with import/export), Judge Configuration (model, pairwise toggle — see the open question on `select-best` in the phase-10 plan doc — runs-per-cell), sticky sidebar with execution-preview matrix badge (`2P × 3M × 4T × 1R = 24 completions`) and preset/template save-load.
+**Step 2 — Prepare** (`/eval/config`): template/assertion configuration (pre-filled if arrived via a purpose template, §5.2), test case editor (Quick single-message mode / Suite table mode with import/export), Judge Configuration, shared server validation, sticky execution preview, and preset/template save-load. `/eval/config/:evalId` is the stable handoff page for a server-backed draft or an immutable started configuration; it loads pinned prompt content and returns base-path-aware run/results/summary links.
 
 **Step 3 — Run** (`/eval/run/:id`): elapsed timer, WebSocket connection status, per-prompt cards with per-model status rows (pending/running/completed/failed), live feed of completed cells, error panel with per-cell retry.
 
@@ -153,6 +155,15 @@ A **"Save as Template"** action on Step 2 lets a user capture their own refined 
 `VerdictHeader`'s gate-first headline (R8) reads the CI-aware `gate.verdict` (A7/A8, 2026-09-04), not a bare pass/fail: `pass` — "X clears the &lt;task&gt; gate (N cases)"; `inconclusive` — "X's &lt;task&gt; gate is inconclusive at N cases — need ~M more to resolve"; `advisory` (summarization only, judge self-judging or unqualified) — "X's &lt;task&gt; result is advisory only — &lt;reason&gt;"; `fail` — "X does NOT clear the &lt;task&gt; gate — &lt;first failure&gt;". This intentionally never renders a false pass off a threshold an under-sampled run can't actually support.
 
 **Step 5 — Summary** (`/eval/summary/:id`): **not yet implemented.** Placeholder page; full design (executive summary, model recommendation, per-model failure analysis, prompt improvement suggestions with diff preview and one-click apply) is Phase 9 in `docs/prompt-eval-system/TASK.md`.
+
+### 5.4 Agent API contract
+
+`GET /api/eval/evaluations/:id/feedback` is the resumable orchestration surface: it combines lifecycle
+status, persisted progress, validation, failures, artifact readiness, a compact CI-aware verdict, and
+deployment-relative browser paths. Detailed results remain on their existing endpoints. The checked-in
+OpenAPI 3.1 document at `docs/openapi/lmeval-eval-api.v1.json`, also served at
+`GET /api/eval/openapi.json`, is the machine-readable route contract. Standalone passes `/` and the
+HomeBase adapter passes its configured mount path into the shared `buildApp()` composition root.
 
 ## 6. Relationship to prior docs
 

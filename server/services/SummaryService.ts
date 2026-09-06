@@ -196,7 +196,8 @@ export function computeTaggingMetrics(
 
   for (const cell of completed) {
     const tc = testCaseById.get(cell.testCaseId);
-    if (!tc?.tags) continue;
+    const expectedLabels = tc?.expectedLabels ?? tc?.tags;
+    if (!expectedLabels) continue;
     caseCount++;
 
     const rawTokens = (cell.response ?? '').split(',').map(t => t.trim()).filter(Boolean);
@@ -208,7 +209,7 @@ export function computeTaggingMetrics(
       if (!vocabSet.has(t)) unknownTokens++;
     }
     const predictedSet = new Set(rawTokens);
-    const expectedSet = new Set(tc.tags);
+    const expectedSet = new Set(expectedLabels);
 
     const formatCompliant = !/[[\]{}]/.test(cell.response ?? '') && !(cell.response ?? '').includes('\n');
     if (formatCompliant) formatCompliantCount++;

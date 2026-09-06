@@ -569,6 +569,20 @@ behavior can be called verified.
 
 ---
 
+### Track G — Agent-drivable evaluation workflow *(active)*
+
+> Plan and rationale: [`plans/2026-09-06-agent-api-parity-gap-analysis.md`](plans/2026-09-06-agent-api-parity-gap-analysis.md)
+
+- [x] **G1 — Shared contract and validation**: caller-only `EvaluationInput`, stable validation issue/result types, reference/cardinality/test-source/inference/repetition/benchmark/judge checks, pairwise no-op rejection, canonical grouped-model client route, and preserved legacy create-and-start behavior.
+- [x] **G2 — Reproducible prompt and inference persistence**: new evaluations pin ordered prompt versions at creation, execution reads those pins, draft/create routes persist `inference`, retries preserve the full config, and unused live `baselineId` was removed from the current type while historical JSON remains readable.
+- [x] **G3 — Draft lifecycle**: persisted `draft` status, validate/create/patch/start endpoints, one-way start transition, post-start immutability, and session-run linkage at actual start.
+- [x] **G4 — Browser configuration handoff**: `/eval/config/:evalId` loads server state, pinned prompt content, validation, call estimate, editable draft JSON/content, new prompt versions on content edits, read-only started state, and safe read-only handling for API matrices with more than two prompts.
+- [x] **G5 — Feedback and progress**: `progress.json` survives missed WebSocket events; feedback combines lifecycle, progress, validation, failures, readiness, CI-aware verdict, and standalone/HomeBase-relative browser paths.
+- [x] **G6 — Published contract and clients**: checked-in/served OpenAPI 3.1 document, corrected README workflow/route table, frontend API client and existing typed `LMEvalClient` extended, and executable `test:agent-workflow` smoke harness added.
+- [ ] **G7 — Full automated gate**: full unit suite, lint, standalone build, hosted frontend build, host adapter build, API integration, and relevant Playwright draft-handoff coverage all pass. Record pre-existing lint failures separately.
+- [ ] **G8 — Live three-task evidence**: with LMEval + LMApi running, execute bounded production-shaped classification, tagging, and summarization smokes through the agent SDK; record IDs, pinned prompts, models/judge, call counts, paths, failures, verdicts, and advisory reasons. This can close older Track D/E live-engine items only where their original criteria were actually exercised.
+- [ ] **G9 — Gated workflow skill**: only after G7/G8, create and validate `.agents/skills/lmeval-evaluation-workflow/`; keep discovery/draft-first/one-axis/ground-truth/production-shape rules concise and require explicit authority for delete, git, promotion, or external writes.
+
 ### Track F — Future use cases *(captured, not scheduled)*
 
 > Surfaced during the 2026-09-04 brainstorm behind
@@ -591,12 +605,9 @@ behavior can be called verified.
   from multiple separate databases into one LLM/MCP-consumable response for downstream decision-making;
   evaluating the quality of that merge/fusion is a materially different, more complex evaluation shape
   than single-call classification/tagging/summarization and needs its own design.
-- [ ] **Agent-drivable API** — a stable, documented API/CLI contract so an LLM agent (not just this
-  tool's own wizard) can configure and run an evaluation set programmatically. A first concrete step
-  discussed: a small read-only API endpoint (evaluation summary + failing cells) backing a Claude Code
-  agent skill that reads a completed evaluation and proposes prompt-wording refinements in chat —
-  diff-only, no auto-apply. Better scoped once the wizard UX and Track A's core scoring (R1–R8 above)
-  are proven out against MemoryApi's real prompts.
+- [x] **Agent-drivable API moved to active Track G** — the draft lifecycle, feedback surface, OpenAPI
+  contract, clients, live proof, and gated skill are tracked there. Automated refinement remains the
+  separate future item below.
 - [ ] **Automated refinement-loop harness** — a further-out extension of the above: an agent loop that
   iterates on prompt (and eventually eval) refinements automatically. Candidate approach floated: an
   agent SDK, possibly as a separate project outside this repo. Explicitly longer-term; not the same

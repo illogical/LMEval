@@ -10,8 +10,10 @@ export default defineConfig(({ mode }) => {
 
   // Eval backend — configure its port via PORT in .env
   const evalPort = env.PORT ?? '3200'
-  const evalBaseUrl = `http://localhost:${evalPort}`
-  const evalWsUrl = `ws://localhost:${evalPort}`
+  // Use an explicit IPv4 loopback so Windows installations that resolve
+  // localhost to ::1 can still reach the backend's IPv4 listener.
+  const evalBaseUrl = `http://127.0.0.1:${evalPort}`
+  const evalWsUrl = `ws://127.0.0.1:${evalPort}`
 
   return {
     // "/" standalone, "/lmeval/" when built for HomeBase hosting (npm run

@@ -5,6 +5,7 @@ import { TemplateService } from './TemplateService';
 import { TestSuiteService } from './TestSuiteService';
 import { SessionService } from './SessionService';
 import { JudgeQualificationService } from './JudgeQualificationService';
+import { z } from 'zod';
 import type {
   EvaluationInput, EvaluationValidationIssue, EvaluationValidationResult, TestCase,
 } from '../../src/types/eval';
@@ -14,6 +15,38 @@ export class ModelCatalogUnavailableError extends Error {
     super(message);
     this.name = 'ModelCatalogUnavailableError';
   }
+}
+
+const TestCaseSchema = z.object({ id: z.string().min(1), userMessage: z.string() }).passthrough();
+export const EvaluationInputSchema = z.object({
+  name: z.string(),
+  promptIds: z.array(z.string().min(1)),
+  promptVersions: z.array(z.object({ promptId: z.string().min(1), version: z.number().int().min(1) })).optional(),
+  modelIds: z.array(z.string().min(1)),
+  comparisonMode: z.enum(['model', 'prompt', 'matrix']).optional(),
+  purposeTemplateId: z.string().min(1).optional(),
+  testSuiteId: z.string().min(1).optional(),
+  userMessage: z.string().optional(),
+  inlineTestCases: z.array(TestCaseSchema).optional(),
+  templateId: z.string().min(1).optional(),
+  judgeModelId: z.string().min(1).optional(),
+  enablePairwise: z.boolean().optional(),
+  runsPerCell: z.number().optional(),
+  sessionId: z.string().min(1).optional(),
+  sessionVersion: z.number().int().min(1).optional(),
+  inference: z.object({ temperature: z.number(), maxTokens: z.number(), seed: z.number().optional() }).optional(),
+  benchmarkMode: z.enum(['calibration', 'promotion-check']).optional(),
+}).passthrough();
+
+export function validateEvaluationInputShape(input: unknown): EvaluationValidationResult | null {
+  const parsed = EvaluationInputSchema.safeParse(input);
+  if (parsed.success) return null;
+  const errors = parsed.error.issues.map(zodIssue => ({
+    code: 'INVALID_FIELD_TYPE',
+    field: zodIssue.path.join('.'),
+    message: zodIssue.message,
+  }));
+  return { valid: false, errors, warnings: [] };
 }
 
 function issue(code: string, field: string, message: string): EvaluationValidationIssue {
@@ -123,7 +156,7 @@ export const EvaluationValidationService = {
       } else {
         try {
           const servers = await LmapiClient.getServers();
-          const available = new Set(servers.flatMap(server => server.models.map(model => `${server.config.name}::${model}`)));
+          const available = new Set(servers.filter(server => server.isOnline).flatMap(server => server.models.map(model => `${server.config.name}::${model}`)));
           for (const modelId of [...modelIds, ...(input.judgeModelId ? [input.judgeModelId] : [])]) {
             if (!available.has(modelId)) errors.push(issue('MODEL_NOT_FOUND', 'modelIds', `Model is not available from LMApi: ${modelId}`));
           }

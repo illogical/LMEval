@@ -14,6 +14,12 @@ import type {
   PurposeCategory,
 } from '../../src/types/eval';
 
+// Promptfoo distinguishes an assertion miss (the model ran successfully) from
+// an execution/provider error. Only the latter is a failed lifecycle cell.
+export function isPromptfooExecutionFailure(failureReason: number): boolean {
+  return failureReason === 2;
+}
+
 const CONCURRENCY_LIMIT = Math.max(1, parseInt(process.env.EVAL_CONCURRENCY ?? '8', 10) || 8);
 
 /**
@@ -329,9 +335,10 @@ export const ExecutionService = {
       const responseOutput = result.response?.output;
       const responseText = typeof responseOutput === 'string' ? responseOutput : JSON.stringify(responseOutput ?? '');
 
+      const executionFailed = isPromptfooExecutionFailure(result.failureReason);
       cellById.set(cellId, {
         ...existing,
-        status: result.error ? 'failed' : 'completed',
+        status: executionFailed ? 'failed' : 'completed',
         request: {
           systemPrompt: promptContents.find(p => p.promptId === promptId)?.content ?? '',
           userMessage: String((result.vars as Record<string, unknown> | undefined)?.userMessage ?? ''),
@@ -346,12 +353,12 @@ export const ExecutionService = {
         serverName: responseMetadata?.serverName,
         assertionResults: assertionResults.length > 0 ? assertionResults : undefined,
         compositeScore,
-        error: result.error ?? undefined,
+        error: executionFailed ? result.error ?? 'Model execution failed' : undefined,
         retryAttempts: responseMetadata?.retryAttempts?.length ? responseMetadata.retryAttempts : undefined,
       });
 
       broadcast({ type: 'cell:started', evalId, data: { cellId }, timestamp: Date.now() });
-      if (result.error) {
+      if (executionFailed) {
         broadcast({ type: 'cell:failed', evalId, data: { cellId, error: result.error }, timestamp: Date.now() });
       } else {
         broadcast({

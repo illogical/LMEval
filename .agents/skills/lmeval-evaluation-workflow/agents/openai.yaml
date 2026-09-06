@@ -1,0 +1,7 @@
+interface:
+  display_name: "LMEval Evaluation Workflow"
+  short_description: "Configure and run reproducible LMEval evaluations"
+  default_prompt: "Use $lmeval-evaluation-workflow to configure, validate, review, run, and interpret this LMEval evaluation."
+
+policy:
+  allow_implicit_invocation: true

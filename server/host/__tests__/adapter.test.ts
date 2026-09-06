@@ -105,7 +105,7 @@ describe('createLmEvalAdapter', () => {
         repoRoot: options.repositoryRoot,
       });
       expect(reconfigureLmapiBaseUrlMock).toHaveBeenCalledWith('http://127.0.0.1:17106/lmapi');
-      expect(buildAppMock).toHaveBeenCalled();
+      expect(buildAppMock).toHaveBeenCalledWith({ appBasePath: options.basePath });
       expect(app.router).toBe(fakeRouter);
 
       const configureOrder = configurePathsMock.mock.invocationCallOrder[0];

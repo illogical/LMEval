@@ -7,6 +7,7 @@ import { PromptService } from '../PromptService';
 import { LmapiClient } from '../LmapiClient';
 import { EvaluationService } from '../EvaluationService';
 import { EvaluationFeedbackService } from '../EvaluationFeedbackService';
+import { ExecutionService } from '../ExecutionService';
 import type { EvaluationInput } from '../../../src/types/eval';
 
 let dataRoot: string;
@@ -39,10 +40,15 @@ afterEach(() => {
 
 describe('EvaluationService', () => {
   it('pins the current prompt version and preserves inference in a draft', async () => {
-    const created = await EvaluationService.create(input(), 'draft');
+    const candidate = input();
+    const promptId = candidate.promptIds[0];
+    PromptService.addVersion(promptId, 'Changed after draft creation');
+    candidate.promptVersions = [{ promptId, version: 1 }];
+    const created = await EvaluationService.create(candidate, 'draft');
     expect(created.evaluation.status).toBe('draft');
     expect(created.evaluation.promptVersions).toEqual([{ promptId: created.evaluation.promptIds[0], version: 1 }]);
     expect(created.evaluation.inference).toEqual({ temperature: 0.3, maxTokens: 1000, seed: 1 });
+    expect(ExecutionService.buildMatrix(created.evaluation, candidate.inlineTestCases!)[0].promptVersion).toBe(1);
   });
 
   it('rejects comparison cardinality, invalid inference, conflicting test sources, and pairwise', async () => {
