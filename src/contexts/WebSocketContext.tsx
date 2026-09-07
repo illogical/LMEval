@@ -24,52 +24,49 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const unmountedRef = useRef(false);
 
-  const connect = useCallback(() => {
-    if (unmountedRef.current) return;
-    try {
-      const ws = new WebSocket(WS_URL);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        if (unmountedRef.current) { ws.close(); return; }
-        setIsConnected(true);
-        reconnectDelayRef.current = 1000;
-      };
-
-      ws.onmessage = (evt) => {
-        try {
-          const event = JSON.parse(evt.data as string) as EvalStreamEvent;
-          handlersRef.current.forEach(h => h(event));
-        } catch { /* ignore malformed */ }
-      };
-
-      ws.onclose = () => {
-        setIsConnected(false);
-        wsRef.current = null;
-        if (!unmountedRef.current) {
-          const delay = Math.min(reconnectDelayRef.current * 2, 30000);
-          reconnectDelayRef.current = delay;
-          reconnectTimerRef.current = setTimeout(connect, delay);
-        }
-      };
-
-      ws.onerror = () => {
-        ws.close();
-      };
-    } catch {
-      // WebSocket not available in test environment
-    }
-  }, []);
-
   useEffect(() => {
     unmountedRef.current = false;
+    function connect() {
+      if (unmountedRef.current) return;
+      try {
+        const ws = new WebSocket(WS_URL);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          if (unmountedRef.current) { ws.close(); return; }
+          setIsConnected(true);
+          reconnectDelayRef.current = 1000;
+        };
+
+        ws.onmessage = (evt) => {
+          try {
+            const event = JSON.parse(evt.data as string) as EvalStreamEvent;
+            handlersRef.current.forEach(h => h(event));
+          } catch { /* ignore malformed */ }
+        };
+
+        ws.onclose = () => {
+          setIsConnected(false);
+          wsRef.current = null;
+          if (!unmountedRef.current) {
+            const delay = Math.min(reconnectDelayRef.current * 2, 30000);
+            reconnectDelayRef.current = delay;
+            reconnectTimerRef.current = setTimeout(connect, delay);
+          }
+        };
+
+        ws.onerror = () => ws.close();
+      } catch {
+        // WebSocket not available in test environment
+      }
+    }
     connect();
     return () => {
       unmountedRef.current = true;
       clearTimeout(reconnectTimerRef.current);
       wsRef.current?.close();
     };
-  }, [connect]);
+  }, []);
 
   const subscribe = useCallback((handler: (event: EvalStreamEvent) => void) => {
     handlersRef.current.add(handler);
@@ -83,6 +80,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWebSocket(): WebSocketContextValue {
   const ctx = useContext(WebSocketContext);
   if (!ctx) throw new Error('useWebSocket must be used within WebSocketProvider');

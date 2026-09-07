@@ -1,0 +1,1474 @@
+{
+  "generatedAt": "2026-09-06T21:11:49.003Z",
+  "baseUrl": "http://localhost:3200/api/eval",
+  "evidence": [
+    {
+      "task": "classification",
+      "mechanicsOnly": true,
+      "limitations": [
+        "Bounded calibration smoke; not stable quality or promotion evidence.",
+        "Regression cases were not exposed.",
+        "The source benchmark remains pending human review."
+      ],
+      "evalId": "eval-mtqb3mwu-mdtlhf",
+      "prompt": {
+        "id": "prm-mtqatr9e-pwwbf4",
+        "version": 1,
+        "sha256": "ebeab68b4f74b9c5303f8a800d111de64e5c4a81fbb2e836b291980abea2b56d",
+        "reused": true
+      },
+      "models": [
+        "Localhost::qwen3.5:9b",
+        "Localhost::gemma3:12b"
+      ],
+      "caseIds": [
+        "mem-cls-004",
+        "mem-cls-013",
+        "mem-cls-017",
+        "mem-cls-028",
+        "mem-cls-037",
+        "mem-cls-041",
+        "mem-cls-052",
+        "mem-cls-061"
+      ],
+      "runsPerCell": 3,
+      "candidateCallCount": 48,
+      "inference": {
+        "temperature": 0.3,
+        "maxTokens": 50
+      },
+      "validation": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      },
+      "browserPaths": {
+        "config": "/eval/config/eval-mtqb3mwu-mdtlhf",
+        "run": "/eval/run/eval-mtqb3mwu-mdtlhf",
+        "results": "/eval/results/eval-mtqb3mwu-mdtlhf",
+        "summary": "/eval/summary/eval-mtqb3mwu-mdtlhf"
+      },
+      "feedback": {
+        "evalId": "eval-mtqb3mwu-mdtlhf",
+        "status": "completed",
+        "progress": {
+          "total": 48,
+          "completed": 48,
+          "failed": 0,
+          "updatedAt": "2026-09-06T21:11:48.230Z"
+        },
+        "validation": {
+          "valid": true,
+          "errors": [],
+          "warnings": []
+        },
+        "failures": [],
+        "readiness": {
+          "results": true,
+          "summary": true,
+          "regression": true,
+          "summaryAnalysis": false
+        },
+        "verdict": {
+          "taskType": "classification",
+          "verdict": "fail",
+          "caseCount": 48,
+          "reason": "8 class(es) below 0.80 recall; invalid-label rate 50.0% > 0; format-compliance rate 50.0% < 100%; macro-F1 0.56 < 0.90 (95% CI 0.29-0.58)",
+          "primaryMetric": {
+            "name": "accuracy",
+            "value": 0.4375,
+            "confidenceInterval": {
+              "point": 0.4375,
+              "lower": 0.2916666666666667,
+              "upper": 0.5833333333333334
+            }
+          }
+        },
+        "appBasePath": "/",
+        "browserPaths": {
+          "config": "/eval/config/eval-mtqb3mwu-mdtlhf",
+          "run": "/eval/run/eval-mtqb3mwu-mdtlhf",
+          "results": "/eval/results/eval-mtqb3mwu-mdtlhf",
+          "summary": "/eval/summary/eval-mtqb3mwu-mdtlhf"
+        }
+      },
+      "rawResults": [
+        {
+          "id": "cell-mtqb3my8-emt6l6",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-004",
+          "run": 1,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Preference\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-u7zokn",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-004",
+          "run": 2,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Preference\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-ktaoi2",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-004",
+          "run": 3,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Preference\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-9urrkz",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-013",
+          "run": 1,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Reminder\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-nkp625",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-013",
+          "run": 2,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Reminder\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-2e236j",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-013",
+          "run": 3,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Reminder\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-li8ld3",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-017",
+          "run": 1,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Snippet\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-pzpy7h",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-017",
+          "run": 2,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Snippet\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-2bx4pf",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-017",
+          "run": 3,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Snippet\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-9t8lbo",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-028",
+          "run": 1,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Event\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-pdwpv2",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-028",
+          "run": 2,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Event\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-mi0rp0",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-028",
+          "run": 3,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Event\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-y6z5qf",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-037",
+          "run": 1,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Note\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-hd6h9w",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-037",
+          "run": 2,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Note\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-fnk0qv",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-037",
+          "run": 3,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Note\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-exc24w",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-041",
+          "run": 1,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Prompt\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-38zz8h",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-041",
+          "run": 2,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Prompt\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-s7qf2h",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-041",
+          "run": 3,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Prompt\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-yv9shx",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-052",
+          "run": 1,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Idea\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-pie157",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-052",
+          "run": 2,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Idea\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-ngp6ar",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-052",
+          "run": 3,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Idea\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-i1o9d1",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-061",
+          "run": 1,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"History\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-aej7cp",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-061",
+          "run": 2,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"History\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-ivrnp5",
+          "modelId": "Localhost::qwen3.5:9b",
+          "testCaseId": "mem-cls-061",
+          "run": 3,
+          "status": "completed",
+          "response": "",
+          "finishReason": "length",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"History\", got \"\" (not a declared label)",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-vume33",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-004",
+          "run": 1,
+          "status": "completed",
+          "response": "Preference",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Preference\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-f68po4",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-004",
+          "run": 2,
+          "status": "completed",
+          "response": "Preference",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Preference\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-2e5k1x",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-004",
+          "run": 3,
+          "status": "completed",
+          "response": "Preference",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Preference\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-apw0nq",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-013",
+          "run": 1,
+          "status": "completed",
+          "response": "Reminder",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Reminder\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-lkwdds",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-013",
+          "run": 2,
+          "status": "completed",
+          "response": "Reminder",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Reminder\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-06g9lh",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-013",
+          "run": 3,
+          "status": "completed",
+          "response": "Reminder",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Reminder\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-qwlvve",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-017",
+          "run": 1,
+          "status": "completed",
+          "response": "Snippet",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Snippet\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-t1la9a",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-017",
+          "run": 2,
+          "status": "completed",
+          "response": "Snippet",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Snippet\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-isckfg",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-017",
+          "run": 3,
+          "status": "completed",
+          "response": "Snippet",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Snippet\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-1qws0i",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-028",
+          "run": 1,
+          "status": "completed",
+          "response": "Event",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Event\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-fx55dg",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-028",
+          "run": 2,
+          "status": "completed",
+          "response": "Event",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Event\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-dc7i5u",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-028",
+          "run": 3,
+          "status": "completed",
+          "response": "Event",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Event\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-6awzw5",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-037",
+          "run": 1,
+          "status": "completed",
+          "response": "Note",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Note\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-sjlvml",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-037",
+          "run": 2,
+          "status": "completed",
+          "response": "Note",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Note\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-q2tozb",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-037",
+          "run": 3,
+          "status": "completed",
+          "response": "Note",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Note\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-un2nxe",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-041",
+          "run": 1,
+          "status": "completed",
+          "response": "Prompt",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Prompt\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-pdwm8x",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-041",
+          "run": 2,
+          "status": "completed",
+          "response": "Prompt",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Prompt\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-49v16z",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-041",
+          "run": 3,
+          "status": "completed",
+          "response": "Prompt",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"Prompt\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-bwc845",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-052",
+          "run": 1,
+          "status": "completed",
+          "response": "Prompt",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Idea\", got \"Prompt\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-2f95m3",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-052",
+          "run": 2,
+          "status": "completed",
+          "response": "Prompt",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Idea\", got \"Prompt\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-n272i2",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-052",
+          "run": 3,
+          "status": "completed",
+          "response": "Prompt",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": false,
+              "score": 0,
+              "reason": "Expected \"Idea\", got \"Prompt\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-2cq163",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-061",
+          "run": 1,
+          "status": "completed",
+          "response": "History",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"History\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-hekp1e",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-061",
+          "run": 2,
+          "status": "completed",
+          "response": "History",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"History\"",
+              "metric": "exact-label"
+            }
+          ]
+        },
+        {
+          "id": "cell-mtqb3my8-vwjlkf",
+          "modelId": "Localhost::gemma3:12b",
+          "testCaseId": "mem-cls-061",
+          "run": 3,
+          "status": "completed",
+          "response": "History",
+          "finishReason": "stop",
+          "assertionResults": [
+            {
+              "type": "javascript",
+              "pass": true,
+              "score": 1,
+              "reason": "Matched expected label \"History\"",
+              "metric": "exact-label"
+            }
+          ]
+        }
+      ],
+      "summary": {
+        "evalId": "eval-mtqb3mwu-mdtlhf",
+        "totalCells": 48,
+        "completedCells": 48,
+        "failedCells": 0,
+        "modelSummaries": [
+          {
+            "modelId": "Localhost::qwen3.5:9b",
+            "avgDurationMs": 6353.041666666667,
+            "avgInputTokens": 310,
+            "avgOutputTokens": 50,
+            "avgTokensPerSecond": 8.25,
+            "successRate": 1,
+            "rank": 1
+          },
+          {
+            "modelId": "Localhost::gemma3:12b",
+            "avgDurationMs": 622.2916666666666,
+            "avgInputTokens": 361,
+            "avgOutputTokens": 2,
+            "avgTokensPerSecond": 4.416666666666667,
+            "successRate": 1,
+            "rank": 2
+          }
+        ],
+        "promptSummaries": [
+          {
+            "promptId": "prm-mtqatr9e-pwwbf4",
+            "promptVersion": 1,
+            "avgDurationMs": 3487.6666666666665,
+            "successRate": 1
+          }
+        ],
+        "completedAt": "2026-09-06T21:11:48.229Z",
+        "testCaseSummaries": [
+          {
+            "testCaseId": "mem-cls-052",
+            "totalRuns": 6,
+            "passRate": 0,
+            "byModel": {
+              "Localhost::qwen3.5:9b": {
+                "passRate": 0,
+                "completedRuns": 3,
+                "totalRuns": 3
+              },
+              "Localhost::gemma3:12b": {
+                "passRate": 0,
+                "completedRuns": 3,
+                "totalRuns": 3
+              }
+            }
+          },
+          {
+            "testCaseId": "mem-cls-004",
+            "totalRuns": 6,
+            "passRate": 0.5,
+            "byModel": {
+              "Localhost::qwen3.5:9b": {
+                "passRate": 0,
+                "completedRuns": 3,
+                "totalRuns": 3
+              },
+              "Localhost::gemma3:12b": {
+                "passRate": 1,
+                "completedRuns": 3,
+                "totalRuns": 3
+              }
+            }
+          },
+          {
+            "testCaseId": "mem-cls-013",
+            "totalRuns": 6,
+            "passRate": 0.5,
+            "byModel": {
+              "Localhost::qwen3.5:9b": {
+                "passRate": 0,
+                "completedRuns": 3,
+                "totalRuns": 3
+              },
+              "Localhost::gemma3:12b": {
+                "passRate": 1,
+                "completedRuns": 3,
+                "totalRuns": 3
+              }
+            }
+          },
+          {
+            "testCaseId": "mem-cls-017",
+            "totalRuns": 6,
+            "passRate": 0.5,
+            "byModel": {
+              "Localhost::qwen3.5:9b": {
+                "passRate": 0,
+                "completedRuns": 3,
+                "totalRuns": 3
+              },
+              "Localhost::gemma3:12b": {
+                "passRate": 1,
+                "completedRuns": 3,
+                "totalRuns": 3
+              }
+            }
+          },
+          {
+            "testCaseId": "mem-cls-028",
+            "totalRuns": 6,
+            "passRate": 0.5,
+            "byModel": {
+              "Localhost::qwen3.5:9b": {
+                "passRate": 0,
+                "completedRuns": 3,
+                "totalRuns": 3
+              },
+              "Localhost::gemma3:12b": {
+                "passRate": 1,
+                "completedRuns": 3,
+                "totalRuns": 3
+              }
+            }
+          },
+          {
+            "testCaseId": "mem-cls-037",
+            "totalRuns": 6,
+            "passRate": 0.5,
+            "byModel": {
+              "Localhost::qwen3.5:9b": {
+                "passRate": 0,
+                "completedRuns": 3,
+                "totalRuns": 3
+              },
+              "Localhost::gemma3:12b": {
+                "passRate": 1,
+                "completedRuns": 3,
+                "totalRuns": 3
+              }
+            }
+          },
+          {
+            "testCaseId": "mem-cls-041",
+            "totalRuns": 6,
+            "passRate": 0.5,
+            "byModel": {
+              "Localhost::qwen3.5:9b": {
+                "passRate": 0,
+                "completedRuns": 3,
+                "totalRuns": 3
+              },
+              "Localhost::gemma3:12b": {
+                "passRate": 1,
+                "completedRuns": 3,
+                "totalRuns": 3
+              }
+            }
+          },
+          {
+            "testCaseId": "mem-cls-061",
+            "totalRuns": 6,
+            "passRate": 0.5,
+            "byModel": {
+              "Localhost::qwen3.5:9b": {
+                "passRate": 0,
+                "completedRuns": 3,
+                "totalRuns": 3
+              },
+              "Localhost::gemma3:12b": {
+                "passRate": 1,
+                "completedRuns": 3,
+                "totalRuns": 3
+              }
+            }
+          }
+        ],
+        "assertionSummary": [
+          {
+            "type": "javascript",
+            "metric": "exact-label",
+            "total": 48,
+            "passed": 21,
+            "failed": 27,
+            "sampleReason": "Expected \"Preference\", got \"\" (not a declared label)",
+            "sampleCellId": "cell-mtqb3my8-emt6l6"
+          }
+        ],
+        "consistency": {},
+        "truncationRate": 0.5,
+        "resolvedInference": {
+          "temperature": 0.3,
+          "maxTokens": 50,
+          "source": "config"
+        },
+        "transportProvenance": {
+          "endpointPaths": [
+            "/api/chat/completions/server"
+          ],
+          "messageShape": "chat-messages",
+          "seedHonored": true
+        },
+        "taskMetrics": {
+          "taskType": "classification",
+          "accuracy": 0.4375,
+          "macroF1": 0.5625,
+          "perClass": {
+            "Preference": {
+              "precision": 1,
+              "recall": 0.5,
+              "f1": 0.6666666666666666,
+              "support": 6
+            },
+            "Reminder": {
+              "precision": 1,
+              "recall": 0.5,
+              "f1": 0.6666666666666666,
+              "support": 6
+            },
+            "Snippet": {
+              "precision": 1,
+              "recall": 0.5,
+              "f1": 0.6666666666666666,
+              "support": 6
+            },
+            "Event": {
+              "precision": 1,
+              "recall": 0.5,
+              "f1": 0.6666666666666666,
+              "support": 6
+            },
+            "Note": {
+              "precision": 1,
+              "recall": 0.5,
+              "f1": 0.6666666666666666,
+              "support": 6
+            },
+            "Prompt": {
+              "precision": 0.5,
+              "recall": 0.5,
+              "f1": 0.5,
+              "support": 6
+            },
+            "Idea": {
+              "precision": 0,
+              "recall": 0,
+              "f1": 0,
+              "support": 6
+            },
+            "History": {
+              "precision": 1,
+              "recall": 0.5,
+              "f1": 0.6666666666666666,
+              "support": 6
+            }
+          },
+          "invalidLabelRate": 0.5,
+          "formatComplianceRate": 0.5,
+          "confusionMatrix": {
+            "Preference": {
+              "INVALID": 3,
+              "Preference": 3
+            },
+            "Reminder": {
+              "INVALID": 3,
+              "Reminder": 3
+            },
+            "Snippet": {
+              "INVALID": 3,
+              "Snippet": 3
+            },
+            "Event": {
+              "INVALID": 3,
+              "Event": 3
+            },
+            "Note": {
+              "INVALID": 3,
+              "Note": 3
+            },
+            "Prompt": {
+              "INVALID": 3,
+              "Prompt": 3
+            },
+            "Idea": {
+              "INVALID": 3,
+              "Prompt": 3
+            },
+            "History": {
+              "INVALID": 3,
+              "History": 3
+            }
+          },
+          "runToRunAgreement": 1,
+          "accuracyCI": {
+            "point": 0.4375,
+            "lower": 0.2916666666666667,
+            "upper": 0.5833333333333334
+          },
+          "gate": {
+            "pass": false,
+            "failures": [
+              "8 class(es) below 0.80 recall",
+              "invalid-label rate 50.0% > 0",
+              "format-compliance rate 50.0% < 100%",
+              "macro-F1 0.56 < 0.90 (95% CI 0.29-0.58)"
+            ],
+            "verdict": "fail",
+            "caseCount": 48
+          }
+        },
+        "perModelTaskMetrics": {
+          "Localhost::qwen3.5:9b": {
+            "taskType": "classification",
+            "accuracy": 0,
+            "macroF1": 0,
+            "perClass": {
+              "Preference": {
+                "precision": 0,
+                "recall": 0,
+                "f1": 0,
+                "support": 3
+              },
+              "Reminder": {
+                "precision": 0,
+                "recall": 0,
+                "f1": 0,
+                "support": 3
+              },
+              "Snippet": {
+                "precision": 0,
+                "recall": 0,
+                "f1": 0,
+                "support": 3
+              },
+              "Event": {
+                "precision": 0,
+                "recall": 0,
+                "f1": 0,
+                "support": 3
+              },
+              "Note": {
+                "precision": 0,
+                "recall": 0,
+                "f1": 0,
+                "support": 3
+              },
+              "Prompt": {
+                "precision": 0,
+                "recall": 0,
+                "f1": 0,
+                "support": 3
+              },
+              "Idea": {
+                "precision": 0,
+                "recall": 0,
+                "f1": 0,
+                "support": 3
+              },
+              "History": {
+                "precision": 0,
+                "recall": 0,
+                "f1": 0,
+                "support": 3
+              }
+            },
+            "invalidLabelRate": 1,
+            "formatComplianceRate": 0,
+            "confusionMatrix": {
+              "Preference": {
+                "INVALID": 3
+              },
+              "Reminder": {
+                "INVALID": 3
+              },
+              "Snippet": {
+                "INVALID": 3
+              },
+              "Event": {
+                "INVALID": 3
+              },
+              "Note": {
+                "INVALID": 3
+              },
+              "Prompt": {
+                "INVALID": 3
+              },
+              "Idea": {
+                "INVALID": 3
+              },
+              "History": {
+                "INVALID": 3
+              }
+            },
+            "runToRunAgreement": 1,
+            "accuracyCI": {
+              "point": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            "gate": {
+              "pass": false,
+              "failures": [
+                "8 class(es) below 0.80 recall",
+                "invalid-label rate 100.0% > 0",
+                "format-compliance rate 0.0% < 100%",
+                "macro-F1 0.00 < 0.90 (95% CI 0.00-0.00)"
+              ],
+              "verdict": "fail",
+              "caseCount": 24
+            }
+          },
+          "Localhost::gemma3:12b": {
+            "taskType": "classification",
+            "accuracy": 0.875,
+            "macroF1": 0.8333333333333334,
+            "perClass": {
+              "Preference": {
+                "precision": 1,
+                "recall": 1,
+                "f1": 1,
+                "support": 3
+              },
+              "Reminder": {
+                "precision": 1,
+                "recall": 1,
+                "f1": 1,
+                "support": 3
+              },
+              "Snippet": {
+                "precision": 1,
+                "recall": 1,
+                "f1": 1,
+                "support": 3
+              },
+              "Event": {
+                "precision": 1,
+                "recall": 1,
+                "f1": 1,
+                "support": 3
+              },
+              "Note": {
+                "precision": 1,
+                "recall": 1,
+                "f1": 1,
+                "support": 3
+              },
+              "Prompt": {
+                "precision": 0.5,
+                "recall": 1,
+                "f1": 0.6666666666666666,
+                "support": 3
+              },
+              "Idea": {
+                "precision": 0,
+                "recall": 0,
+                "f1": 0,
+                "support": 3
+              },
+              "History": {
+                "precision": 1,
+                "recall": 1,
+                "f1": 1,
+                "support": 3
+              }
+            },
+            "invalidLabelRate": 0,
+            "formatComplianceRate": 1,
+            "confusionMatrix": {
+              "Preference": {
+                "Preference": 3
+              },
+              "Reminder": {
+                "Reminder": 3
+              },
+              "Snippet": {
+                "Snippet": 3
+              },
+              "Event": {
+                "Event": 3
+              },
+              "Note": {
+                "Note": 3
+              },
+              "Prompt": {
+                "Prompt": 3
+              },
+              "Idea": {
+                "Prompt": 3
+              },
+              "History": {
+                "History": 3
+              }
+            },
+            "runToRunAgreement": 1,
+            "accuracyCI": {
+              "point": 0.875,
+              "lower": 0.75,
+              "upper": 1
+            },
+            "gate": {
+              "pass": false,
+              "failures": [
+                "1 class(es) below 0.80 recall",
+                "gate inconclusive at 24 cases (95% CI 0.75-1.00 straddles 0.90) — need ~360 more cases"
+              ],
+              "verdict": "fail",
+              "caseCount": 24
+            }
+          }
+        }
+      },
+      "export": {
+        "format": "md",
+        "sha256": "472cc2b7c7b29fe64811350d47c7da5057da9694bd9de17dc7ce2a55e05339c8",
+        "bytes": 10040
+      }
+    }
+  ]
+}

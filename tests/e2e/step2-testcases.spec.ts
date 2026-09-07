@@ -5,17 +5,13 @@ import { test, expect } from '@playwright/test';
 
 async function goToConfigPage(page: Parameters<typeof test>[1] extends infer P ? P extends { goto: unknown } ? P : never : never) {
   await page.goto('/eval/prompts');
-  await page.waitForSelector('input[type="checkbox"]', { timeout: 10_000 });
-  const firstCheckbox = page.locator('input[type="checkbox"]').first();
-  if (!(await firstCheckbox.isChecked())) await firstCheckbox.click();
-  const nextBtn = page.locator('button:has-text("Next")');
-  await nextBtn.waitFor({ state: 'attached' });
-  if (!(await nextBtn.isDisabled())) {
-    await nextBtn.click();
-    await page.waitForURL(/\/eval\/config/, { timeout: 10_000 });
-  } else {
-    await page.goto('/eval/config');
-  }
+  await page.evaluate(() => localStorage.setItem('lmeval:wizard:state', JSON.stringify({
+    promptA: { id: null, version: 1, content: 'Test prompt', manifest: null },
+    selectedModels: [{ serverName: 'Localhost', modelName: 'gemma3:12b' }],
+    userMessage: 'Test message', currentStep: 2, maxVisitedStep: 2,
+  })));
+  await page.goto('/eval/config');
+  await page.locator('.config-page').waitFor();
 }
 
 test.describe('Step 2: Test case editor', () => {

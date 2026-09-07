@@ -36,6 +36,12 @@ describe('buildLmapiProvider — inference parameter threading', () => {
     expect(sentReq).not.toHaveProperty('seed');
   });
 
+  it('persists the exact model id in response metadata for result mapping', async () => {
+    const provider = buildLmapiProvider('Localhost::model-a', 'eval-1');
+    const response = await provider.callApi('system prompt', { vars: { userMessage: 'hi' } } as never);
+    expect(response.metadata?.modelId).toBe('Localhost::model-a');
+  });
+
   it('sends seed when provided, alongside temperature/max_tokens', async () => {
     chatCompletionMock.mockClear();
     const provider = buildLmapiProvider('model-a', 'eval-1', { temperature: 0.3, maxTokens: 1000, seed: 42 });
@@ -51,6 +57,25 @@ function baseConfig(): EvaluationConfig {
     status: 'pending', createdAt: '', updatedAt: '',
   };
 }
+
+describe('PromptfooAdapter.buildTestSuite repeated runs', () => {
+  it('expands each test case in run order so Promptfoo executes every matrix cell', () => {
+    const config = { ...baseConfig(), runsPerCell: 3 };
+    const testCases: TestCase[] = [
+      { id: 'tc1', userMessage: 'first' },
+      { id: 'tc2', userMessage: 'second' },
+    ];
+    const { testSuite, testCaseOrder } = PromptfooAdapter.buildTestSuite({
+      evalId: 'eval-1', config,
+      promptContents: [{ promptId: 'p1', content: 'sys' }],
+      testCases, template: null, purposeStrategy: null,
+    });
+
+    expect(testSuite.tests).toHaveLength(6);
+    expect(testSuite.tests.map(test => test.vars.lmevalRun)).toEqual(['1', '2', '3', '1', '2', '3']);
+    expect(testCaseOrder).toEqual(['tc1', 'tc1', 'tc1', 'tc2', 'tc2', 'tc2']);
+  });
+});
 
 describe('PromptfooAdapter.buildTestSuite — R1 exact-label wiring', () => {
   const tc: TestCase = { id: 'tc1', userMessage: 'a memory', expectedOutput: 'Preference' };

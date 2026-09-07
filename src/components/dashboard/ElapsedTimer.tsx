@@ -7,13 +7,16 @@ interface ElapsedTimerProps {
 }
 
 export function ElapsedTimer({ startTime, stopped = false }: ElapsedTimerProps) {
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(() => Date.now() - startTime);
 
   useEffect(() => {
-    setElapsed(Date.now() - startTime);
-    if (stopped) return;
+    const initialTick = setTimeout(() => setElapsed(Date.now() - startTime), 0);
+    if (stopped) return () => clearTimeout(initialTick);
     const id = setInterval(() => setElapsed(Date.now() - startTime), 1000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(initialTick);
+      clearInterval(id);
+    };
   }, [startTime, stopped]);
 
   const totalSec = Math.floor(elapsed / 1000);

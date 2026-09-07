@@ -20,8 +20,6 @@ export function useModels(): UseModelsResult {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     getLoadedModels()
       .then((modelNames: string[]) => {

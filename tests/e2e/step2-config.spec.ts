@@ -8,21 +8,14 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Step 2: Config page', () => {
   test.beforeEach(async ({ page }) => {
-    // Pre-populate enough wizard state to render ConfigPage
     await page.goto('/eval/prompts');
-    await page.waitForSelector('input[type="checkbox"]', { timeout: 10_000 });
-    const firstCheckbox = page.locator('input[type="checkbox"]').first();
-    if (!(await firstCheckbox.isChecked())) await firstCheckbox.click();
-
-    const nextBtn = page.locator('button:has-text("Next")');
-    await nextBtn.waitFor({ state: 'attached' });
-    if (!(await nextBtn.isDisabled())) {
-      await nextBtn.click();
-      await expect(page).toHaveURL(/\/eval\/config/, { timeout: 10_000 });
-    } else {
-      // Fallback: go directly (state may already be set from prior tests)
-      await page.goto('/eval/config');
-    }
+    await page.evaluate(() => localStorage.setItem('lmeval:wizard:state', JSON.stringify({
+      promptA: { id: null, version: 1, content: 'Test prompt', manifest: null },
+      selectedModels: [{ serverName: 'Localhost', modelName: 'gemma3:12b' }],
+      userMessage: 'Test message', currentStep: 2, maxVisitedStep: 2,
+    })));
+    await page.goto('/eval/config');
+    await expect(page.locator('.config-page')).toBeVisible();
   });
 
   test('Config page renders core sections', async ({ page }) => {

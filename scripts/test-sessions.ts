@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 const BASE = 'http://localhost:3200';
+const cleanupPaths: string[] = [];
+
+async function cleanup() {
+  for (const path of cleanupPaths.reverse()) {
+    await fetch(`${BASE}${path}`, { method: 'DELETE' }).catch(() => undefined);
+  }
+}
 
 async function request(method: string, path: string, body?: unknown) {
   const res = await fetch(`${BASE}${path}`, {
@@ -31,8 +38,11 @@ async function main() {
   }
 
   // First create a prompt to reference
-  const promptA = await request('POST', '/api/eval/prompts', { name: 'test-session-prompt-a', content: 'You are a helpful assistant.' });
-  const promptB = await request('POST', '/api/eval/prompts', { name: 'test-session-prompt-b', content: 'You are a concise assistant.' });
+  const suffix = Date.now();
+  const promptA = await request('POST', '/api/eval/prompts', { name: `e2e-test-session-prompt-a-${suffix}`, content: 'You are a helpful assistant.' });
+  cleanupPaths.push(`/api/eval/prompts/${promptA.id}`);
+  const promptB = await request('POST', '/api/eval/prompts', { name: `e2e-test-session-prompt-b-${suffix}`, content: 'You are a concise assistant.' });
+  cleanupPaths.push(`/api/eval/prompts/${promptB.id}`);
 
   let sessionId = '';
   await check('Create session', async () => {
@@ -43,6 +53,7 @@ async function main() {
       promptB: { promptId: promptB.id, promptVersion: 1 },
     });
     sessionId = session.id;
+    cleanupPaths.push(`/api/eval/sessions/${session.id}`);
     if (!session.id || !session.slug || session.latestVersion !== 1) throw new Error('Invalid session shape');
     if (session.versions.length !== 1) throw new Error('Expected 1 version');
   });
@@ -112,7 +123,9 @@ async function main() {
   if (failed > 0) process.exit(1);
 }
 
-main().catch(err => {
-  console.error('Test failed:', err);
-  process.exit(1);
-});
+main()
+  .catch(err => {
+    console.error('Test failed:', err);
+    process.exitCode = 1;
+  })
+  .finally(cleanup);

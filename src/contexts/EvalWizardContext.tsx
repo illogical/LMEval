@@ -91,6 +91,7 @@ export function EvalWizardProvider({ children }: { children: React.ReactNode }) 
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useEvalWizard(): EvalWizardContextValue {
   const ctx = useContext(EvalWizardContext);
   if (!ctx) throw new Error('useEvalWizard must be used within EvalWizardProvider');

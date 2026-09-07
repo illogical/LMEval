@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { ServerModelGroup, SelectedModel } from '../../hooks/useModelsByServer';
 import { modelKey } from '../../hooks/useModelsByServer';
 import './ModelSelector.css';
@@ -68,7 +68,8 @@ export function ModelSelector({
   // Reset focus to first model item when query changes
   useEffect(() => {
     const firstModel = flatItems.findIndex(i => i.type === 'model');
-    setFocusedIdx(firstModel);
+    const id = setTimeout(() => setFocusedIdx(firstModel), 0);
+    return () => clearTimeout(id);
   }, [query, flatItems]);
 
   function findNextModelIdx(items: FlatItem[], current: number, dir: 1 | -1): number {
@@ -117,7 +118,7 @@ export function ModelSelector({
     );
   }
 
-  const handleModelClick = useCallback((item: FlatItem) => {
+  function handleModelClick(item: FlatItem) {
     const sel: SelectedModel = { serverName: item.serverName, modelName: item.modelName! };
     const key = modelKey(sel);
     toggleModel(sel);
@@ -125,7 +126,7 @@ export function ModelSelector({
     if ((status === 'done' || status === 'error') && onNavigateToModel) {
       onNavigateToModel(sel);
     }
-  }, [selectedModels, modelStatuses, onNavigateToModel]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     switch (e.key) {

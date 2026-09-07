@@ -19,6 +19,7 @@ export function EvalHeaderActionProvider({ children }: { children: React.ReactNo
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useEvalHeaderAction() {
   return useContext(EvalHeaderActionContext);
 }

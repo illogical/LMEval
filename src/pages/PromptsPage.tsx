@@ -127,7 +127,8 @@ export function PromptsPage() {
 
   // Sync draftB when promptB is loaded from outside (selector/drop)
   useEffect(() => {
-    setDraftB(state.promptB.content);
+    const id = setTimeout(() => setDraftB(state.promptB.content), 0);
+    return () => clearTimeout(id);
   }, [state.promptB.content]);
 
   // Debounce draftB → debouncedB (300ms)

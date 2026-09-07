@@ -4,6 +4,14 @@
  */
 
 const BASE = 'http://localhost:3200/api/eval';
+const runSuffix = Date.now().toString();
+const cleanupTargets: string[] = [];
+
+async function cleanup(): Promise<void> {
+  for (const path of cleanupTargets.reverse()) {
+    await fetch(`${BASE}${path}`, { method: 'DELETE' }).catch(() => undefined);
+  }
+}
 
 async function request<T>(
   method: string,
@@ -45,13 +53,14 @@ async function runTests(): Promise<void> {
 
   // Create custom template
   const custom = await request<{ id: string; name: string; perspectives?: unknown[] }>('POST', '/templates', {
-    name: 'Test Template',
+    name: `e2e-test-api-template-${runSuffix}`,
     description: 'For integration testing',
     perspectives: [
       { id: 'quality', name: 'Quality', description: 'Overall quality', weight: 1.0, criteria: 'Is it good?', scoringGuide: '1-5' }
     ],
   });
-  await assert(custom.name === 'Test Template', 'custom template created');
+  cleanupTargets.push(`/templates/${custom.id}`);
+  await assert(custom.name === `e2e-test-api-template-${runSuffix}`, 'custom template created');
   await assert(typeof custom.id === 'string', 'custom template has id');
 
   // Get template by id
@@ -77,10 +86,11 @@ async function runTests(): Promise<void> {
   // Prompt CRUD
   console.log('\n3. Prompt CRUD');
   const prompt = await request<{ id: string; versions: unknown[] }>('POST', '/prompts', {
-    name: 'Test Prompt',
+    name: `e2e-test-api-prompt-${runSuffix}`,
     content: 'You are a helpful assistant.',
     description: 'Test',
   });
+  cleanupTargets.push(`/prompts/${prompt.id}`);
   await assert(typeof prompt.id === 'string', 'prompt created with id');
   await assert(prompt.versions.length === 1, 'prompt has 1 version');
 
@@ -100,13 +110,14 @@ async function runTests(): Promise<void> {
   // Test suite CRUD
   console.log('\n4. Test Suite CRUD');
   const suite = await request<{ id: string; testCases: unknown[] }>('POST', '/test-suites', {
-    name: 'Test Suite',
+    name: `e2e-test-api-suite-${runSuffix}`,
     description: 'For integration testing',
     testCases: [
       { userMessage: 'Hello, how are you?', description: 'Simple greeting' },
       { userMessage: 'What is 2+2?', description: 'Math question' },
     ],
   });
+  cleanupTargets.push(`/test-suites/${suite.id}`);
   await assert(typeof suite.id === 'string', 'test suite created');
   await assert(suite.testCases.length === 2, 'test suite has 2 test cases');
 
@@ -124,7 +135,9 @@ async function runTests(): Promise<void> {
   console.log('\n=== All tests passed ✓ ===\n');
 }
 
-runTests().catch(err => {
-  console.error('\n✗ Tests failed:', err.message);
-  process.exit(1);
-});
+runTests()
+  .catch(err => {
+    console.error('\n✗ Tests failed:', err.message);
+    process.exitCode = 1;
+  })
+  .finally(cleanup);

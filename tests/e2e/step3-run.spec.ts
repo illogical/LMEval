@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Step 3: Run dashboard', () => {
   test('WebSocket status dot is rendered on the run page', async ({ page }) => {
     // Start an evaluation via the API and navigate to its run page
-    const res = await page.request.get('http://localhost:3200/api/eval/evaluations?status=completed');
+    const res = await page.request.get('/api/eval/evaluations?status=completed');
     const evals = await res.json() as Array<{ id: string }>;
 
     if (evals.length === 0) {
@@ -28,7 +28,7 @@ test.describe('Step 3: Run dashboard', () => {
   });
 
   test('EvalSummaryBar is rendered on the run page', async ({ page }) => {
-    const res = await page.request.get('http://localhost:3200/api/eval/evaluations?status=completed');
+    const res = await page.request.get('/api/eval/evaluations?status=completed');
     const evals = await res.json() as Array<{ id: string }>;
 
     if (evals.length === 0) {
@@ -46,7 +46,7 @@ test.describe('Step 3: Run dashboard', () => {
   });
 
   test('LiveFeed section is rendered', async ({ page }) => {
-    const res = await page.request.get('http://localhost:3200/api/eval/evaluations?status=completed');
+    const res = await page.request.get('/api/eval/evaluations?status=completed');
     const evals = await res.json() as Array<{ id: string }>;
 
     if (evals.length === 0) {
@@ -64,7 +64,7 @@ test.describe('Step 3: Run dashboard', () => {
   });
 
   test('Completed eval run page shows results and navigates', async ({ page }) => {
-    const res = await page.request.get('http://localhost:3200/api/eval/evaluations?status=completed');
+    const res = await page.request.get('/api/eval/evaluations?status=completed');
     const evals = await res.json() as Array<{ id: string }>;
 
     if (evals.length === 0) {

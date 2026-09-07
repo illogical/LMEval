@@ -7,7 +7,7 @@ test.describe('Step 4: Results page', () => {
   let evalId: string;
 
   test.beforeAll(async ({ request }) => {
-    const res = await request.get('http://localhost:3200/api/eval/evaluations?status=completed');
+    const res = await request.get('/api/eval/evaluations?status=completed');
     const evals = await res.json() as Array<{ id: string }>;
     if (evals.length > 0) evalId = evals[0].id;
   });
@@ -24,7 +24,7 @@ test.describe('Step 4: Results page', () => {
   });
 
   test('All 5 result tabs are present', async ({ page }) => {
-    const tabs = ['Scoreboard', 'Compare', 'Detail', 'Metrics', 'Timeline'];
+    const tabs = ['Scoreboard', 'Breakdown', 'Compare', 'Detail', 'Trend'];
     for (const tab of tabs) {
       await expect(page.locator(`.rp-tab:has-text("${tab}")`)).toBeVisible();
     }
@@ -35,7 +35,7 @@ test.describe('Step 4: Results page', () => {
   });
 
   test('Clicking each tab renders different content', async ({ page }) => {
-    const tabs = ['Compare', 'Metrics', 'Timeline', 'Detail', 'Scoreboard'];
+    const tabs = ['Compare', 'Breakdown', 'Trend', 'Detail', 'Scoreboard'];
     for (const tabName of tabs) {
       await page.locator(`.rp-tab:has-text("${tabName}")`).click();
       await expect(page.locator('.rp-tab-active')).toContainText(tabName);
@@ -43,18 +43,17 @@ test.describe('Step 4: Results page', () => {
     }
   });
 
-  test('Scoreboard cells are clickable and switch to Detail view', async ({ page }) => {
+  test('Scoreboard data cells are clickable and switch to Compare', async ({ page }) => {
     await page.locator('.rp-tab:has-text("Scoreboard")').click();
 
-    const cell = page.locator('[class*="cell"], [class*="scoreboard"] td, [class*="score-cell"]').first();
+    const cell = page.locator('.hm-data-cell').first();
     if (await cell.count() === 0) {
       console.log('No scoreboard cells found — skipping click-through test');
       return;
     }
     await cell.click();
     await page.waitForTimeout(300);
-    // Should switch to Detail tab
-    await expect(page.locator('.rp-tab-active')).toContainText('Detail');
+    await expect(page.locator('.rp-tab-active')).toContainText('Compare');
   });
 
   test('Export HTML button triggers download', async ({ page }) => {
@@ -85,23 +84,9 @@ test.describe('Step 4: Results page', () => {
     await expect(baselineBtn).toBeVisible();
   });
 
-  test('Save Baseline opens browser prompt', async ({ page }) => {
-    // Intercept the window.prompt call
-    let promptCalled = false;
-    await page.addInitScript(() => {
-      const orig = window.prompt;
-      (window as typeof window & { _origPrompt: typeof window.prompt }).
-        _origPrompt = orig;
-      window.prompt = (msg, defaultVal) => {
-        (window as typeof window & { _promptCalled: boolean })._promptCalled = true;
-        return null; // Cancel
-      };
-    });
-
+  test('Save Baseline opens the inline slug editor', async ({ page }) => {
     await page.locator('button:has-text("Save Baseline")').click();
-    promptCalled = await page.evaluate(
-      () => !!(window as typeof window & { _promptCalled: boolean })._promptCalled
-    );
-    expect(promptCalled).toBe(true);
+    await expect(page.locator('.vh-slug-input')).toBeVisible();
+    await expect(page.locator('.vh-baseline-input').getByRole('button', { name: 'Cancel' })).toBeVisible();
   });
 });

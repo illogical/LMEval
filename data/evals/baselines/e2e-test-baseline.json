@@ -1,0 +1,78 @@
+{
+  "evalId": "eval-mtqcpw1j-ey1a1a",
+  "savedAt": "2026-09-06T21:57:28.321Z",
+  "summary": {
+    "evalId": "eval-mtqcpw1j-ey1a1a",
+    "totalCells": 4,
+    "completedCells": 4,
+    "failedCells": 0,
+    "modelSummaries": [
+      {
+        "modelId": "Localhost::devstral-small-2:24b",
+        "avgDurationMs": 47473.75,
+        "avgInputTokens": 22.5,
+        "avgOutputTokens": 226,
+        "avgTokensPerSecond": 6.5,
+        "successRate": 1,
+        "rank": 1
+      }
+    ],
+    "promptSummaries": [
+      {
+        "promptId": "prm-mtqcocmi-4p0d3c",
+        "promptVersion": 2,
+        "avgDurationMs": 30892,
+        "successRate": 1
+      },
+      {
+        "promptId": "prm-mtqcocmx-1inz6r",
+        "promptVersion": 1,
+        "avgDurationMs": 64055.5,
+        "successRate": 1
+      }
+    ],
+    "completedAt": "2026-09-06T21:57:28.258Z",
+    "testCaseSummaries": [
+      {
+        "testCaseId": "tc-mtqcpvw9-bosoe5",
+        "totalRuns": 2,
+        "passRate": 1,
+        "byModel": {
+          "Localhost::devstral-small-2:24b": {
+            "passRate": 1,
+            "completedRuns": 2,
+            "totalRuns": 2
+          }
+        }
+      },
+      {
+        "testCaseId": "tc-mtqcpvw9-xjk4od",
+        "totalRuns": 2,
+        "passRate": 1,
+        "byModel": {
+          "Localhost::devstral-small-2:24b": {
+            "passRate": 1,
+            "completedRuns": 2,
+            "totalRuns": 2
+          }
+        }
+      }
+    ],
+    "assertionSummary": [
+      {
+        "type": "unknown",
+        "total": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    ],
+    "truncationRate": 0,
+    "transportProvenance": {
+      "endpointPaths": [
+        "/api/chat/completions/server"
+      ],
+      "messageShape": "chat-messages",
+      "seedHonored": true
+    }
+  }
+}

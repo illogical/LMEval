@@ -57,6 +57,7 @@ export function buildLmapiProvider(modelId: string, evalId: string, inference?: 
             total: response.usage?.total_tokens,
           },
           metadata: {
+            modelId,
             retryAttempts,
             serverName: response.lmapi?.server_name ?? serverName,
             durationMs: response.lmapi?.duration_ms,
@@ -66,7 +67,7 @@ export function buildLmapiProvider(modelId: string, evalId: string, inference?: 
       } catch (err) {
         return {
           error: (err as Error).message,
-          metadata: { retryAttempts },
+          metadata: { modelId, retryAttempts },
         };
       }
     },
@@ -374,7 +375,8 @@ export const PromptfooAdapter = {
     const overlapThreshold =
       purposeStrategy?.type === 'label-overlap' ? purposeStrategy.config.minimumCaseF1 : 0.5;
 
-    const tests = testCases.map(tc => {
+    const runsPerCell = config.runsPerCell ?? 1;
+    const tests = testCases.flatMap(tc => Array.from({ length: runsPerCell }, (_, runIndex) => {
       const assertions: Assertion[] = [
         ...buildDeterministicAssertions(tc, promptContents[0]?.tools),
       ];
@@ -406,10 +408,10 @@ export const PromptfooAdapter = {
 
       return {
         description: tc.description,
-        vars: { userMessage: tc.userMessage },
+        vars: { userMessage: tc.userMessage, lmevalRun: String(runIndex + 1) },
         assert: assertions,
       };
-    });
+    }));
 
     return {
       testSuite: {
@@ -418,7 +420,7 @@ export const PromptfooAdapter = {
         tests,
       },
       promptOrder: promptContents.map(p => p.promptId),
-      testCaseOrder: testCases.map(tc => tc.id),
+      testCaseOrder: testCases.flatMap(tc => Array.from({ length: runsPerCell }, () => tc.id)),
     };
   },
 };

@@ -51,7 +51,7 @@ async function apiFetch<T>(baseUrl: string, path: string, options?: RequestInit)
 // ─── public types ─────────────────────────────────────────────────────────────
 
 export type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase,
-  EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset };
+  EvaluationConfig, EvaluationInput, EvalMatrixCell, EvaluationSummary, EvalPreset };
 export type { SessionManifest, SessionSlot };
 
 export interface CreateEvaluationInput {
@@ -233,12 +233,16 @@ export class LMEvalClient {
     return this.fetch(`/evaluations${q}`);
   }
 
-  getResults(id: string): Promise<{ cells: EvalMatrixCell[] }> {
+  getResults(id: string): Promise<EvalMatrixCell[]> {
     return this.fetch(`/evaluations/${id}/results`);
   }
 
   getSummary(id: string): Promise<EvaluationSummary> {
     return this.fetch(`/evaluations/${id}/summary`);
+  }
+
+  getResolvedTestCases(id: string): Promise<TestCase[]> {
+    return this.fetch(`/evaluations/${id}/testcases`);
   }
 
   async exportEvaluation(id: string, format: 'html' | 'md'): Promise<string> {

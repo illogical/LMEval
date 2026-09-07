@@ -230,7 +230,9 @@ export function TestCaseEditor({
     try {
       const suite = await createTestSuite({
         name: saveInput.trim(),
-        testCases: inlineTestCases.map(({ id: _id, ...rest }) => rest),
+        testCases: inlineTestCases.map(testCase => Object.fromEntries(
+          Object.entries(testCase).filter(([key]) => key !== 'id'),
+        ) as Omit<TestCase, 'id'>),
       });
       const updated = await listTestSuites();
       setSuites(updated);

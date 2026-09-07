@@ -1,10 +1,15 @@
 import { execFileSync } from 'child_process';
-import { createHash } from 'crypto';
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import type { TestCase, TestSuite, TestSuiteProvenance } from '../src/types/eval';
 import { computeSuiteHash, validateBuiltInSuite } from '../server/services/MemoryBenchmarkService';
+import {
+  normalizeGeneratedText,
+  renderClassificationPrompt,
+  sha256,
+  wrapMemoryContent,
+} from './lib/memoryApiPromptContract';
 
 interface SourceCase {
   id: string;
@@ -32,6 +37,7 @@ const outputDir = join(repoRoot, 'data', 'evals', 'test-suites', 'built-in');
 const expectedRevision = process.argv.find(arg => arg.startsWith('--expected-revision='))?.split('=')[1]
   ?? 'c7ecb9e292947f88199c16548b88dc4fc8557a60';
 const memoryApiRootArg = process.argv.find(arg => arg.startsWith('--memory-api-root='))?.split('=')[1];
+const checkOnly = process.argv.includes('--check');
 
 if (!memoryApiRootArg) throw new Error('Usage: npm run benchmarks:generate -- --memory-api-root=<path> [--expected-revision=<sha>]');
 const memoryApiRoot = resolve(memoryApiRootArg);
@@ -47,7 +53,7 @@ if (dirty) throw new Error(`Consumed MemoryApi files must be clean:\n${dirty}`);
 
 const sourceFiles = consumed.map(path => ({
   path,
-  sha256: createHash('sha256').update(readFileSync(join(memoryApiRoot, path))).digest('hex'),
+  sha256: sha256(readFileSync(join(memoryApiRoot, path))),
 }));
 const categoriesJson = JSON.parse(readFileSync(join(memoryApiRoot, consumed[0]), 'utf8')) as { Categories: string[] };
 const tagsJson = JSON.parse(readFileSync(join(memoryApiRoot, consumed[1]), 'utf8')) as { TagGroups: Array<{ Tags: string[] }> };
@@ -69,6 +75,7 @@ const rendererSource = readFileSync(join(memoryApiRoot, 'src/services/promptTemp
 if ((classificationTemplate.match(/{{categories}}/g) ?? []).length !== 1 || (taggingTemplate.match(/{{tags}}/g) ?? []).length !== 1) {
   throw new Error('MemoryApi taxonomy placeholders no longer match the v1 rendering contract');
 }
+const renderedClassificationPrompt = renderClassificationPrompt(classificationTemplate, categoriesJson.Categories);
 if (/{{(?:categories|tags)}}/.test(summaryTemplate)) throw new Error('Summary prompt unexpectedly injects a taxonomy');
 for (const contract of [
   'content.replace(/<\\/memory\\s*>/gi',
@@ -92,6 +99,7 @@ for (const entry of source.cases) {
 
 const promptTexts = consumed.slice(4, 7).map(path => readFileSync(join(memoryApiRoot, path), 'utf8'));
 const purposePrompts = ['classification', 'tagging', 'summarization'].map(name => {
+  if (name === 'classification') return renderedClassificationPrompt;
   const template = JSON.parse(readFileSync(join(repoRoot, 'data', 'evals', 'purpose-templates', `${name}.json`), 'utf8')) as { seedPromptContent?: string };
   return template.seedPromptContent ?? '';
 });
@@ -110,12 +118,9 @@ for (const entry of source.cases) {
   if (close.length) console.warn(`${entry.id}: high prompt-example similarity ${close.map(match => match.score.toFixed(2)).join(', ')}`);
 }
 
-function wrap(content: string): string {
-  return `<memory>\n${content.replace(/<\/memory\s*>/gi, '&lt;/memory&gt;')}\n</memory>`;
-}
 function project(task: 'classification' | 'tagging' | 'summarization'): TestCase[] {
   return source.cases.filter(entry => entry[task]).map(entry => {
-    const common = { id: entry.id, userMessage: wrap(entry.content), caseTags: entry.caseTags };
+    const common = { id: entry.id, userMessage: wrapMemoryContent(entry.content), caseTags: entry.caseTags };
     if (task === 'classification') return { ...common, expectedOutput: entry.classification!.expectedOutput };
     if (task === 'tagging') return { ...common, expectedLabels: entry.tagging!.expectedLabels };
     return { ...common, ...entry.summarization };
@@ -133,7 +138,7 @@ if (derivedRange[0] !== source.derivedCompressionRange[0] || derivedRange[1] !==
 function suite(task: 'classification' | 'tagging' | 'summarization', testCases: TestCase[]): TestSuite {
   const id = `memory-${task}-v1`;
   const now = '2026-09-04T00:00:00.000Z';
-  const taxonomySha256 = createHash('sha256').update(JSON.stringify({ categories: categoriesJson.Categories, tags: tagVocabulary })).digest('hex');
+  const taxonomySha256 = sha256(JSON.stringify({ categories: categoriesJson.Categories, tags: tagVocabulary }));
   const provenance: TestSuiteProvenance = {
     source: 'MemoryApi seeds and samples plus LMEval-authored reviewed-draft cases', sourceRevision: revision, sourceFiles,
     taxonomySha256, datasetSha256: '', curatedAt: source.curatedAt, reviewStatus: source.reviewStatus,
@@ -147,12 +152,30 @@ function suite(task: 'classification' | 'tagging' | 'summarization', testCases: 
   return result;
 }
 
-mkdirSync(outputDir, { recursive: true });
+const generatedFiles = new Map<string, string>();
 for (const task of ['classification', 'tagging', 'summarization'] as const) {
   const result = suite(task, project(task));
   const errors = validateBuiltInSuite(result, task === 'tagging' ? tagVocabulary : undefined);
   if (errors.length) throw new Error(errors.join('\n'));
-  writeFileSync(join(outputDir, `${result.id}.json`), `${JSON.stringify(result, null, 2)}\n`, 'utf8');
+  generatedFiles.set(join(outputDir, `${result.id}.json`), `${JSON.stringify(result, null, 2)}\n`);
+}
+
+const classificationPurposePath = join(repoRoot, 'data', 'evals', 'purpose-templates', 'classification.json');
+const classificationPurpose = JSON.parse(readFileSync(classificationPurposePath, 'utf8')) as {
+  seedPromptContent?: string;
+  updatedAt: string;
+};
+classificationPurpose.seedPromptContent = renderedClassificationPrompt;
+classificationPurpose.updatedAt = source.curatedAt;
+generatedFiles.set(classificationPurposePath, `${JSON.stringify(classificationPurpose, null, 2)}\n`);
+
+if (checkOnly) {
+  const drift = [...generatedFiles].filter(([path, expected]) =>
+    normalizeGeneratedText(readFileSync(path, 'utf8')) !== normalizeGeneratedText(expected));
+  if (drift.length) throw new Error(`Generated MemoryApi inputs have drifted:\n${drift.map(([path]) => path).join('\n')}`);
+} else {
+  mkdirSync(outputDir, { recursive: true });
+  for (const [path, content] of generatedFiles) writeFileSync(path, content, 'utf8');
 }
 
 const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8')) as { reviewStatus: string; cases: Array<{ caseId: string }> };
@@ -160,4 +183,4 @@ const sourceIds = new Set(source.cases.map(entry => entry.id));
 if (ledger.reviewStatus !== source.reviewStatus || ledger.cases.length !== source.cases.length || ledger.cases.some(entry => !sourceIds.has(entry.caseId))) {
   throw new Error('Review ledger is incomplete or inconsistent with the source artifact');
 }
-console.log(`Generated classification=${project('classification').length}, tagging=${project('tagging').length}, summarization=${project('summarization').length}`);
+console.log(`${checkOnly ? 'Verified' : 'Generated'} classification=${project('classification').length}, tagging=${project('tagging').length}, summarization=${project('summarization').length}`);

@@ -28,3 +28,4 @@ data/evals/prompts/
 .claude/
 .agents/skills/ce-brainstorm/
 data/evals/evaluations/
+test-results/

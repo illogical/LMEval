@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { LmapiServerStatus } from '../types/lmapi';
+import { listModels } from '../api/eval';
 
 export interface ServerModelGroup {
   name: string;
@@ -28,24 +28,16 @@ export function useModelsByServer(): UseModelsByServerResult {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
-    // Call LMApi directly via the /lmapi Vite proxy — same pattern as the old useModels hook.
-    // This avoids requiring the backend server (port 3200) for model discovery.
-    fetch('/lmapi/api/servers')
-      .then(res => {
-        if (!res.ok) throw new Error(`Failed to fetch servers: ${res.statusText}`);
-        return res.json() as Promise<LmapiServerStatus[]>;
-      })
+    // Match the agent API's server-pinned, routability-filtered catalog so a
+    // browser draft cannot select a model the backend will reject.
+    listModels()
       .then(data => {
         if (cancelled) return;
-        const groups: ServerModelGroup[] = data
-          .filter(s => s.isOnline && s.models.length > 0)
-          .map(s => ({
-            name: s.config.name,
-            models: [...s.models].sort((a, b) => a.localeCompare(b)),
-          }));
+        const groups: ServerModelGroup[] = data.servers.map(server => ({
+          name: server.name,
+          models: [...server.models].sort((a, b) => a.localeCompare(b)),
+        }));
         setServers(groups);
       })
       .catch((err: Error) => {

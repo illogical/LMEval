@@ -292,10 +292,27 @@ export const ExecutionService = {
     const cellById = new Map(cells.map(c => [c.id, c]));
 
     for (const result of results) {
-      const promptId = promptOrder[result.promptIdx];
+      // Promptfoo's promptIdx indexes rendered prompt/provider combinations,
+      // not just LMEval prompt manifests. Resolve by the actual prompt text;
+      // retain the positional lookup for older/single-provider summaries.
+      const promptId = promptContents.find(entry => entry.content === result.prompt?.raw)?.promptId
+        ?? promptOrder[result.promptIdx];
       const testCaseId = testCaseOrder[result.testIdx];
-      const modelId = result.provider?.id;
-      if (!promptId || !testCaseId || !modelId) continue;
+      const responseMetadata = result.response?.metadata as
+        | { modelId?: string; retryAttempts?: EvalMatrixCell['retryAttempts']; serverName?: string; durationMs?: number; finishReason?: string }
+        | undefined;
+      // Promptfoo may report the first provider's id/label for every row when
+      // function-valued in-process providers are used. The provider itself
+      // persists its exact model identity with the response, so prefer that.
+      const modelId = [responseMetadata?.modelId, result.provider?.label, result.provider?.id]
+        .map(value => String(value ?? ''))
+        .find(value => config.modelIds.includes(value));
+      if (!promptId || !testCaseId || !modelId) {
+        throw new Error(`Could not map Promptfoo result: ${JSON.stringify({
+          promptIdx: result.promptIdx, testIdx: result.testIdx,
+          provider: result.provider, prompt: result.prompt, responseMetadata,
+        })}`);
+      }
 
       const key = `${promptId}::${modelId}::${testCaseId}`;
       const queue = pendingByKey.get(key);
@@ -324,10 +341,6 @@ export const ExecutionService = {
         }
         if (totalWeight > 0) compositeScore = weightedSum / totalWeight;
       }
-
-      const responseMetadata = result.response?.metadata as
-        | { retryAttempts?: EvalMatrixCell['retryAttempts']; serverName?: string; durationMs?: number; finishReason?: string }
-        | undefined;
 
       const outputTokens = result.tokenUsage?.completion;
       const durationMs = responseMetadata?.durationMs ?? result.latencyMs;

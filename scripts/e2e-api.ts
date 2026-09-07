@@ -182,8 +182,8 @@ async function run() {
     assert(csvResult.errors.length === 0, 'CSV parse has no errors');
     assert(csvResult.cases.length === 2, 'CSV parse returns 2 cases');
     assert(csvResult.cases[0].userMessage === 'What is 2+2?', 'first CSV case has correct userMessage');
-    assert(Array.isArray(csvResult.cases[0].tags), 'CSV tags parsed to array');
-    assert(csvResult.cases[0].tags!.includes('math'), 'CSV tag "math" parsed');
+    assert(Array.isArray(csvResult.cases[0].expectedLabels), 'legacy CSV tags map to expectedLabels');
+    assert(csvResult.cases[0].expectedLabels!.includes('math'), 'CSV label "math" parsed');
 
     const jsonContent = JSON.stringify([
       { userMessage: 'Tell me a joke.', description: 'Humor test', tags: ['fun', 'creative'] },
@@ -193,7 +193,7 @@ async function run() {
     const jsonResult = await client.parseTestCases(jsonContent, 'json');
     assert(jsonResult.errors.length === 0, 'JSON parse has no errors');
     assert(jsonResult.cases.length === 2, 'JSON parse returns 2 cases');
-    assert(jsonResult.cases[0].tags?.includes('fun'), 'JSON array tags parsed correctly');
+    assert(jsonResult.cases[0].expectedLabels?.includes('fun'), 'legacy JSON tags map to expectedLabels');
 
     // Invalid input — should return errors, not throw
     const badResult = await client.parseTestCases('not,valid,csv,without,header', 'csv');
@@ -205,7 +205,7 @@ async function run() {
 
   // ── 6. Test suite lifecycle ───────────────────────────────────────────────────
   await section('6. Test suite lifecycle', async () => {
-    const parsedCases = (client as unknown as { _parsedCases: Array<{ userMessage: string; description?: string; tags?: string[]; id?: string }> })._parsedCases ?? [
+    const parsedCases = (client as unknown as { _parsedCases: Array<{ userMessage: string; description?: string; expectedLabels?: string[]; id?: string }> })._parsedCases ?? [
       { userMessage: 'What is 2+2?' },
       { userMessage: 'Explain recursion.' },
     ];
@@ -213,7 +213,9 @@ async function run() {
     const suite = await client.createTestSuite({
       name: 'e2e-test-suite',
       description: 'Created by e2e test script',
-      testCases: parsedCases.map(({ id: _id, ...rest }) => rest),
+      testCases: parsedCases.map(testCase => Object.fromEntries(
+        Object.entries(testCase).filter(([key]) => key !== 'id'),
+      ) as Omit<typeof testCase, 'id'>),
     });
     testSuiteId = suite.id;
     assert(!!suite.id, 'createTestSuite returns id');
@@ -301,9 +303,9 @@ async function run() {
   // ── 10. Results inspection ────────────────────────────────────────────────────
   await section('10. Results inspection', async () => {
     const results = await client.getResults(evalId);
-    assert(Array.isArray(results.cells), 'getResults returns cells array');
-    assert(results.cells.length > 0, 'results have cells');
-    const completedCell = results.cells.find(c => c.status === 'completed');
+    assert(Array.isArray(results), 'getResults returns the persisted cells array');
+    assert(results.length > 0, 'results have cells');
+    const completedCell = results.find(c => c.status === 'completed');
     assert(!!completedCell, 'at least one completed cell');
     assert(typeof completedCell!.response === 'string', 'completed cell has response');
 
