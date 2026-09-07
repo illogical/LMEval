@@ -1,0 +1,7 @@
+.qualification-panel { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin: 14px 0; background: var(--surface-preview); }
+.qualification-panel p { line-height: 1.5; }
+.qualification-panel button { margin: 6px 8px 6px 0; }
+.qualification-state[data-state="qualified"] { color: var(--ok); }
+.qualification-state[data-state="running"] { color: var(--accent); }
+.qualification-state[data-state="unqualified"], .qualification-state[data-state="failed"] { color: var(--error); }
+.qualification-state[data-state="stale"], .qualification-state[data-state="cancelled"], .qualification-state[data-state="interrupted"] { color: var(--heatmap-mid); }

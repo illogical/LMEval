@@ -34,6 +34,11 @@ describe('SessionHubPage', () => {
     expect(screen.getByText('Quick Compare')).toBeInTheDocument();
   });
 
+  it('renders the campaign entry point', () => {
+    render(<MemoryRouter><SessionHubPage /></MemoryRouter>);
+    expect(screen.getByText('Model Selection Campaign')).toBeInTheDocument();
+  });
+
   it('renders feature cards', async () => {
     render(<MemoryRouter><SessionHubPage /></MemoryRouter>);
     expect(screen.getByText('Multi-Model Eval')).toBeInTheDocument();

@@ -1,0 +1,19 @@
+.campaign-page { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; color: var(--text); }
+.campaign-page nav { margin-bottom: 28px; }
+.campaign-page h1 { font-size: 2rem; }
+.campaign-page p { line-height: 1.6; }
+.campaign-page article, .campaign-page fieldset { border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 20px 0; background: var(--surface-preview); }
+.campaign-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.campaign-page label { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.campaign-page label.inline { flex-direction: row; align-items: center; }
+.campaign-page select, .campaign-page input { padding: 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: inherit; min-width: 0; }
+.campaign-page button, .campaign-action { padding: 9px 14px; margin: 6px 8px 6px 0; border-radius: 6px; cursor: pointer; }
+.campaign-page button:disabled { opacity: .5; cursor: default; }
+.candidate-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.candidate-row label { flex: 1 1 160px; }
+.campaign-page table { width: 100%; border-collapse: collapse; margin: 24px 0; }
+.campaign-page th, .campaign-page td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.campaign-page caption { text-align: left; margin: 12px 0; }
+.campaign-page pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.campaign-page svg { max-width: 440px; }
+.campaign-page [role=alert] { color: var(--error, #ff9b9b); }

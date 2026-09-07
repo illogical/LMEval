@@ -14,12 +14,16 @@ import { ResultsPage } from './pages/ResultsPage.tsx'
 import { SummaryPage } from './pages/SummaryPage.tsx'
 import { InsightsPage } from './pages/InsightsPage.tsx'
 import { EvalLayout } from './layouts/EvalLayout.tsx'
+import { CampaignsPage, CampaignBuilderPage, CampaignDetailPage } from './pages/CampaignsPage.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route path="/" element={<SessionHubPage />} />
+        <Route path="/campaigns" element={<CampaignsPage />} />
+        <Route path="/campaigns/new" element={<CampaignBuilderPage />} />
+        <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
         <Route path="/eval/templates" element={<TemplateGalleryPage />} />
         <Route path="/compare" element={<ComparePage />} />
         <Route path="/insights" element={<InsightsPage />} />

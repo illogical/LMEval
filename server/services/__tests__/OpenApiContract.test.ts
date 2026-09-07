@@ -11,7 +11,10 @@ describe('OpenAPI contract', () => {
     for (const path of [
       '/health', '/openapi.json', '/models', '/models/by-server', '/prompts', '/templates',
       '/purpose-templates', '/test-suites', '/presets', '/sessions', '/judges/{modelId}/qualify',
-      '/model-selection', '/git/status', '/evaluations', '/evaluations/validate', '/evaluations/drafts',
+      '/judges/{modelId}/qualification-status', '/judges/{modelId}/qualification-runs',
+      '/judges/qualification-runs/{runId}', '/judges/qualification-runs/{runId}/cancel',
+      '/model-selection', '/model-selection/validate', '/model-selection/drafts',
+      '/model-selection/{id}/run', '/model-selection/{id}/feedback', '/git/status', '/evaluations', '/evaluations/validate', '/evaluations/drafts',
       '/evaluations/{id}', '/evaluations/{id}/run', '/evaluations/{id}/feedback',
     ]) expect(document.paths[path], path).toBeDefined();
     expect(document.paths['/presets/{id}'].patch).toBeDefined();

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { listModels } from '../../api/eval';
 import './JudgeConfig.css';
+import { JudgeQualificationStatus } from './JudgeQualificationStatus';
 
 interface JudgeConfigProps {
   judgeModelId: string | null;
@@ -46,16 +47,18 @@ export function JudgeConfig({
         </select>
       </div>
 
+      {judgeModelId && <JudgeQualificationStatus modelId={judgeModelId} compact />}
       <div className="jc-field jc-row">
         <label className="jc-label">Pairwise Comparison</label>
         <input
           type="checkbox"
+          disabled
           checked={enablePairwise}
           onChange={e => onPairwiseChange(e.target.checked)}
           aria-label="Enable pairwise"
           className="jc-checkbox"
         />
-        <span className="jc-hint">Compare prompt A vs B directly</span>
+        <span className="jc-hint">Pairwise execution is unavailable</span>
       </div>
 
       <div className="jc-field jc-row">

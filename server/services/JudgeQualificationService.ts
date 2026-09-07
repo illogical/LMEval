@@ -1,7 +1,8 @@
 import { join } from 'path';
-import { readJson, writeJson, ensureDir, JUDGE_QUALIFICATIONS_DIR, CALIBRATION_DIR } from './FileService';
+import { createHash } from 'crypto';
+import { readJson, writeJson, ensureDir, listDir, generateId, DATA_DIR, JUDGE_QUALIFICATIONS_DIR, CALIBRATION_DIR } from './FileService';
 import { LmapiClient } from './LmapiClient';
-import type { JudgeQualification } from '../../src/types/eval';
+import type { JudgeQualification, JudgeQualificationRun, JudgeQualificationStatus } from '../../src/types/eval';
 
 const DIMENSIONS = ['faithfulness', 'salientCoverage', 'retrievalUtility', 'concision', 'overall'] as const;
 type Dimension = typeof DIMENSIONS[number];
@@ -85,29 +86,87 @@ function spearman(a: number[], b: number[]): number {
 }
 
 function loadCalibrationSet(calibrationSetId: string): CalibrationSet {
+  if (!/^[\w-]+$/.test(calibrationSetId)) throw new Error('Invalid calibration set ID');
   const set = readJson<CalibrationSet>(join(CALIBRATION_DIR, `${calibrationSetId}.json`));
   if (!set) throw new Error(`Calibration set not found: ${calibrationSetId}`);
   return set;
 }
 
 function hashCalibrationSet(set: CalibrationSet): string {
-  // Cheap content fingerprint (not cryptographic) — enough to detect "the
-  // calibration set changed" and trigger re-qualification per A8.
-  const content = JSON.stringify(set.cases.map(c => c.id));
-  let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    hash = (Math.imul(31, hash) + content.charCodeAt(i)) | 0;
-  }
-  return `${set.id}:${(hash >>> 0).toString(16)}`;
+  return createHash('sha256').update(JSON.stringify(set)).digest('hex');
+}
+
+const runPath = (id: string) => join(DATA_DIR, 'judge-qualification-runs', `${id}.json`);
+const active = (run: JudgeQualificationRun) => run.status === 'pending' || run.status === 'running';
+function saveRun(run: JudgeQualificationRun) { run.updatedAt = new Date().toISOString(); writeJson(runPath(run.id), run); }
+function runs(): JudgeQualificationRun[] {
+  return listDir(join(DATA_DIR, 'judge-qualification-runs')).filter(f => f.endsWith('.json'))
+    .map(f => readJson<JudgeQualificationRun>(join(DATA_DIR, 'judge-qualification-runs', f))!).filter(Boolean);
 }
 
 export const JudgeQualificationService = {
+  getRun(id: string): JudgeQualificationRun | null {
+    return /^[\w-]+$/.test(id) ? readJson<JudgeQualificationRun>(runPath(id)) : null;
+  },
+  status(modelId: string): JudgeQualificationStatus {
+    const record = this.get(modelId);
+    const modelRuns = runs().filter(r => r.judgeModelId === modelId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const run = modelRuns[0];
+    const recordRun = modelRuns.find(candidate => candidate.result?.calibrationSetHash === record?.calibrationSetHash);
+    let current = false;
+    try { current = record?.calibrationSetHash === hashCalibrationSet(loadCalibrationSet(recordRun?.calibrationSetId ?? 'summarization-v0')); } catch { /* missing calibration is not current */ }
+    const state = run && active(run) ? 'running'
+      : run && ['failed', 'cancelled', 'interrupted'].includes(run.status) ? run.status as 'failed' | 'cancelled' | 'interrupted'
+      : record ? !current ? 'stale' : record.qualified ? 'qualified' : 'unqualified' : 'missing';
+    return { state, record, current, run };
+  },
+  isQualified(modelId: string): boolean { const s = this.status(modelId); return s.current && s.record?.qualified === true; },
+  interruptRuns(): void {
+    for (const run of runs().filter(active)) { run.status = 'interrupted'; run.error = 'Host restarted before completion. Retry explicitly.'; saveRun(run); }
+  },
+  cancelRun(id: string): JudgeQualificationRun {
+    const run = this.getRun(id);
+    if (!run) throw Object.assign(new Error('Qualification run not found'), { status: 404 });
+    if (!active(run)) throw Object.assign(new Error('Qualification run is terminal'), { status: 409 });
+    run.cancelRequestedAt = new Date().toISOString(); saveRun(run); return run;
+  },
+  startRun(judgeModelId: string, calibrationSetId = 'summarization-v0'): JudgeQualificationRun {
+    if (!/^.+::.+$/.test(judgeModelId)) throw new Error('Use a server::model judge ID');
+    const set = loadCalibrationSet(calibrationSetId);
+    if (set.cases.length < 20) throw new Error('Qualification requires at least 20 calibration cases');
+    const hash = hashCalibrationSet(set);
+    // The final record is keyed by model, so two calibration sets for one model
+    // must not race to overwrite it even when their hashes differ.
+    const existing = runs().find(r => r.judgeModelId === judgeModelId && active(r));
+    if (existing) throw Object.assign(new Error('A qualification is already active for this judge'), { status: 409, runId: existing.id });
+    const now = new Date().toISOString();
+    const run: JudgeQualificationRun = { id: generateId('qualification'), judgeModelId, calibrationSetId, calibrationSetHash: hash,
+      status: 'pending', completedCalls: 0, totalCalls: set.cases.length * QUALIFY_PASSES, createdAt: now, updatedAt: now };
+    saveRun(run);
+    setTimeout(() => { void this.executeRun(run.id); }, 0);
+    return run;
+  },
+  async executeRun(id: string): Promise<void> {
+    const run = this.getRun(id)!;
+    const cancelled = () => !!this.getRun(id)?.cancelRequestedAt;
+    try {
+      run.status = 'running'; saveRun(run);
+      const result = await this.qualify(run.judgeModelId, run.calibrationSetId, {
+        cancelled,
+        progress: () => { run.completedCalls++; run.cancelRequestedAt = this.getRun(id)?.cancelRequestedAt; saveRun(run); },
+      });
+      run.result = result; run.status = 'completed';
+    } catch (error) {
+      run.status = cancelled() ? 'cancelled' : 'failed'; run.error = (error as Error).message;
+    }
+    run.cancelRequestedAt = this.getRun(id)?.cancelRequestedAt; saveRun(run);
+  },
   get(judgeModelId: string): JudgeQualification | null {
     const safe = judgeModelId.replace(/[/:]/g, '_');
     return readJson<JudgeQualification>(join(JUDGE_QUALIFICATIONS_DIR, `${safe}.json`));
   },
 
-  async qualify(judgeModelId: string, calibrationSetId = 'summarization-v0'): Promise<JudgeQualification> {
+  async qualify(judgeModelId: string, calibrationSetId = 'summarization-v0', hooks?: { cancelled: () => boolean; progress: () => void }): Promise<JudgeQualification> {
     const set = loadCalibrationSet(calibrationSetId);
     if (set.cases.length < 20) {
       throw new Error(`Calibration set ${calibrationSetId} has ${set.cases.length} cases, fewer than the required 20`);
@@ -120,6 +179,7 @@ export const JudgeQualificationService = {
     for (const c of set.cases) {
       const runs: Record<Dimension, number[]> = { faithfulness: [], salientCoverage: [], retrievalUtility: [], concision: [], overall: [] };
       for (let pass = 0; pass < QUALIFY_PASSES; pass++) {
+        if (hooks?.cancelled()) throw new Error('Qualification cancelled');
         const response = await LmapiClient.chatCompletion({
           model: judgeModelId,
           messages: [{ role: 'user', content: buildQualificationPrompt(c) }],
@@ -128,6 +188,9 @@ export const JudgeQualificationService = {
           temperature: 0,
         });
         const scores = parseJudgeScores(response.choices[0]?.message.content ?? '');
+        if (DIMENSIONS.some(dim => scores[dim] == null)) throw new Error('Judge returned incomplete or invalid qualification scores');
+        hooks?.progress();
+        if (hooks?.cancelled()) throw new Error('Qualification cancelled');
         for (const dim of DIMENSIONS) {
           if (scores[dim] != null) runs[dim].push(scores[dim]!);
         }

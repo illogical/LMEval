@@ -146,7 +146,7 @@ export const EvaluationValidationService = {
         warnings.push(issue('GROUNDED_SUMMARY_WITHOUT_JUDGE', 'judgeModelId', 'No judge is selected; only deterministic checks can run.'));
       } else {
         if (modelIds.includes(input.judgeModelId)) warnings.push(issue('SELF_JUDGE_ADVISORY', 'judgeModelId', 'A model under evaluation is also the judge, so the verdict will be advisory.'));
-        if (!JudgeQualificationService.get(input.judgeModelId)?.qualified) warnings.push(issue('JUDGE_UNQUALIFIED', 'judgeModelId', 'The selected judge is not qualified, so the verdict will be advisory.'));
+        if (!JudgeQualificationService.isQualified(input.judgeModelId)) warnings.push(issue('JUDGE_UNQUALIFIED', 'judgeModelId', 'The selected judge is not qualified, so the verdict will be advisory.'));
       }
     }
 

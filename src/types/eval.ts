@@ -521,6 +521,8 @@ export interface ClassificationTaskMetrics {
 
 export interface TaggingTaskMetrics {
   taskType: 'tagging';
+  /** Statistic represented by jaccardCI; retained explicitly because MemoryApi uses recall-weighted gating. */
+  gateMetric?: 'jaccardMean' | 'microRecall';
   microPrecision: number;
   microRecall: number;
   microF1: number;
@@ -597,6 +599,38 @@ export interface JudgeQualification {
   qualified: boolean;
 }
 
+export type JudgeQualificationRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
+export interface JudgeQualificationRun {
+  id: string; judgeModelId: string; calibrationSetId: string; calibrationSetHash: string;
+  status: JudgeQualificationRunStatus; totalCalls: number; completedCalls: number;
+  createdAt: string; updatedAt: string; result?: JudgeQualification; error?: string; cancelRequestedAt?: string;
+}
+export interface JudgeQualificationStatus {
+  state: 'missing' | 'running' | 'qualified' | 'unqualified' | 'stale' | 'failed' | 'cancelled' | 'interrupted';
+  record: JudgeQualification | null; current: boolean; run?: JudgeQualificationRun;
+}
+export type CampaignTask = 'classification' | 'tagging' | 'summarization';
+export type CampaignPhase = 'prompt-sweep' | 'model-sweep' | 'confirmation';
+export interface ModelSelectionCampaignInput {
+  tasks: CampaignTask[]; incumbentModelId: string; candidateSlate: ModelCandidateMeta[];
+  promptPinsByTask: Record<string, Array<{ promptId: string; version: number }>>;
+  testSuiteIdByTask: Record<string, string>; judgeModelId?: string; totalVramBudgetGb?: number;
+}
+export interface CampaignValidationIssue {
+  code: string; severity: 'error' | 'warning'; path: string; message: string; requiresAcknowledgement: boolean;
+}
+export interface CampaignCallEstimate {
+  task: CampaignTask; phaseOne: number; phaseTwo: number; phaseThreeMinimum: number; phaseThreeMaximum: number;
+  totalMinimum: number; totalMaximum: number;
+}
+export interface CampaignValidationResult { valid: boolean; issues: CampaignValidationIssue[]; callEstimate: CampaignCallEstimate[] }
+export interface CampaignActiveWork { task: CampaignTask; phase: CampaignPhase; evaluationId: string; startedAt: string; updatedAt: string }
+export interface CampaignFeedback {
+  campaign: ModelSelectionCampaign; validation: CampaignValidationResult;
+  activeEvaluation?: EvaluationFeedback; browserPath: string;
+  phases: Array<{ task: string; phase: CampaignPhase; evaluationId: string; status: EvalStatus; browserPath: string }>;
+}
+
 // --- A9: two-phase model selection ----------------------------------------
 
 /** Declared per campaign — LMEval has no VRAM/quant introspection today. */
@@ -616,6 +650,7 @@ export interface TieGroup {
 export interface ModelSelectionOrdering {
   tieGroups: TieGroup[];
   discardedByGate: Array<{ modelId: string; reason: string }>;
+  primaryMetrics?: Record<string, { value: number; ci95: [number, number] }>;
   p95LatencyMs: Record<string, number>;
   stability: Record<string, { runToRunAgreement?: number; avgOutputTokens: number }>;
   /** Set when no latency budget was configured for this task — budget re-ranking was skipped. */
@@ -641,6 +676,8 @@ export interface ModelRecommendation {
   generatedAt: string;
   ordering: ModelSelectionOrdering;
   confirmation: { ranModelId: string; passed: boolean; reason?: string };
+  confirmationAttempts?: Array<{ evaluationId: string; modelId: string; passed: boolean; reason?: string }>;
+  fallbackReason?: string;
   advisory?: boolean;   // true when promoted from a phase-1 gate miss
 }
 
@@ -652,6 +689,10 @@ export interface ModelSelectionCampaign {
   incumbentModelId: string;
   candidateSlate: ModelCandidateMeta[];
   promptIdsByTask: Record<string, string[]>;
+  promptPinsByTask?: ModelSelectionCampaignInput['promptPinsByTask'];
+  activeWork?: CampaignActiveWork;
+  acknowledgedWarningCodes?: string[];
+  phase3AttemptEvalIds?: Record<string, string[]>;
   testSuiteIdByTask: Record<string, string>;
   totalVramBudgetGb?: number;
   /** Required only for a 'summarization' task's rubric grading — not in the original design doc, added because a summarization run cannot execute without one. */

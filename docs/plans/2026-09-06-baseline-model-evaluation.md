@@ -138,22 +138,135 @@ Q4_K_M) is the most literature-validated "judge" checkpoint if a second,
 more authoritative opinion is wanted later — dense and slower, but still
 comfortably within 64GB.
 
-## Phase 2 — full 6-model runs (in progress)
+## Phase 2 — full 6-model runs
 
 Classification (288 cells) and tagging (324 cells) full runs, same prompts
-and inference settings as the pilot, extended to all 6 models
-(`granite3.3:8b`, `granite4.1:8b`, `granite4.2:8b`, `ministral-3:8b`,
-`M5 Max::nemotron-mini:4b`, `M5 Max::lfm2.5:8b`), were started and were
-still running as of this writing, with zero failures reported so far.
-Progress noticeably stalled while the (since-cancelled) 128B summarization
-judge run was competing for the same Tiny-Tower GPU — a real resource-
-contention lesson: don't run a heavy judge pass concurrently with candidate
-matrix runs on the same box. Summarization's full 6-model run has not yet
-been started — it's queued behind confirming the new judge model produces
-sane (non-zero) rubric scores on the 2-model pilot first.
+and inference settings as the pilot, extended to all 6 models. Both were hit
+by the concurrency cascade described above (182/288 and 209/324 cells
+failed respectively) and were recovered via `POST /:id/retry` with
+`{"failedCellsOnly": true}`, run one at a time once Tiny-Tower's
+`activeRequests` confirmed idle — both retries completed 100% clean
+(182/182, 209/209, zero failures). The numbers below combine each model's
+complete data source: the original run for M5 Max models (100% intact
+there) and the retry run for Tiny-Tower models (93-96% of each model's
+cases; the 2-4 cells that happened to succeed in the original partial run
+before it cascaded are not re-merged in, an accepted small gap).
 
-*(This section will be updated with final numbers once Phase 2 and the
-summarization re-run complete.)*
+**Before reading the table: two models produced systematically empty
+responses, not systematically wrong ones.** `granite4.2:8b` (classification
+and tagging) and `lfm2.5:8b` (classification) returned `response: ""` with
+`finishReason: "length"` on every checked cell — the model consumed its
+*entire* token budget (50/100, matching the production ceiling) without
+emitting anything in the visible answer field, almost certainly hidden
+reasoning/preamble tokens under a token budget too tight for these models'
+default response style. This is exactly the failure mode
+`2026-09-04-memoryapi-implementation-handoff.md` warned about: "make
+truncation visible... rather than blending it into task quality." A 0%
+accuracy score for these two is a **token-budget/format-fit finding, not an
+accuracy finding** — they may perform very differently with more headroom
+or a reasoning-suppression setting, and shouldn't be read as "worse at
+classifying" than a model that actually attempted the task and got answers
+wrong.
+
+**Classification** (48 cases/model target; see per-row `n` for actual):
+
+| Model | Accuracy | Macro-F1 | Invalid-label rate | n | Note |
+|---|---:|---:|---:|---:|---|
+| granite3.3:8b | 71.1% | 0.711 | 4.4% | 45 | |
+| granite4.1:8b | 84.4% | 0.838 | 0% | 45 | strongest so far |
+| granite4.2:8b | 0% | 0.000 | 100% | 46 | **empty responses, token-budget truncation — not a real accuracy result** |
+| ministral-3:8b | 41.3%¹ | 0.531 | 54.3% | 46 | see ¹ below — mostly a formatting artifact, not accuracy |
+| nemotron-mini:4b | 52.1% | 0.493 | 4.2% | 48 | |
+| lfm2.5:8b | 0% | 0.000 | 100% | 48 | **empty responses, token-budget truncation — not a real accuracy result** |
+
+**Tagging** (54 cases/model target):
+
+| Model | Micro-F1 | Macro label-F1 | Exact-set match | Unknown-tag rate | n | Note |
+|---|---:|---:|---:|---:|---:|---|
+| granite3.3:8b | 0.277 | 0.130 | 0% | 66.3% | 52 | |
+| granite4.1:8b | 0.473 | 0.356 | 11.5% | 27.0% | 52 | strongest so far |
+| granite4.2:8b | 0.000 | 0.000 | 0% | 0% | 52 | **empty responses, token-budget truncation — not a real accuracy result** |
+| ministral-3:8b | 0.411 | 0.321 | 18.9% | 19.6% | 53 | |
+| nemotron-mini:4b | 0.513 | 0.442 | 22.2% | 25.0% | 54 | strongest overall on raw micro-F1 |
+| lfm2.5:8b | 0.000 | 0.000 | 0% | 0% | 54 | **empty responses, token-budget truncation — not a real accuracy result** |
+
+¹ **`ministral-3:8b`'s 54.3% invalid-label rate is mostly a parsing
+artifact, not an accuracy problem.** It wraps its label in markdown bold
+(`**Snippet**` instead of `Snippet`), and the exact-label assertion does a
+literal string match with no markdown stripping. Checked directly: of its
+27 "invalid" responses, 25 were markdown-wrapped, and stripping `**...**`
+shows **18 of those 25 were the semantically correct label** — meaning
+real accuracy is closer to **(19 clean-correct + 18 markdown-correct) / 46
+≈ 80.4%**, not the reported 41.3%. This is exactly the "formatting drift"
+failure category the tagging follow-up doc already named for tagging's
+unknown-tag investigation — it shows up in classification too, and is a
+prompt/parsing fix (either instruct against markdown formatting, or strip
+`**`/backticks before the exact-label comparison), not a capability gap.
+Recommend re-scoring or re-running this model with that fix before ranking
+it against the others.
+
+Directional read (excluding the two truncated models until re-tested with
+more headroom, and reading `ministral-3:8b`'s corrected ~80% rather than
+its reported 41.3% for classification): `granite4.1:8b` (84.4%) and
+`ministral-3:8b` (~80.4% corrected) are the two strongest classifiers and
+close enough that the markdown-stripping fix could plausibly flip the
+ranking — re-run before deciding between them. On tagging, `nemotron-mini:4b`
+and `granite4.1:8b` are close on raw micro-F1, with the unknown-tag-rate
+caveat from earlier applying to both (and `ministral-3:8b`'s tagging output
+wasn't checked for the same markdown-wrapping pattern — worth doing before
+trusting its 0.411 micro-F1 either). None of the 6 models pass the strict
+production gate at this case count — expected, per the case-count/CI
+caveats above.
+
+**Summarization full 6-model run was not attempted** — see below, it's
+blocked on a real code bug, not a config choice.
+
+### Summarization judge: a genuine routing bug, found and diagnosed
+
+After the concurrency cascade was resolved and Tiny-Tower confirmed idle,
+the 2-model summarization pilot re-ran cleanly (54/54 candidate calls
+succeeded) — but **every judge (`llm-rubric`) assertion failed** with
+`"No available servers or cloud providers host model
+\"Tiny-Tower::qwen3.6:35b-a3b-q8_0\""`, producing a uniform floor score
+(1.0/5 on every dimension, every case) that looks like real data but isn't
+— it's every judge call failing identically, not the judge actually rating
+every summary as terrible.
+
+Diagnosed directly against LMApi, not just inferred from the error text:
+
+- `POST /lmapi/api/chat/completions/server` with
+  `{"model": "Tiny-Tower::qwen3.6:35b-a3b-q8_0", ...}` (server name embedded
+  in the model string, colon-separated — the same format LMEval uses for
+  `modelIds` everywhere else) → `400 {"error":"serverName is required"}`.
+- The same call with `{"serverName": "Tiny-Tower", "model":
+  "qwen3.6:35b-a3b-q8_0", ...}` (split into separate fields) → succeeds.
+
+So the candidate-model call path (used for `granite3.3:8b`/`granite4.1:8b`
+in this same run, which worked) evidently splits a server-qualified model
+ID into `serverName` + `model` before calling `/server`, but the
+judge-invocation path does not — it passes the colon-joined string through
+as a single `model` field, which LMApi's `/server` endpoint rejects. This
+is a reproducible bug in LMEval's judge-calling code
+(`ExecutionService`/`PromptfooAdapter`'s judge provider construction), not
+a configuration mistake on this run's part, and not something fixable
+through the evaluation API — it needs a code change.
+
+**Second, independent problem found in the same diagnostic call:**
+`qwen3.6:35b-a3b-q8_0` is itself a reasoning/thinking model — the direct
+LMApi test above returned `"content": ""` with a separate, populated
+`"reasoning"` field, and `finish_reason: "length"` at only 20 output
+tokens. This is the same failure shape as `granite4.2:8b`/`lfm2.5:8b`
+above, but for the *judge*: even once the routing bug is fixed, this judge
+model will likely need a materially larger token budget than whatever
+LMEval's rubric-grading path currently allots, or it will return empty
+verdicts the same way. Unlike the candidate-model token ceilings (which
+must match production for a valid comparison), the judge's token budget is
+pure evaluation tooling — there's no reason not to give it generous
+headroom once the routing bug is fixed.
+
+Not fixed in this session — flagging both precisely for whichever session
+picks up code changes next, rather than attempting a fix while another
+session is actively working in this codebase.
 
 ## Follow-up work (tracked elsewhere — not duplicated here)
 
@@ -248,6 +361,46 @@ its own dedicated run — `EVAL_CONCURRENCY=1`, one evaluation at a time,
 ideally one server's models per run — rather than trying to extract timing
 truth from a run optimized for accuracy-matrix wall-clock efficiency.
 
+**Update:** contention isn't only a slowness/latency-metric problem — it
+can cause outright, cascading failures, and the failure mode is worse than
+"the newest run pays the price." Running the summarization pilot (2 models)
+concurrently with the two full 6-model classification/tagging runs (all
+three sharing Tiny-Tower) eventually took down **all three**:
+summarization: 54/54 candidate-call timeouts; classification-full: 182/288
+failed (all four Tiny-Tower models, ~equally, M5 Max models mostly fine);
+tagging-full: 209/324 failed, same pattern, appearing only in the final
+aggregated result after sitting at "323/324, zero failures" for several
+minutes of polling.
+
+**Root cause, confirmed by observation, not just inferred:** a client-side
+120-second HTTP timeout does not cancel the underlying Ollama generation —
+the server keeps computing regardless of whether the caller gave up. LMApi
+retries a timed-out call up to 3 times with backoff, so each failure adds
+*more* queued work on top of a server that was already too far behind to
+answer the first attempt in time. This compounds: once concurrent load
+exceeds what the box can actually serve, timeouts and retries feed each
+other into a growing backlog rather than backing off. Direct evidence: after
+both evaluations reported `status: completed`, `GET /lmapi/api/servers`
+still showed **4 active requests on Tiny-Tower for another ~90 seconds** —
+ghost work from already-abandoned client calls that Ollama was still
+grinding through.
+
+**Recovery procedure used:** poll `GET /lmapi/api/servers`'s
+`activeRequests` for the target server until it actually reaches 0 (not
+just until the evaluation reports `completed` — that reflects the
+client-side view, not whether the server has stopped working), then use
+`POST /evaluations/{id}/retry` with `{"failedCellsOnly": true}` to
+re-run only the failed cells as a new, scoped evaluation — and retry
+evaluations **one at a time**, not concurrently, this time.
+
+**Standing rule going forward:** never run more than one evaluation against
+the same LMApi-backed server at once. `EVAL_CONCURRENCY`'s default (8)
+assumes far more server-side concurrency headroom than this Tiny-Tower box
+(64GB VRAM, several models loaded) actually has — confirm
+`GET /lmapi/api/servers`'s `activeRequests` is 0 for a server before
+starting a new evaluation against it, not just before retrying a failed
+one.
+
 ## On introducing a local SQL database
 
 Recommendation: **not blocking, but worth prototyping right after this
@@ -273,12 +426,29 @@ files rather than a replacement for them.
 
 ## Next steps
 
-1. Confirm `qwen3.6:35b-a3b-q8_0` produces sane, non-zero rubric scores on
-   the 2-model summarization pilot.
-2. Extend summarization to all 6 models once confirmed.
-3. Let the full classification/tagging 6-model runs finish; add their
-   per-model leaderboards to this doc.
-4. Decide, per activity, whether any model is a clear enough winner to act
+1. **Resolve the token-budget truncation** for `granite4.2:8b` and
+   `lfm2.5:8b` before scoring them further — either a larger `maxTokens`
+   experiment (off production-parity, exploratory only) or checking for a
+   reasoning-suppression / non-thinking mode for these models, then
+   re-run classification and tagging for just these two.
+2. **Fix or work around `ministral-3:8b`'s markdown-wrapping** (prompt
+   instruction against markdown, or strip `**`/backticks before the
+   exact-label comparison) and re-run before trusting its ranking against
+   `granite4.1:8b`.
+3. **Fix the judge-routing bug** (judge-invocation path doesn't split a
+   server-qualified `modelId` into `serverName`/`model` before calling
+   `/lmapi/api/chat/completions/server`, unlike the candidate-model path) —
+   this blocks any summarization judge score, not just this session's pilot.
+   Once fixed, give the judge a materially larger token budget than the
+   candidate ceilings, since `qwen3.6:35b-a3b-q8_0` is itself a
+   reasoning/thinking model that needs headroom beyond its final verdict
+   tokens (confirmed directly: 20 tokens produced empty `content` with a
+   separate populated `reasoning` field).
+4. Extend summarization to all 6 models once the judge routing/token-budget
+   issue is fixed and the two candidate-side truncation/formatting issues
+   above are resolved (no point scoring rubric quality on responses that
+   are empty or markdown-mangled).
+5. Decide, per activity, whether any model is a clear enough winner to act
    on, or whether the case-count/CI caveats mean this stays directional
    only until real MemoryApi snapshot data lands.
 

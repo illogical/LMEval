@@ -12,7 +12,7 @@ function verdictFor(metrics: TaskMetrics | undefined): EvaluationFeedback['verdi
   const gate = metrics.gate;
   const common = { taskType: metrics.taskType, verdict: gate.verdict, caseCount: gate.caseCount, reason: gate.failures.join('; ') || undefined };
   if (metrics.taskType === 'classification') return { ...common, primaryMetric: { name: 'accuracy', value: metrics.accuracy, confidenceInterval: metrics.accuracyCI } };
-  if (metrics.taskType === 'tagging') return { ...common, primaryMetric: { name: 'jaccardMean', value: metrics.jaccardMean, confidenceInterval: metrics.jaccardCI } };
+  if (metrics.taskType === 'tagging') return { ...common, primaryMetric: { name: metrics.gateMetric ?? 'jaccardMean', value: metrics.gateMetric === 'microRecall' ? metrics.microRecall : metrics.jaccardMean, confidenceInterval: metrics.jaccardCI } };
   return { ...common, primaryMetric: { name: 'weightedRubric', value: metrics.medianRubric.weighted, confidenceInterval: metrics.weightedCI } };
 }
 

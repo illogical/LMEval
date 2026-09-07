@@ -3,6 +3,10 @@ import {
   readJson, writeJson, ensureDir, listDir, generateId,
   MODEL_SELECTION_DIR, RECOMMENDATIONS_DIR, EVALUATIONS_DIR,
 } from './FileService';
+import { EvaluationService } from './EvaluationService';
+import { CampaignValidationService, campaignPhaseInput } from './CampaignValidationService';
+import { PromptService } from './PromptService';
+import type { ModelSelectionCampaignInput, CampaignPhase } from '../../src/types/eval';
 import { ExecutionService } from './ExecutionService';
 import { computeClassificationMetrics, computeTaggingMetrics, computeSummarizationMetrics } from './SummaryService';
 import { PurposeTemplateService } from './PurposeTemplateService';
@@ -69,13 +73,13 @@ function computeGroupTaskMetrics(
 // truth for "what counts as the headline metric per task type").
 export function primaryMetricValue(tm: TaskMetrics): number {
   if (tm.taskType === 'classification') return tm.accuracy;
-  if (tm.taskType === 'tagging') return tm.jaccardMean;
+  if (tm.taskType === 'tagging') return tm.gateMetric === 'microRecall' ? tm.microRecall : tm.jaccardMean;
   return tm.medianRubric.weighted;
 }
 
-export function primaryMetricName(task: Task): string {
+export function primaryMetricName(task: Task, metrics?: TaskMetrics): string {
   if (task === 'classification') return 'accuracy';
-  if (task === 'tagging') return 'jaccardMean';
+  if (task === 'tagging') return metrics?.taskType === 'tagging' && metrics.gateMetric === 'microRecall' ? 'microRecall' : 'jaccardMean';
   return 'weightedRubric';
 }
 
@@ -105,7 +109,7 @@ function avgOutputTokensOf(cells: EvalMatrixCell[], modelId: string): number {
 }
 
 function readEvalCells(evalId: string): EvalMatrixCell[] {
-  return readJson<EvalMatrixCell[]>(join(EVALUATIONS_DIR, evalId, 'cells.json')) ?? [];
+  return readJson<EvalMatrixCell[]>(join(EVALUATIONS_DIR, evalId, 'results.json')) ?? [];
 }
 
 function readEvalTestCases(evalId: string): TestCase[] {
@@ -120,17 +124,74 @@ function readEvalConfig(evalId: string): EvaluationConfig | null {
   return readJson<EvaluationConfig>(join(EVALUATIONS_DIR, evalId, 'config.json'));
 }
 
-async function runEvaluation(config: Omit<EvaluationConfig, 'status' | 'createdAt' | 'updatedAt'>): Promise<string> {
+async function runEvaluation(campaign: ModelSelectionCampaign, task: Task, phase: CampaignPhase, promptId?: string, modelId?: string): Promise<string> {
+  if (ModelSelectionService.getCampaign(campaign.id)?.status === 'cancelled') throw new Error('Campaign cancelled');
+  const input = campaign as ModelSelectionCampaign & ModelSelectionCampaignInput;
+  const pin = promptId ? input.promptPinsByTask[task]?.find(p => p.promptId === promptId) : undefined;
+  if (promptId && !pin) throw new Error('Winning prompt pin is missing');
+  const { evaluation } = await EvaluationService.create(campaignPhaseInput(input, task, phase, pin, modelId), 'pending');
+  if (ModelSelectionService.getCampaign(campaign.id)?.status === 'cancelled') {
+    evaluation.status = 'cancelled'; writeJson(join(EVALUATIONS_DIR, evaluation.id, 'config.json'), evaluation);
+    throw new Error('Campaign cancelled');
+  }
+  const map = phase === 'prompt-sweep' ? campaign.phase1EvalIds : phase === 'model-sweep' ? campaign.phase2EvalIds : campaign.phase3EvalIds;
+  map[task] = evaluation.id;
+  if (phase === 'confirmation') ((campaign.phase3AttemptEvalIds ??= {})[task] ??= []).push(evaluation.id);
   const now = new Date().toISOString();
-  const full: EvaluationConfig = { ...config, status: 'pending', createdAt: now, updatedAt: now };
-  const evalDir = join(EVALUATIONS_DIR, full.id);
-  ensureDir(evalDir);
-  writeJson(join(evalDir, 'config.json'), full);
-  await ExecutionService.run(full.id);
-  return full.id;
+  campaign.activeWork = { task, phase, evaluationId: evaluation.id, startedAt: now, updatedAt: now };
+  ModelSelectionService.persist(campaign);
+  await ExecutionService.run(evaluation.id);
+  if (ModelSelectionService.getCampaign(campaign.id)?.status === 'cancelled') throw new Error('Campaign cancelled');
+  campaign.activeWork = undefined;
+  ModelSelectionService.persist(campaign);
+  const final = EvaluationService.get(evaluation.id);
+  const summary = readEvalSummary(evaluation.id);
+  if (final?.status !== 'completed' || !summary || summary.failedCells > 0 || summary.completedCells !== summary.totalCells || summary.completedCells === 0) {
+    throw new Error(`Phase ${phase} ended without complete successful execution. Inspect evaluation ${evaluation.id}; no winner inferred from partial evidence.`);
+  }
+  return evaluation.id;
 }
-
+const starting = new Set<string>();
 export const ModelSelectionService = {
+  async createDraft(input: ModelSelectionCampaignInput): Promise<ModelSelectionCampaign> {
+    const validation = await CampaignValidationService.validate(input);
+    if (!validation.valid) throw Object.assign(new Error('Campaign configuration is invalid'), { status: 400, validation });
+    const campaign = this.createCampaign({ ...input, promptIdsByTask: Object.fromEntries(Object.entries(input.promptPinsByTask).map(([t, pins]) => [t, pins.map(p => p.promptId)])) });
+    campaign.status = 'draft'; campaign.promptPinsByTask = input.promptPinsByTask; this.persist(campaign); return campaign;
+  },
+  async patchDraft(id: string, input: ModelSelectionCampaignInput): Promise<ModelSelectionCampaign> {
+    const existing = this.getCampaign(id);
+    if (!existing) throw Object.assign(new Error('Campaign not found'), { status: 404 });
+    if (existing.status !== 'draft' || starting.has(id)) throw Object.assign(new Error('Only idle drafts can be edited'), { status: 409 });
+    starting.add(id);
+    try {
+      const validation = await CampaignValidationService.validate(input);
+      if (!validation.valid) throw Object.assign(new Error('Campaign configuration is invalid'), { status: 400, validation });
+      const campaign = { ...existing, tasks: input.tasks, incumbentModelId: input.incumbentModelId, candidateSlate: input.candidateSlate,
+        promptPinsByTask: input.promptPinsByTask, testSuiteIdByTask: input.testSuiteIdByTask, judgeModelId: input.judgeModelId,
+        totalVramBudgetGb: input.totalVramBudgetGb, acknowledgedWarningCodes: [],
+        promptIdsByTask: Object.fromEntries(Object.entries(input.promptPinsByTask).map(([t, pins]) => [t, pins.map(p => p.promptId)])) };
+      this.persist(campaign); return campaign;
+    } finally { starting.delete(id); }
+  },
+  async startDraft(id: string, codes: string[] = []): Promise<ModelSelectionCampaign> {
+    const campaign = this.getCampaign(id);
+    if (!campaign) throw Object.assign(new Error('Campaign not found'), { status: 404 });
+    if (campaign.status !== 'draft' || starting.has(id)) throw Object.assign(new Error('Campaign already started'), { status: 409 });
+    starting.add(id);
+    try {
+      const validation = await CampaignValidationService.validate(campaign);
+      if (!validation.valid || validation.issues.some(i => i.requiresAcknowledgement && !codes.includes(i.code)))
+        throw Object.assign(new Error('Resolve errors and acknowledge current warnings before starting'), { status: 400, validation });
+      campaign.acknowledgedWarningCodes = validation.issues.filter(i => i.severity === 'warning' && codes.includes(i.code)).map(i => i.code);
+      campaign.status = 'pending'; this.persist(campaign); return campaign;
+    } finally { starting.delete(id); }
+  },
+  interruptCampaigns(): void {
+    for (const c of this.listCampaigns()) if (c.status === 'running' || c.status === 'pending') {
+      c.status = 'failed'; c.error = 'Interrupted by host restart. Clone to a new draft to retry; partial phases were not resumed.'; this.persist(c);
+    }
+  },
   createCampaign(input: CreateCampaignInput): ModelSelectionCampaign {
     if (!input.incumbentModelId) throw new Error('incumbentModelId is required');
     if (!input.candidateSlate || input.candidateSlate.length === 0) throw new Error('candidateSlate must be non-empty');
@@ -148,6 +209,8 @@ export const ModelSelectionService = {
       incumbentModelId: input.incumbentModelId,
       candidateSlate: input.candidateSlate,
       promptIdsByTask: input.promptIdsByTask,
+      promptPinsByTask: Object.fromEntries(Object.entries(input.promptIdsByTask).map(([t, ids]) => [t, ids.map(promptId => ({ promptId, version: PromptService.get(promptId)?.versions.at(-1)?.version ?? 0 }))])),
+      phase3AttemptEvalIds: {},
       testSuiteIdByTask: input.testSuiteIdByTask,
       totalVramBudgetGb: input.totalVramBudgetGb,
       judgeModelId: input.judgeModelId,
@@ -187,22 +250,12 @@ export const ModelSelectionService = {
     const purposeTemplate = PurposeTemplateService.get(task);
     if (!purposeTemplate) throw new Error(`No built-in purpose template for task "${task}"`);
 
-    const evalId = await runEvaluation({
-      id: generateId('eval'),
-      name: `Model selection ${campaign.id} — phase 1 (${task})`,
-      promptIds: campaign.promptIdsByTask[task],
-      modelIds: [campaign.incumbentModelId],
-      comparisonMode: 'prompt',
-      purposeTemplateId: task,
-      testSuiteId: campaign.testSuiteIdByTask[task],
-      benchmarkMode: 'calibration',
-      judgeModelId: task === 'summarization' ? campaign.judgeModelId : undefined,
-    });
+    const evalId = await runEvaluation(campaign, task, 'prompt-sweep');
 
     const cells = readEvalCells(evalId);
     const testCases = readEvalTestCases(evalId);
     const judgeQualified = task === 'summarization' && campaign.judgeModelId
-      ? JudgeQualificationService.get(campaign.judgeModelId)?.qualified
+      ? JudgeQualificationService.isQualified(campaign.judgeModelId)
       : undefined;
 
     const byPrompt = new Map<string, EvalMatrixCell[]>();
@@ -215,7 +268,7 @@ export const ModelSelectionService = {
     const perPrompt: Array<{ promptId: string; promptVersion: number; metrics: TaskMetrics }> = [];
     for (const [promptId, promptCells] of byPrompt) {
       const metrics = computeGroupTaskMetrics(
-        promptCells, testCases, task, purposeTemplate.assertionStrategy, 1, judgeQualified
+        promptCells, testCases, task, purposeTemplate.assertionStrategy, 3, judgeQualified
       );
       if (metrics) {
         perPrompt.push({ promptId, promptVersion: promptCells[0]?.promptVersion ?? 1, metrics });
@@ -239,17 +292,7 @@ export const ModelSelectionService = {
   async runPhase2(campaign: ModelSelectionCampaign, task: Task, promotedPromptId: string): Promise<{
     evalId: string; summary: EvaluationSummary; cells: EvalMatrixCell[];
   }> {
-    const evalId = await runEvaluation({
-      id: generateId('eval'),
-      name: `Model selection ${campaign.id} — phase 2 (${task})`,
-      promptIds: [promotedPromptId],
-      modelIds: campaign.candidateSlate.map(c => c.modelId),
-      comparisonMode: 'model',
-      purposeTemplateId: task,
-      testSuiteId: campaign.testSuiteIdByTask[task],
-      benchmarkMode: 'promotion-check',
-      judgeModelId: task === 'summarization' ? campaign.judgeModelId : undefined,
-    });
+    const evalId = await runEvaluation(campaign, task, 'model-sweep', promotedPromptId);
 
     const summary = readEvalSummary(evalId);
     if (!summary) throw new Error(`Phase 2 eval ${evalId} produced no summary`);
@@ -262,27 +305,17 @@ export const ModelSelectionService = {
     const purposeTemplate = PurposeTemplateService.get(task);
     if (!purposeTemplate) throw new Error(`No built-in purpose template for task "${task}"`);
 
-    const evalId = await runEvaluation({
-      id: generateId('eval'),
-      name: `Model selection ${campaign.id} — phase 3 confirmation (${task}, ${modelId})`,
-      promptIds: [promptId],
-      modelIds: [modelId],
-      comparisonMode: 'prompt',
-      purposeTemplateId: task,
-      testSuiteId: campaign.testSuiteIdByTask[task],
-      benchmarkMode: 'calibration',
-      judgeModelId: task === 'summarization' ? campaign.judgeModelId : undefined,
-    });
+    const evalId = await runEvaluation(campaign, task, 'confirmation', promptId, modelId);
 
     const cells = readEvalCells(evalId);
     const testCases = readEvalTestCases(evalId);
     const judgeQualified = task === 'summarization' && campaign.judgeModelId
-      ? JudgeQualificationService.get(campaign.judgeModelId)?.qualified
+      ? JudgeQualificationService.isQualified(campaign.judgeModelId)
       : undefined;
-    const taskMetrics = computeGroupTaskMetrics(cells, testCases, task, purposeTemplate.assertionStrategy, 1, judgeQualified);
+    const taskMetrics = computeGroupTaskMetrics(cells, testCases, task, purposeTemplate.assertionStrategy, 3, judgeQualified);
     if (!taskMetrics) return { evalId, passed: false, reason: 'confirmation run produced no scoreable metrics' };
 
-    const passed = taskMetrics.gate.verdict !== 'fail';
+    const passed = taskMetrics.gate.verdict === 'pass';
     return { evalId, passed, reason: passed ? undefined : taskMetrics.gate.failures.join('; '), taskMetrics };
   },
 
@@ -314,9 +347,12 @@ export const ModelSelectionService = {
     if (survivors.length === 0) survivors = allModelIds;
 
     const p95LatencyMs: Record<string, number> = {};
+    const primaryMetrics: NonNullable<ModelSelectionOrdering['primaryMetrics']> = {};
     const stability: ModelSelectionOrdering['stability'] = {};
     for (const modelId of allModelIds) {
       p95LatencyMs[modelId] = computeP95LatencyMs(cells, modelId);
+      const ci = primaryMetricCI(perModel[modelId]);
+      primaryMetrics[modelId] = { value: primaryMetricValue(perModel[modelId]), ci95: [ci.lower, ci.upper] };
       stability[modelId] = {
         runToRunAgreement: runToRunAgreementOf(perModel[modelId]),
         avgOutputTokens: avgOutputTokensOf(cells, modelId),
@@ -352,13 +388,14 @@ export const ModelSelectionService = {
     const winner = tieGroups[0]?.modelIds[0];
     const runnerUp = tieGroups[0]?.modelIds[1] ?? tieGroups[1]?.modelIds[0];
 
-    return { tieGroups, discardedByGate, p95LatencyMs, stability, latencyBudgetNote, winner, runnerUp };
+    return { tieGroups, discardedByGate, primaryMetrics, p95LatencyMs, stability, latencyBudgetNote, winner, runnerUp };
   },
 
   async runCampaign(campaignId: string): Promise<void> {
     const campaign = this.getCampaign(campaignId);
     if (!campaign) throw new Error(`Campaign not found: ${campaignId}`);
 
+    if (campaign.status !== 'pending') return;
     campaign.status = 'running';
     this.persist(campaign);
 
@@ -377,15 +414,19 @@ export const ModelSelectionService = {
 
         let winnerModelId = selection.winner;
         let confirmation = await this.runPhase3(campaign, task, winnerModelId, phase1.promotedPromptId);
+        const confirmationAttempts = [{ evaluationId: confirmation.evalId, modelId: winnerModelId, passed: confirmation.passed, reason: confirmation.reason }];
+        let fallbackReason: string | undefined;
         campaign.phase3EvalIds[task] = confirmation.evalId;
 
         if (!confirmation.passed && selection.runnerUp) {
+          fallbackReason = `${winnerModelId} did not pass confirmation; the runner-up was evaluated.`;
           const runnerConfirmation = await this.runPhase3(campaign, task, selection.runnerUp, phase1.promotedPromptId);
+          confirmationAttempts.push({ evaluationId: runnerConfirmation.evalId, modelId: selection.runnerUp, passed: runnerConfirmation.passed, reason: runnerConfirmation.reason });
           campaign.phase3EvalIds[task] = runnerConfirmation.evalId;
           if (runnerConfirmation.passed) {
             winnerModelId = selection.runnerUp;
-            confirmation = runnerConfirmation;
           }
+          confirmation = runnerConfirmation;
         }
         this.persist(campaign);
 
@@ -397,6 +438,8 @@ export const ModelSelectionService = {
           promptVersion: phase1.promotedPromptVersion,
           phase2EvalId: phase2.evalId,
           confirmation,
+          confirmationAttempts,
+          fallbackReason,
           advisory: phase1.advisory || !confirmation.passed,
         });
 
@@ -416,6 +459,7 @@ export const ModelSelectionService = {
       // the "never a silent default" principle that governs the rest of A9.
       campaign.status = 'completed';
     } catch (err) {
+      if (this.getCampaign(campaignId)?.status === 'cancelled') return;
       campaign.status = 'failed';
       campaign.error = (err as Error).message;
     }
@@ -433,6 +477,8 @@ export const ModelSelectionService = {
       promptVersion: number;
       phase2EvalId: string;
       confirmation: { evalId: string; passed: boolean; reason?: string };
+      confirmationAttempts?: Array<{ evaluationId: string; modelId: string; passed: boolean; reason?: string }>;
+      fallbackReason?: string;
       advisory: boolean;
     }
   ): ModelRecommendation {
@@ -449,7 +495,7 @@ export const ModelSelectionService = {
       recommendedModelId: args.winnerModelId,
       runnerUpModelIds: args.runnerUpModelIds,
       discardedByGate: args.ordering.discardedByGate,
-      primaryMetric: { name: primaryMetricName(task), value: metricValue, ci95: [ci.lower, ci.upper] },
+      primaryMetric: { name: primaryMetricName(task, winnerMetrics), value: metricValue, ci95: [ci.lower, ci.upper] },
       p95LatencyMs: args.ordering.p95LatencyMs[args.winnerModelId] ?? 0,
       inference: {
         temperature: phase2Config?.resolvedInference?.temperature ?? 0.3,
@@ -468,8 +514,10 @@ export const ModelSelectionService = {
       judgeQualificationId: task === 'summarization' && campaign.judgeModelId ? campaign.judgeModelId : undefined,
       generatedAt: new Date().toISOString(),
       ordering: args.ordering,
-      confirmation: { ranModelId: args.winnerModelId, passed: args.confirmation.passed, reason: args.confirmation.reason },
-      advisory: args.advisory || undefined,
+      confirmation: { ranModelId: args.confirmationAttempts?.at(-1)?.modelId ?? args.winnerModelId, passed: args.confirmation.passed, reason: args.confirmation.reason },
+      confirmationAttempts: args.confirmationAttempts,
+      fallbackReason: args.fallbackReason,
+      advisory: args.advisory || suite?.provenance?.reviewStatus !== 'approved' || winnerMetrics?.gate.verdict !== 'pass' || undefined,
     };
   },
 
@@ -540,15 +588,9 @@ export const ModelSelectionService = {
   cancel(campaignId: string): boolean {
     const campaign = this.getCampaign(campaignId);
     if (!campaign) return false;
-    let cancelledAny = false;
-    for (const task of campaign.tasks) {
-      const evalId = campaign.phase3EvalIds[task] ?? campaign.phase2EvalIds[task] ?? campaign.phase1EvalIds[task];
-      if (evalId && ExecutionService.cancel(evalId)) cancelledAny = true;
-    }
-    if (cancelledAny) {
-      campaign.status = 'cancelled';
-      this.persist(campaign);
-    }
-    return cancelledAny;
+    if (!['pending', 'running'].includes(campaign.status)) return false;
+    campaign.status = 'cancelled'; this.persist(campaign);
+    if (campaign.activeWork) ExecutionService.cancel(campaign.activeWork.evaluationId);
+    return true;
   },
 };

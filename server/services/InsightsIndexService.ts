@@ -228,7 +228,7 @@ export function recordEvaluation(
       comparisonMode: config.comparisonMode ?? null,
       runsPerCell: config.runsPerCell ?? null,
       caseCount: taskMetrics.gate.caseCount,
-      primaryMetricName: primaryMetricName(taskMetrics.taskType),
+      primaryMetricName: primaryMetricName(taskMetrics.taskType, taskMetrics),
       primaryMetricValue: primaryMetricValue(taskMetrics),
       ciLower: ci.lower,
       ciUpper: ci.upper,

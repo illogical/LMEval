@@ -285,6 +285,7 @@ export function computeTaggingMetrics(
 
   return {
     taskType: 'tagging',
+    gateMetric: penalizeExtraTags ? 'jaccardMean' : 'microRecall',
     microPrecision,
     microRecall,
     microF1,

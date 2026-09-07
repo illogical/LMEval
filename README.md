@@ -827,6 +827,31 @@ promotion actions are separate operations and require explicit intent.
 |---|---|
 | `POST /api/eval/judges/:modelId/qualify` | Qualify a judge model against a calibration set (optional `{ calibrationSetId }`) |
 | `GET /api/eval/judges/:modelId/qualification` | Read a stored qualification record |
+| `GET /api/eval/judges/:modelId/qualification-status` | Read freshness plus the active/latest persisted run |
+| `POST /api/eval/judges/:modelId/qualification-runs` | Start a pollable qualification run (`202`) |
+| `GET /api/eval/judges/qualification-runs/:runId` | Read persisted progress and terminal state |
+| `POST /api/eval/judges/qualification-runs/:runId/cancel` | Request cancellation after the current model call |
+
+### Model selection (`/api/eval/model-selection`)
+| Endpoint | Description |
+|---|---|
+| `GET /api/eval/model-selection` | List campaigns newest first |
+| `POST /api/eval/model-selection` | Backward-compatible create-and-start campaign |
+| `POST /api/eval/model-selection/validate` | Validate pins, models, suites, judge state, and call estimates without saving |
+| `POST /api/eval/model-selection/drafts` | Save a validated campaign draft |
+| `PATCH /api/eval/model-selection/:id` | Replace editable draft fields; started evidence is immutable |
+| `POST /api/eval/model-selection/:id/run` | Revalidate, acknowledge current required warnings, and start exactly once |
+| `GET /api/eval/model-selection/:id/feedback` | Poll lifecycle, active cell progress, phase links, and validation |
+| `GET /api/eval/model-selection/:id/recommendations` | Read task recommendations |
+| `POST /api/eval/model-selection/:id/cancel` | Cancel pending/running work while retaining evidence |
+| `GET\|PUT /api/eval/model-selection/latency-budgets` | Read or replace externally supplied per-task latency budgets |
+
+The browser exposes these contracts at `/campaigns`. Save and review a draft before Start. The review
+shows exact prompt versions, suite review status, three-repetition call estimates, judge qualification,
+and any warning acknowledgements. Campaign phases run sequentially to avoid hidden GPU contention.
+Completed calls and execution failures are shown separately; a phase with incomplete execution stops
+without producing a winner. Recommendations preserve CI-aware gates, statistical tie groups, every
+confirmation attempt, and the distinction between advisory evidence and a promotable pass.
 
 ### Insights (`/api/eval/insights`) — cross-run dashboard
 

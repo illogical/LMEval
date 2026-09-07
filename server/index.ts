@@ -14,7 +14,9 @@ import { evaluationsRouter, configureEvaluationRoutes } from './routes/evaluatio
 import { gitRouter } from './routes/git';
 import { presetsRouter } from './routes/presets';
 import { judgesRouter } from './routes/judges';
-import { modelSelectionRouter } from './routes/modelSelection';
+import { modelSelectionRouter, configureCampaignRoutes } from './routes/modelSelection';
+import { JudgeQualificationService } from './services/JudgeQualificationService';
+import { ModelSelectionService } from './services/ModelSelectionService';
 import { insightsRouter } from './routes/insights';
 import { TemplateService } from './services/TemplateService';
 import { PurposeTemplateService } from './services/PurposeTemplateService';
@@ -39,6 +41,9 @@ import { config } from './config';
 export function buildApp(options: { appBasePath?: string } = {}): { router: Router; dispose: () => Promise<void> } {
   const router = Router();
   configureEvaluationRoutes({ appBasePath: options.appBasePath ?? '/' });
+  configureCampaignRoutes(options.appBasePath ?? '/');
+  JudgeQualificationService.interruptRuns();
+  ModelSelectionService.interruptCampaigns();
   router.use(express.json());
 
   router.use('/api/eval/templates', templatesRouter);

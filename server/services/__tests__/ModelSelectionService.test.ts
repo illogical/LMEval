@@ -115,6 +115,15 @@ describe('ModelSelectionService.createCampaign', () => {
     expect(ModelSelectionService.getCampaign(campaign.id)).toEqual(campaign);
     expect(ModelSelectionService.listCampaigns().map(c => c.id)).toEqual([campaign.id]);
   });
+
+  it('marks unfinished campaigns interrupted instead of resuming them after startup', () => {
+    const campaign = ModelSelectionService.createCampaign({
+      tasks: ['classification'], incumbentModelId: 'm1', candidateSlate: [{ modelId: 'm1', lmapiServer: 's1' }],
+      promptIdsByTask: { classification: ['p1'] }, testSuiteIdByTask: { classification: 'suite-1' },
+    });
+    ModelSelectionService.interruptCampaigns();
+    expect(ModelSelectionService.getCampaign(campaign.id)).toMatchObject({ status: 'failed', error: expect.stringContaining('Interrupted') });
+  });
 });
 
 describe('computeP95LatencyMs', () => {

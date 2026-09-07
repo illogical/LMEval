@@ -595,7 +595,7 @@ export const ExecutionService = {
       let judgeQualified: boolean | undefined;
       if (purposeTemplate?.purposeCategory === 'summarization' && config.judgeModelId) {
         const { JudgeQualificationService } = await import('./JudgeQualificationService');
-        judgeQualified = JudgeQualificationService.get(config.judgeModelId)?.qualified;
+        judgeQualified = JudgeQualificationService.isQualified(config.judgeModelId);
       }
 
       await this.aggregate(evalId, finalCells, pairwiseRankings, {

@@ -24,6 +24,9 @@ export function SessionHubPage() {
           <h1 className="hub-title">LMEval</h1>
           <p className="hub-subtitle">Evaluate and compare language model prompts at scale</p>
           <div className="hub-actions">
+            <button className="hub-cta hub-cta-secondary" onClick={() => navigate('/campaigns')}>
+              <BarChart2 size={16} /> Model Selection Campaign
+            </button>
             <button className="hub-cta hub-cta-primary" onClick={() => navigate('/eval/templates')}>
               <Plus size={16} />
               New Evaluation

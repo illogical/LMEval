@@ -257,6 +257,7 @@ describe('SummaryService.computeSummary — R5 tagging taskMetrics', () => {
     expect(tm.unknownTagRate).toBe(0);
     expect(tm.duplicateTagRate).toBe(0);
     expect(tm.microF1).toBe(1);
+    expect(tm.gateMetric).toBe('jaccardMean');
   });
 
   it('penalizeExtraTags: false still reports unknownTagRate, does not gate on it, and backs the CI gate with recall instead of Jaccard', () => {
@@ -280,6 +281,7 @@ describe('SummaryService.computeSummary — R5 tagging taskMetrics', () => {
     // are unaffected by this toggle and can still fail independently, per the
     // toggle's documented scope in LabelOverlapConfig.)
     expect(tm.jaccardCI).toEqual({ point: 1, lower: 1, upper: 1 });
+    expect(tm.gateMetric).toBe('microRecall');
   });
 });
 
