@@ -581,7 +581,38 @@ behavior can be called verified.
 - [x] **G6 — Published contract and clients**: checked-in/served OpenAPI 3.1 document, corrected README workflow/route table, frontend API client and existing typed `LMEvalClient` extended, and executable `test:agent-workflow` smoke harness added.
 - [ ] **G7 — Full automated gate**: full unit suite, lint, standalone build, hosted frontend build, host adapter build, API integration, and relevant Playwright draft-handoff coverage all pass. Record pre-existing lint failures separately.
 - [ ] **G8 — Live three-task evidence**: with LMEval + LMApi running, execute bounded production-shaped classification, tagging, and summarization smokes through the agent SDK; record IDs, pinned prompts, models/judge, call counts, paths, failures, verdicts, and advisory reasons. This can close older Track D/E live-engine items only where their original criteria were actually exercised.
+  > **Concrete instance in progress**: `docs/plans/2026-09-06-baseline-model-evaluation.md`'s Phase 2 (full 6-model classification/tagging runs, plus a summarization re-run once the judge below is qualified) *is* G8's evidence-gathering for these three tasks — track it here, not as a separate parallel todo list. See `docs/plans/2026-09-06-baseline-evaluation-followups.md` for the two blockers on closing it out: (1) `qwen3.6:35b-a3b-q8_0` (the newly-selected summarization judge) has not yet been run through A8's `JudgeQualificationService.qualify()`, so the summarization gate stays `advisory` regardless of score; (2) don't run a judge-qualification pass concurrently with the candidate matrix runs on the same GPU — observed as a multi-minute stall, now documented in `.claude/skills/lmeval-runner/SKILL.md`.
 - [ ] **G9 — Gated workflow skill**: only after G7/G8, create and validate `.agents/skills/lmeval-evaluation-workflow/`; keep discovery/draft-first/one-axis/ground-truth/production-shape rules concise and require explicit authority for delete, git, promotion, or external writes.
+
+---
+
+### Track H — Cross-run reporting *(new, design complete)*
+
+> Plan: [`plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md`](plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md)
+
+Motivated by `docs/plans/2026-09-06-baseline-model-evaluation.md`'s "On
+introducing a local SQL database" recommendation and the gap that today's
+only cross-run view (`GET /evaluations/:id/history`) full-scans the
+evaluations directory per request, is scoped to evaluations sharing a
+prompt ID, and reduces everything to a single `avgCompositeScore`.
+
+- [ ] **H1 — SQLite index tables**: `eval_runs` (one row per
+  evalId×modelId×activity: prompt/model/inference identity, primary metric +
+  CI bounds, gate verdict + threshold version, ground-truth review status,
+  operational fields) + `eval_run_metrics` (EAV long table for
+  activity-specific diagnostics like `unknownTagRate`), per the schema in
+  the linked plan.
+- [ ] **H2 — Backfill script**: `scripts/backfill-eval-index.ts` populates
+  both tables from every already-completed evaluation under
+  `data/evals/evaluations/` — no re-run of any existing evaluation required.
+- [ ] **H3 — Write-through**: the same row-building function used by H2,
+  wired into the end of `SummaryService.aggregate` so every future run
+  populates the index automatically.
+- [ ] **H4 — `InsightsPage.tsx`**: new cross-run dashboard page (leaderboard,
+  metric-trend, CI-band, gate-verdict-history, diagnostic-panel, and
+  operational-panel views — not an extension of the live-run
+  `DashboardPage.tsx`), reusing `recharts` per the linked plan's view-by-view
+  chart rationale.
 
 ### Track F — Future use cases *(captured, not scheduled)*
 
@@ -710,6 +741,40 @@ number. Wire `EvaluationSummary.taskMetrics` into `VerdictHeader` as soon as A6 
 - **Make the Summary step's absence legible.** Step 5 ships a "Coming Soon" placeholder inside a
   numbered wizard, which reads as a broken step. Until B3 lands, either gray the step out in the
   indicator or have Step 4's CTA say what Step 5 will do once configured.
+
+### 5.11 — Tagging's contract-violations strip has an empirical trigger now
+
+§5.4 above proposed a "contract-violations strip" from first principles.
+`docs/plans/2026-09-06-baseline-model-evaluation.md`'s pilot run measured it
+directly: both granite3.3:8b and granite4.1:8b emitted tags outside the
+fixed 60-tag vocabulary on **~37% of cases**, despite the prompt explicitly
+restricting output to that list — "a bigger problem than raw F1," per that
+doc. Investigation plan (isolate prompt-adherence vs. formatting drift vs.
+`AssertionStrategyService` parsing as the cause) is in
+[`plans/2026-09-06-baseline-evaluation-followups.md`](plans/2026-09-06-baseline-evaluation-followups.md#1-tagging-s-37-unknown-tag-rate-investigation).
+This finding is also planned as a standing dashboard panel — see Track H.
+
+That doc's §1a also questions whether an unknown tag should zero-gate at
+all for MemoryApi specifically: MemoryApi already filters and ignores any
+tag outside its known vocabulary downstream, so an extra tag costs it
+nothing while a **missing** expected tag does. Proposed: a
+`penalizeExtraTags?: boolean` toggle on the `label-overlap` assertion
+strategy config, defaulted off for MemoryApi's tagging template only, plus
+tracking which specific extra tags recur as a vocabulary-gap signal (feeds
+Track H's `eval_run_metrics`, and is the same kind of signal §5.6 below
+describes harvesting from MemoryApi's review UI, just sourced from eval
+runs instead).
+
+### 5.12 — GPU contention between a judge pass and a candidate matrix run
+
+Observed directly during the 2026-09-06 baseline run: a multi-minute stall
+in full classification/tagging matrix runs while a (since-cancelled) 128B
+summarization judge pass competed for the same Tiny-Tower GPU. Not a code
+defect — `EVAL_CONCURRENCY` and the engine behaved as designed — it's an
+operational rule that wasn't written down anywhere an agent would see it
+before starting a run. Fixed by adding the rule directly to
+`.claude/skills/lmeval-runner/SKILL.md` rather than duplicating it here; see
+[`plans/2026-09-06-baseline-evaluation-followups.md`](plans/2026-09-06-baseline-evaluation-followups.md#3-gpu-contention-operational-guidance).
 
 ---
 

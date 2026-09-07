@@ -7,6 +7,26 @@ description: "Configure, validate, review, run, monitor, or interpret real LMEva
 
 Use LMEval's checked-in API contract and existing typed client to produce a reproducible evaluation with visible evidence. Prefer a saved draft and browser review before starting.
 
+## Environment
+
+When LMEval is running standalone, `LMEvalClient`'s default base URL
+(`http://localhost:${PORT ?? 3200}/api/eval`) is correct. In this workspace
+LMEval and LMApi are usually already co-hosted under HomeBase on one shared
+port instead, at:
+
+- LMEval UI/API: `http://localhost:17110/lmeval/` (API under `/lmeval/api/eval/...`)
+- LMApi (Ollama-inference gateway): `http://localhost:17110/lmapi/` (models under `/lmapi/api/models/...`)
+
+Check which mode is live before assuming a default — try the HomeBase path
+first (`curl http://localhost:17110/lmeval/api/eval/models/by-server`), and
+fall back to standalone (`:3200`/`:3111`) only if that 404s/connection-refuses.
+Do not try to start a second LMApi/LMEval instance if one is already
+listening — `EADDRINUSE` on LMApi's own port (17100) means it's already up
+elsewhere; just point at it. Passing a `baseUrl` explicitly to
+`LMEvalClient`'s constructor is the reliable way to target whichever mode is
+actually running, since nothing here currently auto-detects HomeBase hosting
+(this mismatch is a known open question, not yet root-caused).
+
 ## Required sequence
 
 1. Read `references/workflow.md` before making API calls.

@@ -32,7 +32,7 @@ Core principles, unchanged since the project's inception:
 ```
 
 - **Frontend**: Vite + React 19 + TypeScript, `react-router-dom` v7, CSS custom properties (no Tailwind), Recharts for charts, `highlight.js` for response syntax highlighting.
-- **Backend**: Express 5, file-based JSON/Markdown storage under `data/`, WebSocket server (`ws` package) for real-time eval progress, optional git-tracked `data/` directory for prompt/eval version history.
+- **Backend**: Express 5, file-based JSON/Markdown storage under `data/`, WebSocket server (`ws` package) for real-time eval progress, optional git-tracked `data/` directory for prompt/eval version history. **(planned)** A SQLite read-index (`data/evals/index.db`) additive to this file storage — never a replacement for it — indexing one row per (evaluation × model × activity) plus a long-format table for activity-specific diagnostic metrics, populated by a write-through step at the end of `SummaryService.aggregate` and backfillable from every already-completed evaluation without re-running it. See `docs/plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md`.
 - **LMApi**: a separate, already-running service. LMEval never talks to Ollama or OpenRouter directly — always through LMApi's chat completions endpoints. LMEval can run standalone (`npm run dev`, backend on port 3200) or hosted inside HomeBase's single Node process under `/lmeval/` (see `docs/plans/2026-08-23-homebase-integration.md`).
 - **Promptfoo**: the evaluation execution engine (§4). A pure npm dependency — Node ≥22, no Python, no separate service to run, confirmed against a real dependency-tree audit (see `docs/plans/2026-09-03-promptfoo-adoption-and-purpose-templates.md`).
 
@@ -155,6 +155,8 @@ A **"Save as Template"** action on Step 2 lets a user capture their own refined 
 `VerdictHeader`'s gate-first headline (R8) reads the CI-aware `gate.verdict` (A7/A8, 2026-09-04), not a bare pass/fail: `pass` — "X clears the &lt;task&gt; gate (N cases)"; `inconclusive` — "X's &lt;task&gt; gate is inconclusive at N cases — need ~M more to resolve"; `advisory` (summarization only, judge self-judging or unqualified) — "X's &lt;task&gt; result is advisory only — &lt;reason&gt;"; `fail` — "X does NOT clear the &lt;task&gt; gate — &lt;first failure&gt;". This intentionally never renders a false pass off a threshold an under-sampled run can't actually support.
 
 **Step 5 — Summary** (`/eval/summary/:id`): **not yet implemented.** Placeholder page; full design (executive summary, model recommendation, per-model failure analysis, prompt improvement suggestions with diff preview and one-click apply) is Phase 9 in `docs/prompt-eval-system/TASK.md`.
+
+**(planned)** A cross-run Insights/Dashboard surface, separate from the per-evaluation wizard above: a leaderboard, metric-trend, confidence-interval-band, gate-verdict-history, and diagnostic-issue view spanning *all* evaluations for an activity, not one evaluation's own prompt lineage — reading from the planned SQLite index (§2) rather than the per-evaluation JSON files directly. Not yet implemented; full design in `docs/plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md`.
 
 ### 5.4 Agent API contract
 
