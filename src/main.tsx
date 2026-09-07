@@ -12,6 +12,7 @@ import { EvaluationConfigPage } from './pages/EvaluationConfigPage.tsx'
 import { DashboardPage } from './pages/DashboardPage.tsx'
 import { ResultsPage } from './pages/ResultsPage.tsx'
 import { SummaryPage } from './pages/SummaryPage.tsx'
+import { InsightsPage } from './pages/InsightsPage.tsx'
 import { EvalLayout } from './layouts/EvalLayout.tsx'
 
 createRoot(document.getElementById('root')!).render(
@@ -21,6 +22,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/" element={<SessionHubPage />} />
         <Route path="/eval/templates" element={<TemplateGalleryPage />} />
         <Route path="/compare" element={<ComparePage />} />
+        <Route path="/insights" element={<InsightsPage />} />
         <Route path="/app" element={<App />} />
         <Route path="/eval" element={<EvalLayout />}>
           <Route index element={<Navigate to="prompts" replace />} />

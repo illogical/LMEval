@@ -209,6 +209,37 @@ Navigate to `/` and click **"New Evaluation"** to start the 5-step wizard:
 3. **Run** (`/eval/run/:id`) — watch the evaluation run live: elapsed timer, overall progress, per-model cards with latency/tokens stats, and a scrolling live feed of completed cells you can click to preview
 4. **Results** (`/eval/results/:id`) — explore five tabs: Scoreboard (heatmap + leaderboards), Compare (side-by-side diff), Detail (full cell drill-down), Metrics (Recharts bar charts), Timeline (score history); export as HTML or Markdown; save as baseline for regression tracking
 
+### Run History & Insights (cross-run dashboard)
+
+A single evaluation's Results page answers "how did this run go." **Run
+History & Insights** (`/insights`, linked from the Session Hub) answers a
+different question: **across every run so far, which model should I actually
+standardize on, and is that answer stable or just noise?**
+
+It reads from a lightweight SQLite index (`data/evals/index.db`) — one row
+per (evaluation × model × task activity) — built automatically as a
+write-through step every time an evaluation using a built-in purpose
+template (classification/tagging/summarization) finishes, so no separate
+action is needed for new runs. Design rationale, schema, and the full
+decision-making framing:
+[`docs/plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md`](docs/plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md).
+
+**Views, one per activity tab:**
+
+| View | What it shows | Decision it supports |
+|---|---|---|
+| **Leaderboard** | Latest run per model: primary metric, gate verdict, case count, ground-truth review status | "Which model wins right now?" |
+| **Metric trend + confidence band** | The primary metric over every run so far, with its bootstrap 95% CI shaded around each point | "Did this actually regress, or is the CI just wide at this case count?" |
+| **Gate verdict stability** | A model-by-run grid colored pass/fail/inconclusive/advisory | "Is this model's gate status stable, or does it flip run to run?" |
+| **Diagnostic metrics over time** | Secondary quality signals (e.g. tagging's unknown-tag rate, classification's invalid-label rate) trended per model | "Where is data quality actually broken, independent of the headline score?" |
+| **Operational — throughput** | Avg duration / tokens-per-second, labeled by server | Explicitly **not** a model-speed comparison across servers or concurrency settings — see the caveat in the linked plan doc |
+
+**If the dashboard is empty:** the index only covers evaluations completed
+*after* this feature shipped, plus anything backfilled. Run
+`npm run insights:backfill` once to index every already-completed evaluation
+on disk — it reads existing `config.json`/`summary.json` files, so nothing
+is re-run.
+
 ---
 
 ## Evaluation Concepts — a primer
@@ -530,7 +561,8 @@ LMEval/
 │   │   ├── ConfigPage.tsx              # Step 2: template, test cases, judge, presets
 │   │   ├── DashboardPage.tsx           # Step 3: live execution monitoring
 │   │   ├── ResultsPage.tsx             # Step 4: 5-tab results explorer
-│   │   └── SummaryPage.tsx             # Step 5: placeholder (Phase 9)
+│   │   ├── SummaryPage.tsx             # Step 5: placeholder (Phase 9)
+│   │   └── InsightsPage.tsx            # Run History & Insights: cross-run leaderboard/trend/CI/diagnostics (/insights)
 │   ├── types/
 │   │   ├── lmapi.ts                    # LMApi request/response interfaces
 │   │   ├── eval.ts                     # Eval system interfaces + EvalPreset
@@ -549,6 +581,7 @@ LMEval/
 │   │   ├── evaluations.ts      # Eval CRUD, export, baseline endpoints
 │   │   ├── sessions.ts         # Session and eval run CRUD
 │   │   ├── presets.ts          # Eval preset CRUD
+│   │   ├── insights.ts         # Cross-run dashboard endpoints (leaderboard/trend/diagnostics/operational)
 │   │   └── git.ts              # Git status, commit, revert, log endpoints
 │   ├── services/
 │   │   ├── FileService.ts      # JSON/Markdown I/O, slug generation
@@ -563,6 +596,7 @@ LMEval/
 │   │   ├── SessionService.ts   # Session and eval run management
 │   │   ├── JudgeService.ts     # LLM judge prompt building and response parsing
 │   │   ├── ReportService.ts    # HTML and Markdown report generation
+│   │   ├── InsightsIndexService.ts # SQLite cross-run index (data/evals/index.db) — additive, never the source of truth
 │   │   └── GitService.ts       # Git operations for data versioning
 │   └── types/                  # Re-exports shared types
 ├── data/
@@ -572,7 +606,8 @@ LMEval/
 │   │   ├── test-suites/        # Test case collections
 │   │   ├── evaluations/        # Eval run results
 │   │   ├── baselines/          # Baseline snapshots for regression
-│   │   └── presets/            # Saved evaluation presets
+│   │   ├── presets/            # Saved evaluation presets
+│   │   └── index.db            # SQLite cross-run index for Run History & Insights (additive, not source of truth)
 │   ├── prompts/
 │   │   └── judge/              # Judge system prompt files (editable markdown)
 │   │       ├── rubric-system.md        # Rubric scoring prompt (uses {{PERSPECTIVE_NAME}} etc.)
@@ -583,7 +618,8 @@ LMEval/
 │   ├── seed-templates.ts       # Seed built-in eval templates
 │   ├── test-api.ts             # Integration tests for the eval API
 │   ├── test-sessions.ts        # Session API integration tests
-│   └── test-execution.ts       # Execution pipeline integration tests
+│   ├── test-execution.ts       # Execution pipeline integration tests
+│   └── backfill-eval-index.ts  # One-time index of existing evaluations into data/evals/index.db
 ├── docs/                       # Design docs and implementation plans
 ├── .example.env
 ├── vite.config.ts
@@ -605,6 +641,7 @@ LMEval/
 | `npm run test:api` | Run API integration tests (requires server running) |
 | `npm run test:sessions` | Run session API integration tests |
 | `npm run test:execution` | Run execution pipeline integration tests (requires server + LMApi) |
+| `npm run insights:backfill` | One-time index of every already-completed evaluation into `data/evals/index.db` for the Run History & Insights dashboard — safe to re-run |
 
 ---
 
@@ -790,6 +827,19 @@ promotion actions are separate operations and require explicit intent.
 |---|---|
 | `POST /api/eval/judges/:modelId/qualify` | Qualify a judge model against a calibration set (optional `{ calibrationSetId }`) |
 | `GET /api/eval/judges/:modelId/qualification` | Read a stored qualification record |
+
+### Insights (`/api/eval/insights`) — cross-run dashboard
+
+Backed by the SQLite index at `data/evals/index.db`; see
+[Run History & Insights](#run-history--insights-cross-run-dashboard) above.
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/eval/insights/activities` | Distinct task activities actually indexed so far |
+| `GET /api/eval/insights/leaderboard?activity=` | Latest run per model for one activity |
+| `GET /api/eval/insights/trend?activity=&modelId=` | Every run's primary metric + CI for one activity, across all evaluations (not scoped to one prompt lineage) |
+| `GET /api/eval/insights/diagnostics?activity=&modelId=` | Secondary/diagnostic metrics (e.g. `unknownTagRate`) over time |
+| `GET /api/eval/insights/operational?activity=` | Duration/throughput per model, labeled by server — not comparable across servers or concurrency settings |
 
 ### Git (`/api/eval/git`)
 | Endpoint | Description |

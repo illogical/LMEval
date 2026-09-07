@@ -56,7 +56,8 @@ export function normalizeAssertionStrategy(raw: unknown): AssertionStrategy {
       }
       const minimumCaseF1Raw = cfg.minimumCaseF1 ?? cfg.threshold; // legacy key
       const minimumCaseF1 = typeof minimumCaseF1Raw === 'number' ? minimumCaseF1Raw : 0.5;
-      return { type: 'label-overlap', config: { vocabulary, minimumCaseF1 } };
+      const penalizeExtraTags = typeof cfg.penalizeExtraTags === 'boolean' ? cfg.penalizeExtraTags : true;
+      return { type: 'label-overlap', config: { vocabulary, minimumCaseF1, penalizeExtraTags } };
     }
     case 'grounded-summary':
     case 'llm-rubric': { // legacy type name, normalizes into grounded-summary

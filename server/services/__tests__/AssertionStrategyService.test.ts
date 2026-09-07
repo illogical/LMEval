@@ -17,12 +17,29 @@ describe('normalizeAssertionStrategy — R3 legacy key normalization', () => {
       type: 'label-overlap',
       config: { tagVocabulary: ['X', 'Y'], threshold: 0.7 },
     });
-    expect(result).toEqual({ type: 'label-overlap', config: { vocabulary: ['X', 'Y'], minimumCaseF1: 0.7 } });
+    expect(result).toEqual({
+      type: 'label-overlap',
+      config: { vocabulary: ['X', 'Y'], minimumCaseF1: 0.7, penalizeExtraTags: true },
+    });
   });
 
-  it('defaults minimumCaseF1 to 0.5 when neither key is present', () => {
+  it('defaults minimumCaseF1 to 0.5 and penalizeExtraTags to true when neither is present', () => {
     const result = normalizeAssertionStrategy({ type: 'label-overlap', config: { vocabulary: ['X'] } });
-    expect(result).toEqual({ type: 'label-overlap', config: { vocabulary: ['X'], minimumCaseF1: 0.5 } });
+    expect(result).toEqual({
+      type: 'label-overlap',
+      config: { vocabulary: ['X'], minimumCaseF1: 0.5, penalizeExtraTags: true },
+    });
+  });
+
+  it('accepts an explicit penalizeExtraTags: false for label-overlap', () => {
+    const result = normalizeAssertionStrategy({
+      type: 'label-overlap',
+      config: { vocabulary: ['X'], penalizeExtraTags: false },
+    });
+    expect(result).toEqual({
+      type: 'label-overlap',
+      config: { vocabulary: ['X'], minimumCaseF1: 0.5, penalizeExtraTags: false },
+    });
   });
 
   it('normalizes legacy type "llm-rubric" + dimensions into "grounded-summary" + templateId', () => {

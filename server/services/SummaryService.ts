@@ -180,7 +180,8 @@ export function computeClassificationMetrics(
 export function computeTaggingMetrics(
   cells: EvalMatrixCell[],
   testCaseById: Map<string, TestCase>,
-  vocabulary: string[]
+  vocabulary: string[],
+  penalizeExtraTags = true
 ): TaggingTaskMetrics {
   const vocabSet = new Set(vocabulary);
   const completed = cells.filter(c => c.status === 'completed');
@@ -188,6 +189,7 @@ export function computeTaggingMetrics(
   let sumTP = 0, sumFP = 0, sumFN = 0;
   let jaccardSum = 0;
   const perCaseJaccard: number[] = [];
+  const perCaseRecall: number[] = [];
   let exactSetMatches = 0;
   let unknownTokens = 0, duplicateTokens = 0, totalTokens = 0;
   let formatCompliantCount = 0;
@@ -223,6 +225,7 @@ export function computeTaggingMetrics(
     const caseJaccard = union.size > 0 ? tp / union.size : 1;
     jaccardSum += caseJaccard;
     perCaseJaccard.push(caseJaccard);
+    perCaseRecall.push(expectedSet.size > 0 ? tp / expectedSet.size : 1);
     if (predictedSet.size === expectedSet.size && intersection.length === expectedSet.size) exactSetMatches++;
 
     const labelsInvolved = new Set([...expectedSet, ...predictedSet]);
@@ -260,14 +263,22 @@ export function computeTaggingMetrics(
   const failures: string[] = [];
   if (macroLabelF1 < 0.70) failures.push(`macro label-F1 ${macroLabelF1.toFixed(2)} < 0.70`);
   if (exactSetMatchRate < 0.60) failures.push(`exact-set match rate ${(exactSetMatchRate * 100).toFixed(1)}% < 60%`);
-  if (unknownTagRate > 0) failures.push(`unknown-tag rate ${(unknownTagRate * 100).toFixed(1)}% > 0`);
+  // unknownTagRate is always computed/reported (visible in summary.json and
+  // the diagnostic panel as a vocabulary-gap signal either way) but only
+  // gates when penalizeExtraTags is true — some consumers (e.g. MemoryApi's
+  // tagging template) already filter unknown tags downstream, so an extra
+  // tag there doesn't cost anything and shouldn't zero-gate the run.
+  if (penalizeExtraTags && unknownTagRate > 0) failures.push(`unknown-tag rate ${(unknownTagRate * 100).toFixed(1)}% > 0`);
 
-  // A7: bootstrap CI over per-case Jaccard, standing in for micro-F1's gate
+  // A7: bootstrap CI over a per-case metric, standing in for micro-F1's gate
   // threshold (both derive from the same TP/FP/FN counts at the case level).
-  const jaccardCI = bootstrapCI(perCaseJaccard);
-  const { verdict: ciVerdict, neededCases } = caseCountGate(jaccardCI, 0.85, caseCount);
-  if (ciVerdict === 'fail') failures.push(`micro-F1 ${microF1.toFixed(2)} < 0.85 (95% CI ${jaccardCI.lower.toFixed(2)}-${jaccardCI.upper.toFixed(2)})`);
-  else if (ciVerdict === 'inconclusive') failures.push(`gate inconclusive at ${caseCount} cases (95% CI ${jaccardCI.lower.toFixed(2)}-${jaccardCI.upper.toFixed(2)} straddles 0.85) — need ~${neededCases} more cases`);
+  // penalizeExtraTags: false makes the gate recall-weighted (per-case Jaccard
+  // is still computed/reported via jaccardMean regardless).
+  const gateCI = bootstrapCI(penalizeExtraTags ? perCaseJaccard : perCaseRecall);
+  const jaccardCI = gateCI;
+  const { verdict: ciVerdict, neededCases } = caseCountGate(gateCI, 0.85, caseCount);
+  if (ciVerdict === 'fail') failures.push(`micro-F1 ${microF1.toFixed(2)} < 0.85 (95% CI ${gateCI.lower.toFixed(2)}-${gateCI.upper.toFixed(2)})`);
+  else if (ciVerdict === 'inconclusive') failures.push(`gate inconclusive at ${caseCount} cases (95% CI ${gateCI.lower.toFixed(2)}-${gateCI.upper.toFixed(2)} straddles 0.85) — need ~${neededCases} more cases`);
 
   const otherFail = failures.some(f => !f.startsWith('gate inconclusive'));
   const verdict: 'pass' | 'fail' | 'inconclusive' = otherFail ? 'fail' : ciVerdict === 'pass' ? 'pass' : ciVerdict;
@@ -449,7 +460,10 @@ function computeTaskMetrics(
     return computeClassificationMetrics(cells, testCaseById, assertionStrategy.config.labels, runsPerCell, baselineCells);
   }
   if (purposeCategory === 'tagging' && assertionStrategy?.type === 'label-overlap') {
-    return computeTaggingMetrics(cells, testCaseById, assertionStrategy.config.vocabulary);
+    return computeTaggingMetrics(
+      cells, testCaseById, assertionStrategy.config.vocabulary,
+      assertionStrategy.config.penalizeExtraTags ?? true
+    );
   }
   if (purposeCategory === 'summarization' && assertionStrategy?.type === 'grounded-summary') {
     return computeSummarizationMetrics(

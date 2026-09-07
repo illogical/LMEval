@@ -185,7 +185,7 @@ function buildDeterministicAssertions(testCase: TestCase, tools?: ToolDefinition
   return assertions;
 }
 
-function buildLabelOverlapAssertion(testCase: TestCase, threshold: number): Assertion | null {
+function buildLabelOverlapAssertion(testCase: TestCase, threshold: number, penalizeExtraTags: boolean): Assertion | null {
   if (!testCase.tags?.length) return null;
   const expected = testCase.tags.map(t => t.trim().toLowerCase()).filter(Boolean);
   return {
@@ -196,12 +196,19 @@ function buildLabelOverlapAssertion(testCase: TestCase, threshold: number): Asse
       const expectedSet = new Set(expected);
       const actualSet = new Set(actual);
       const intersection = [...expectedSet].filter(t => actualSet.has(t));
-      const union = new Set([...expectedSet, ...actualSet]);
-      const jaccard = union.size > 0 ? intersection.length / union.size : 0;
+      // penalizeExtraTags: false makes this recall-weighted (extras don't
+      // count against the union) since some consumers (e.g. MemoryApi's
+      // tagging template) already filter unknown tags downstream — see
+      // LabelOverlapConfig.penalizeExtraTags.
+      const denominator = penalizeExtraTags
+        ? new Set([...expectedSet, ...actualSet]).size
+        : expectedSet.size;
+      const score = denominator > 0 ? intersection.length / denominator : penalizeExtraTags ? 0 : 1;
+      const label = penalizeExtraTags ? 'Jaccard overlap' : 'recall';
       return {
-        pass: jaccard >= threshold,
-        score: jaccard,
-        reason: `Jaccard overlap ${jaccard.toFixed(2)} (expected: ${expected.join(', ') || '(none)'}; got: ${actual.join(', ') || '(none)'})`,
+        pass: score >= threshold,
+        score,
+        reason: `${label} ${score.toFixed(2)} (expected: ${expected.join(', ') || '(none)'}; got: ${actual.join(', ') || '(none)'})`,
       };
     },
   };
@@ -387,7 +394,9 @@ export const PromptfooAdapter = {
       }
 
       if (purposeStrategy?.type === 'label-overlap') {
-        const overlapAssertion = buildLabelOverlapAssertion(tc, overlapThreshold);
+        const overlapAssertion = buildLabelOverlapAssertion(
+          tc, overlapThreshold, purposeStrategy.config.penalizeExtraTags ?? true
+        );
         if (overlapAssertion) assertions.push(overlapAssertion);
       }
 

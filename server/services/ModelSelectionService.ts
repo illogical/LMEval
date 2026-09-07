@@ -17,7 +17,7 @@ import type {
   ConfidenceInterval,
 } from '../../src/types/eval';
 
-type Task = 'classification' | 'tagging' | 'summarization';
+export type Task = 'classification' | 'tagging' | 'summarization';
 
 interface CreateCampaignInput {
   tasks: Task[];
@@ -64,19 +64,22 @@ function computeGroupTaskMetrics(
   return undefined;
 }
 
-function primaryMetricValue(tm: TaskMetrics): number {
+// Exported for InsightsIndexService, which needs the exact same primary-metric
+// selection when indexing a run for the cross-run dashboard (single source of
+// truth for "what counts as the headline metric per task type").
+export function primaryMetricValue(tm: TaskMetrics): number {
   if (tm.taskType === 'classification') return tm.accuracy;
   if (tm.taskType === 'tagging') return tm.jaccardMean;
   return tm.medianRubric.weighted;
 }
 
-function primaryMetricName(task: Task): string {
+export function primaryMetricName(task: Task): string {
   if (task === 'classification') return 'accuracy';
   if (task === 'tagging') return 'jaccardMean';
   return 'weightedRubric';
 }
 
-function primaryMetricCI(tm: TaskMetrics): ConfidenceInterval {
+export function primaryMetricCI(tm: TaskMetrics): ConfidenceInterval {
   const point = primaryMetricValue(tm);
   if (tm.taskType === 'classification') return tm.accuracyCI ?? { point, lower: point, upper: point };
   if (tm.taskType === 'tagging') return tm.jaccardCI ?? { point, lower: point, upper: point };

@@ -25,7 +25,8 @@
     "test:all": "npm run test && npm run test:e2e-api && npm run test:e2e-ui",
     "benchmarks:generate": "tsx scripts/generate-memory-benchmarks.ts",
     "benchmarks:check": "tsx scripts/generate-memory-benchmarks.ts --check",
-    "benchmarks:lint": "tsx scripts/lint-memory-benchmarks.ts"
+    "benchmarks:lint": "tsx scripts/lint-memory-benchmarks.ts",
+    "insights:backfill": "tsx scripts/backfill-eval-index.ts"
   },
   "dependencies": {
     "ajv": "^8.18.0",

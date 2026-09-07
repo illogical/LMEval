@@ -32,7 +32,7 @@ Core principles, unchanged since the project's inception:
 ```
 
 - **Frontend**: Vite + React 19 + TypeScript, `react-router-dom` v7, CSS custom properties (no Tailwind), Recharts for charts, `highlight.js` for response syntax highlighting.
-- **Backend**: Express 5, file-based JSON/Markdown storage under `data/`, WebSocket server (`ws` package) for real-time eval progress, optional git-tracked `data/` directory for prompt/eval version history. **(planned)** A SQLite read-index (`data/evals/index.db`) additive to this file storage — never a replacement for it — indexing one row per (evaluation × model × activity) plus a long-format table for activity-specific diagnostic metrics, populated by a write-through step at the end of `SummaryService.aggregate` and backfillable from every already-completed evaluation without re-running it. See `docs/plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md`.
+- **Backend**: Express 5, file-based JSON/Markdown storage under `data/`, WebSocket server (`ws` package) for real-time eval progress, optional git-tracked `data/` directory for prompt/eval version history. A SQLite read-index (`data/evals/index.db`, via Node's built-in `node:sqlite` — no new dependency) is additive to this file storage — never a replacement for it — indexing one row per (evaluation × model × activity) plus a long-format table for activity-specific diagnostic metrics (`server/services/InsightsIndexService.ts`), populated by a write-through step at the end of `ExecutionService.aggregate` and backfillable from every already-completed evaluation without re-running it (`npm run insights:backfill`). See `docs/plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md`.
 - **LMApi**: a separate, already-running service. LMEval never talks to Ollama or OpenRouter directly — always through LMApi's chat completions endpoints. LMEval can run standalone (`npm run dev`, backend on port 3200) or hosted inside HomeBase's single Node process under `/lmeval/` (see `docs/plans/2026-08-23-homebase-integration.md`).
 - **Promptfoo**: the evaluation execution engine (§4). A pure npm dependency — Node ≥22, no Python, no separate service to run, confirmed against a real dependency-tree audit (see `docs/plans/2026-09-03-promptfoo-adoption-and-purpose-templates.md`).
 
@@ -93,6 +93,8 @@ Five-step guided flow with free navigation (click any visited step to jump back)
 /eval/results/:id        → Step 4: Results & Analysis
 /eval/summary/:id         → Step 5: Summary (not yet implemented — placeholder)
 ```
+
+Outside the wizard flow, `/insights` is the cross-run Run History & Insights dashboard (§5.5 below) and `/compare` is the standalone Quick Compare A/B page — both are peers of the Session Hub, not wizard steps.
 
 ### 5.1 Entry flow & Evaluation Mode
 
@@ -156,8 +158,6 @@ A **"Save as Template"** action on Step 2 lets a user capture their own refined 
 
 **Step 5 — Summary** (`/eval/summary/:id`): **not yet implemented.** Placeholder page; full design (executive summary, model recommendation, per-model failure analysis, prompt improvement suggestions with diff preview and one-click apply) is Phase 9 in `docs/prompt-eval-system/TASK.md`.
 
-**(planned)** A cross-run Insights/Dashboard surface, separate from the per-evaluation wizard above: a leaderboard, metric-trend, confidence-interval-band, gate-verdict-history, and diagnostic-issue view spanning *all* evaluations for an activity, not one evaluation's own prompt lineage — reading from the planned SQLite index (§2) rather than the per-evaluation JSON files directly. Not yet implemented; full design in `docs/plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md`.
-
 ### 5.4 Agent API contract
 
 `GET /api/eval/evaluations/:id/feedback` is the resumable orchestration surface: it combines lifecycle
@@ -166,6 +166,10 @@ deployment-relative browser paths. Detailed results remain on their existing end
 OpenAPI 3.1 document at `docs/openapi/lmeval-eval-api.v1.json`, also served at
 `GET /api/eval/openapi.json`, is the machine-readable route contract. Standalone passes `/` and the
 HomeBase adapter passes its configured mount path into the shared `buildApp()` composition root.
+
+### 5.5 Run History & Insights (cross-run dashboard)
+
+`/insights` (`src/pages/InsightsPage.tsx`) is a cross-run dashboard surface, separate from the per-evaluation wizard above and from the live-run `DashboardPage.tsx` (Step 3): a leaderboard, metric-trend + confidence-interval band, gate-verdict-history strip, diagnostic-issue panel, and an explicitly-caveated operational panel, spanning *all* evaluations for an activity (classification/tagging/summarization) rather than one evaluation's own prompt lineage. Backed by `server/routes/insights.ts` (`/api/eval/insights/*`) reading the SQLite index described in §2, not the per-evaluation JSON files directly — that index is populated automatically by a write-through step at the end of `ExecutionService.aggregate()`, plus a one-time `npm run insights:backfill` for evaluations that completed before this feature existed. Linked from the Session Hub. Full design: `docs/plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md`.
 
 ## 6. Relationship to prior docs
 

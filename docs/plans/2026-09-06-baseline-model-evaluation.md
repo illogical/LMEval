@@ -155,6 +155,35 @@ sane (non-zero) rubric scores on the 2-model pilot first.
 *(This section will be updated with final numbers once Phase 2 and the
 summarization re-run complete.)*
 
+## Follow-up work (tracked elsewhere — not duplicated here)
+
+A separate session picked up this doc's findings and turned them into
+scoped engineering follow-ups and a dashboard/schema design while Phase 2
+was still running. Rather than maintain two parallel todo lists, the
+detailed suggestions below are kept as the original findings; the actions
+taken on them live in:
+
+- `docs/plans/2026-09-06-baseline-evaluation-followups.md` — scoped
+  follow-ups for the tagging unknown-tag investigation, judge
+  qualification, GPU-contention documentation (now also in
+  `.claude/skills/lmeval-runner/SKILL.md`), and closing out Phase 2 under
+  `docs/TASK.md` Track G's G8 requirement.
+- `docs/plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md` — the
+  full dashboard-views-plus-SQLite-schema design for the "local SQL
+  database" idea below (design only as of this writing, no code yet).
+
+One finding from the follow-ups doc worth surfacing here directly: the
+tagging gate's zero-tolerance treatment of unknown tags may be scoring the
+wrong thing. MemoryApi silently filters and drops any tag outside its known
+vocabulary before storing it — an extra emitted tag costs nothing in
+production, while a **missing** expected tag (lower recall) does. The
+~37% unknown-tag rate observed in this baseline may be making both pilot
+models look worse than they'd actually behave once deployed. The follow-up
+doc proposes a `penalizeExtraTags` toggle on the tagging assertion strategy
+to separate "did the gate fail because of missing tags" from "did it fail
+because of harmless extra ones" — worth resolving before trusting the
+tagging F1 numbers in this doc at face value.
+
 ## Suggestions for improving the evaluation setup
 
 - **Ground truth is pending-human-review.** All three built-in suites are
@@ -252,3 +281,14 @@ files rather than a replacement for them.
 4. Decide, per activity, whether any model is a clear enough winner to act
    on, or whether the case-count/CI caveats mean this stays directional
    only until real MemoryApi snapshot data lands.
+
+## Addendum (2026-09-07): two models excluded from the candidate list
+
+`granite4.2:8b` and `lfm2.5:8b` are excluded from further evaluation —
+observed directly in LMApi's own logs (not an LMEval scoring artifact) to
+not be returning proper responses. Any of this doc's numbers for those two
+models above should be read as unreliable/inconclusive on that basis, not
+as a genuine accuracy result. Do not include either model in a new
+evaluation matrix until this is independently re-verified against LMApi.
+Current candidate status and the full handoff for outstanding work:
+[`docs/plans/2026-09-07-model-candidate-status-and-handoff.md`](2026-09-07-model-candidate-status-and-handoff.md).

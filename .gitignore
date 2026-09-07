@@ -28,4 +28,5 @@ data/evals/prompts/
 .claude/
 .agents/skills/ce-brainstorm/
 data/evals/evaluations/
+data/evals/index.db
 test-results/

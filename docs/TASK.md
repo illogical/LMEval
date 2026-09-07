@@ -353,7 +353,7 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 
 **A6 — Task-appropriate scoring** — ✅ **complete 2026-09-04** (statistics/CIs remain A7, judge qualification remains A8 — neither was in this pass's scope)
 - [x] **Classification**: `exactOutput`/`formatCompliant`/`validLabel` derived per response in `SummaryService.computeClassificationMetrics()`; aggregate accuracy, macro-F1, per-class P/R/F1, invalid-label rate, format-compliance rate, confusion matrix, run-to-run agreement (when `runsPerCell` > 1). Gate: macro-F1 ≥ 0.90, per-class recall ≥ 0.80, zero invalid labels, 100% format compliance
-- [x] **Tagging**: raw output parsed by comma-split + trim only, no repair; per-case TP/FP/FN, P/R/F1, Jaccard, exact-set match, unknown-tag rate, duplicate-tag rate, format compliance. Gate: micro-F1 ≥ 0.85, macro label-F1 ≥ 0.70, exact-set ≥ 0.60, zero invalid (unknown) tags
+- [x] **Tagging**: raw output parsed by comma-split + trim only, no repair; per-case TP/FP/FN, P/R/F1, Jaccard, exact-set match, unknown-tag rate, duplicate-tag rate, format compliance. Gate: micro-F1 ≥ 0.85, macro label-F1 ≥ 0.70, exact-set ≥ 0.60, zero invalid (unknown) tags — the unknown-tag zero-gate and the CI-backed micro-F1 metric (Jaccard vs. recall) are controlled by `LabelOverlapConfig.penalizeExtraTags` (default `true`; `false` for MemoryApi's tagging template — see §5.11)
 - [x] **Summarization**: deterministic checks (no preamble/heading/fence, compression ratio in range, protected tokens preserved, no literal forbidden claims) run *before* and independent of model grading (`server/services/summarizationChecks.ts`, shared by the per-cell assertion and the aggregate rates so they can't disagree); `summarization-quality.json` revised to Faithfulness 0.40 / Salient Coverage 0.30 / Retrieval Utility 0.20 / Concision 0.10; three independent judge passes at t=0 aggregated by median (implementation choice, since the plan left this open: three metric-suffixed `llm-rubric` assertions per perspective rather than a bespoke repeated-grading harness — see `buildGroundedSummaryRubricAssertions`'s doc comment); a self-judge guard flags (and gates） the result advisory-only when the judge model is also under evaluation. Gate: median weighted ≥ 4.2, median Faithfulness ≥ 4.5, zero cases with a critical unsupported claim (approximated today as a per-case median Faithfulness ≤ 1 — no per-finding judge output exists yet; a real "critical unsupported claim" *finding* extractor is A8/A11 territory)
 - [x] Persisted in a discriminated `EvaluationSummary.taskMetrics` union (`ClassificationTaskMetrics` | `TaggingTaskMetrics` | `SummarizationTaskMetrics`) — classification and tagging assertions are `javascript`, never `llm-rubric`, so `compositeScore` is naturally absent for them; no composite is manufactured
 
@@ -586,7 +586,7 @@ behavior can be called verified.
 
 ---
 
-### Track H — Cross-run reporting *(new, design complete)*
+### Track H — Cross-run reporting — ✅ **complete 2026-09-07**
 
 > Plan: [`plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md`](plans/2026-09-06-evaluation-dashboard-and-sqlite-schema.md)
 
@@ -596,23 +596,65 @@ only cross-run view (`GET /evaluations/:id/history`) full-scans the
 evaluations directory per request, is scoped to evaluations sharing a
 prompt ID, and reduces everything to a single `avgCompositeScore`.
 
-- [ ] **H1 — SQLite index tables**: `eval_runs` (one row per
-  evalId×modelId×activity: prompt/model/inference identity, primary metric +
-  CI bounds, gate verdict + threshold version, ground-truth review status,
-  operational fields) + `eval_run_metrics` (EAV long table for
-  activity-specific diagnostics like `unknownTagRate`), per the schema in
-  the linked plan.
-- [ ] **H2 — Backfill script**: `scripts/backfill-eval-index.ts` populates
-  both tables from every already-completed evaluation under
-  `data/evals/evaluations/` — no re-run of any existing evaluation required.
-- [ ] **H3 — Write-through**: the same row-building function used by H2,
-  wired into the end of `SummaryService.aggregate` so every future run
-  populates the index automatically.
-- [ ] **H4 — `InsightsPage.tsx`**: new cross-run dashboard page (leaderboard,
-  metric-trend, CI-band, gate-verdict-history, diagnostic-panel, and
-  operational-panel views — not an extension of the live-run
-  `DashboardPage.tsx`), reusing `recharts` per the linked plan's view-by-view
-  chart rationale.
+- [x] **H1 — SQLite index tables**: `server/services/InsightsIndexService.ts`
+  — `eval_runs` (one row per evalId×modelId×activity: prompt/model/inference
+  identity, primary metric + CI bounds, gate verdict + threshold version,
+  ground-truth review status, operational fields) + `eval_run_metrics` (EAV
+  long table for activity-specific diagnostics like `unknownTagRate`), per
+  the schema in the linked plan. Uses Node's built-in `node:sqlite`
+  (`DatabaseSync`) rather than adding a native dependency — no new package,
+  no node-gyp build step, works unflagged on Node ≥ 22.5/24. Reuses the
+  existing `primaryMetricValue`/`primaryMetricName`/`primaryMetricCI`
+  selection logic from `ModelSelectionService.ts` (now exported) rather than
+  re-deriving it, and documents where each activity's real bootstrap CI
+  lives (`accuracyCI` for classification, `jaccardCI` for tagging,
+  `weightedCI` for summarization) vs. treating macro-F1/micro-F1 as
+  secondary diagnostic metrics per A7's own CI-proxy scoping note.
+  `promptTextHash` is now populated (2026-09-07, see below) via a
+  `PromptService.getVersionContent()` lookup on the resolved promptId/version,
+  sha256-hashed, null only when the prompt/version can't be resolved (e.g.
+  deleted since the run) — never fabricated.
+  12 unit tests in `server/services/__tests__/InsightsIndexService.test.ts`.
+- [x] **H2 — Backfill script**: `scripts/backfill-eval-index.ts`
+  (`npm run insights:backfill`) populates both tables from every
+  already-completed evaluation under `data/evals/evaluations/` — no re-run
+  of any existing evaluation. Live-verified against this checkout's real 24
+  evaluations: 12 indexed (classification/tagging/summarization), 13 skipped
+  (no completed status or no task metrics), stamped with the synthetic
+  `pre-v1` `gateThresholdVersion` marker and a `groundTruthReviewStatus`
+  cross-referenced from the referenced test suite's own provenance when the
+  evaluation predates `benchmarkProvenance`.
+- [x] **H3 — Write-through**: the same `recordEvaluation()` function used by
+  H2, wired into the end of `ExecutionService.aggregate()` (guarded by a
+  try/catch — an indexing failure never fails the evaluation itself, since
+  the JSON files remain the durable source of truth) and passed the live
+  `EVAL_CONCURRENCY` value from `ExecutionService`'s own `CONCURRENCY_LIMIT`.
+- [x] **H4 — `InsightsPage.tsx`** (`/insights`, linked from the Session
+  Hub's "Run History & Insights" CTA and feature card): per-activity tabs
+  over leaderboard, metric-trend + CI-band (Recharts `AreaChart` range-band
+  + `Line`), gate-verdict-history strip, diagnostic-metrics-over-time (with
+  a metric picker), and an explicitly-caveated operational/throughput panel
+  — not an extension of the live-run `DashboardPage.tsx`. Backed by
+  `server/routes/insights.ts` (`/api/eval/insights/*`) and
+  `src/api/insights.ts`.
+- **Verified end-to-end**: `tsc -b`, `npm run build`, `npm run build:host`
+  all clean; `npx vitest run` 307/307 passing (307 = prior 297 + 10 new);
+  `npm run lint` shows only the pre-existing unrelated `ResultsPage.tsx`
+  error. Backfill run against this checkout's real evaluation history (not
+  synthetic fixtures) and its output spot-checked directly against the
+  SQLite file; the API routes confirmed to serve the backfilled data from a
+  separately-running server process (cross-process file-based read
+  consistency, not just same-process state).
+- **Update, 2026-09-07**: `promptTextHash` population (§2a of
+  [`plans/2026-09-07-model-candidate-status-and-handoff.md`](plans/2026-09-07-model-candidate-status-and-handoff.md))
+  is now built — `InsightsIndexService.recordEvaluation()` resolves the
+  same promptId/version already computed for the row and hashes its content
+  via `PromptService.getVersionContent()`, rather than threading a new field
+  through `ExecutionService.aggregate()`'s options as originally sketched
+  (simpler: the promptId/version were already in scope at the point of
+  writing the row). Still **not built**: a Playwright walkthrough of the new
+  page (owed, same standing convention as other frontend surfaces in Track E)
+  — see the handoff doc §2b for the concrete checklist.
 
 ### Track F — Future use cases *(captured, not scheduled)*
 
@@ -757,13 +799,34 @@ This finding is also planned as a standing dashboard panel — see Track H.
 That doc's §1a also questions whether an unknown tag should zero-gate at
 all for MemoryApi specifically: MemoryApi already filters and ignores any
 tag outside its known vocabulary downstream, so an extra tag costs it
-nothing while a **missing** expected tag does. Proposed: a
-`penalizeExtraTags?: boolean` toggle on the `label-overlap` assertion
-strategy config, defaulted off for MemoryApi's tagging template only, plus
-tracking which specific extra tags recur as a vocabulary-gap signal (feeds
-Track H's `eval_run_metrics`, and is the same kind of signal §5.6 below
-describes harvesting from MemoryApi's review UI, just sourced from eval
-runs instead).
+nothing while a **missing** expected tag does.
+
+- [x] **Built 2026-09-07**: `penalizeExtraTags?: boolean` toggle on the
+  `label-overlap` assertion strategy config (`LabelOverlapConfig` in
+  `src/types/eval.ts`, normalized/defaulted `true` in
+  `AssertionStrategyService.ts`). When `false`: `unknownTagRate` is still
+  computed and reported everywhere it already was (`summary.json`, the
+  diagnostic panel), but no longer fails the gate on its own, and the
+  bootstrap-CI-backed gate metric switches from per-case Jaccard to per-case
+  recall (`SummaryService.computeTaggingMetrics()`) — "did the model surface
+  enough of the expected tags," not "did it avoid saying anything extra."
+  `macroLabelF1`/`exactSetMatchRate` are unaffected by the toggle (an
+  off-vocabulary label still counts against those two, by design scope —
+  only the unknown-tag-rate hard-gate and the CI-backed primary gate metric
+  respect it). Set to `false` on MemoryApi's built-in tagging purpose
+  template (`data/evals/purpose-templates/tagging.json`) specifically, since
+  that's the one task with a downstream consumer known to already filter
+  extras; the default stays `true` elsewhere. Tests:
+  `server/services/__tests__/AssertionStrategyService.test.ts`,
+  `server/services/__tests__/SummaryService.test.ts`.
+- [ ] **Still open**: tracking which specific extra tags recur as a
+  named per-tag `eval_run_metrics` signal (feeds Track H, same kind of
+  signal §5.6 below describes harvesting from MemoryApi's review UI, just
+  sourced from eval runs instead) — needs the raw off-vocabulary token list
+  threaded out of `computeTaggingMetrics()`, not just the aggregate rate.
+  Root-cause bucketing of *why* the ~37% rate happens (prompt-adherence vs.
+  formatting drift vs. parsing) is also still open, tracked in the followups
+  doc linked above.
 
 ### 5.12 — GPU contention between a judge pass and a candidate matrix run
 

@@ -8,6 +8,7 @@ import { PromptfooAdapter, type PromptContentEntry } from './PromptfooAdapter';
 import { SummaryService } from './SummaryService';
 import { PromptService } from './PromptService';
 import { TestSuiteService } from './TestSuiteService';
+import { recordEvaluation } from './InsightsIndexService';
 import type {
   EvaluationConfig, EvalMatrixCell, EvaluationSummary, TestCase,
   EvalTemplate, PairwiseRanking, EvalStreamEvent, AssertionStrategy, EvalPurposeTemplate,
@@ -437,12 +438,24 @@ export const ExecutionService = {
       judgeQualified?: boolean;
       benchmarkProvenance?: EvaluationConfig['benchmarkProvenance'];
       comparisonMode?: EvaluationConfig['comparisonMode'];
+      /** Track H: full config, only needed for the InsightsIndexService write-through (promptIds/promptVersions/createdAt aren't otherwise threaded through options above). Omit in tests that don't care about indexing. */
+      evaluationConfig?: EvaluationConfig;
     }
   ): Promise<EvaluationSummary> {
     const summary = SummaryService.computeSummary(evalId, cells, pairwiseRankings, options);
     const evalDir = join(EVALUATIONS_DIR, evalId);
     writeJson(join(evalDir, 'results.json'), cells);
     writeJson(join(evalDir, 'summary.json'), summary);
+    if (options?.evaluationConfig) {
+      try {
+        recordEvaluation(evalId, options.evaluationConfig, summary, { concurrency: CONCURRENCY_LIMIT });
+      } catch (err) {
+        // The SQLite index is an additive convenience layer — never let an
+        // indexing failure fail the evaluation itself (JSON above is already
+        // the durable source of truth).
+        console.error(`[InsightsIndexService] Failed to index evaluation ${evalId}:`, err);
+      }
+    }
     return summary;
   },
 
@@ -597,6 +610,7 @@ export const ExecutionService = {
         judgeQualified,
         benchmarkProvenance: config.benchmarkProvenance,
         comparisonMode: config.comparisonMode,
+        evaluationConfig: config,
       });
       writeJson(join(evalDir, 'progress.json'), {
         total: finalCells.length,

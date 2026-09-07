@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, GitCompare, Clock, Zap, BarChart2 } from 'lucide-react';
+import { Plus, GitCompare, Clock, Zap, BarChart2, LineChart } from 'lucide-react';
 import { listSessions } from '../api/eval';
 import type { SessionManifest } from '../types/session';
 import './SessionHubPage.css';
@@ -32,6 +32,10 @@ export function SessionHubPage() {
               <GitCompare size={16} />
               Quick Compare
             </button>
+            <button className="hub-cta hub-cta-secondary" onClick={() => navigate('/insights')}>
+              <LineChart size={16} />
+              Run History &amp; Insights
+            </button>
           </div>
         </div>
 
@@ -50,6 +54,11 @@ export function SessionHubPage() {
             <Clock size={24} className="hub-feature-icon" />
             <h3>Track Progress</h3>
             <p>Version prompts and track improvements over time</p>
+          </div>
+          <div className="hub-feature" onClick={() => navigate('/insights')} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && navigate('/insights')}>
+            <LineChart size={24} className="hub-feature-icon" />
+            <h3>Run History &amp; Insights</h3>
+            <p>Compare every run so far, spot trends, and see what to change next</p>
           </div>
         </div>
 

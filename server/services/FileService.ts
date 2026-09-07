@@ -94,6 +94,9 @@ export let MODEL_SELECTION_DIR = join(DATA_DIR, 'model-selection');
 export let RECOMMENDATIONS_DIR = join(DATA_DIR, 'recommendations');
 // A9: externally-supplied per-task share of MemoryApi's whole-ingestion latency target.
 export let LATENCY_BUDGETS_PATH = join(DATA_DIR, 'config', 'latency-budgets.json');
+// Track H: cross-run SQLite index (InsightsIndexService) — additive read-index
+// over the JSON above, never a replacement for it.
+export let INDEX_DB_PATH = join(DATA_DIR, 'index.db');
 
 export let REPO_ROOT = process.cwd();
 export let BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');
@@ -127,6 +130,7 @@ export function configurePaths(options: { dataRoot: string; repoRoot: string }):
   MODEL_SELECTION_DIR = join(DATA_DIR, 'model-selection');
   RECOMMENDATIONS_DIR = join(DATA_DIR, 'recommendations');
   LATENCY_BUDGETS_PATH = join(DATA_DIR, 'config', 'latency-budgets.json');
+  INDEX_DB_PATH = join(DATA_DIR, 'index.db');
 
   REPO_ROOT = options.repoRoot;
   BUILT_IN_TEMPLATES_DIR = join(REPO_ROOT, 'data', 'evals', 'templates');

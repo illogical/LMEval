@@ -258,6 +258,29 @@ describe('SummaryService.computeSummary — R5 tagging taskMetrics', () => {
     expect(tm.duplicateTagRate).toBe(0);
     expect(tm.microF1).toBe(1);
   });
+
+  it('penalizeExtraTags: false still reports unknownTagRate, does not gate on it, and backs the CI gate with recall instead of Jaccard', () => {
+    const testCases = [tc('t1', ['Family', 'Reminder'])];
+    const cells: EvalMatrixCell[] = [
+      // predicted: both expected tags plus one off-vocabulary extra. Recall
+      // is 1 (both expected tags found), Jaccard would be 2/3.
+      cell({ id: 'a', testCaseId: 't1', response: 'Family, Reminder, Nonexistent' }),
+    ];
+    const summary = SummaryService.computeSummary('eval-1', cells, undefined, {
+      testCases,
+      purposeCategory: 'tagging',
+      assertionStrategy: { type: 'label-overlap', config: { vocabulary, minimumCaseF1: 0.5, penalizeExtraTags: false } },
+    });
+    const tm = summary.taskMetrics;
+    if (tm?.taskType !== 'tagging') throw new Error('expected tagging metrics');
+    expect(tm.unknownTagRate).toBeCloseTo(1 / 3); // still computed/reported
+    expect(tm.gate.failures.some(f => f.startsWith('unknown-tag rate'))).toBe(false);
+    // The CI-backed gate metric is recall (1), not Jaccard (2/3) — an extra,
+    // off-vocabulary tag no longer costs the gate. (macroLabelF1/exactSetMatchRate
+    // are unaffected by this toggle and can still fail independently, per the
+    // toggle's documented scope in LabelOverlapConfig.)
+    expect(tm.jaccardCI).toEqual({ point: 1, lower: 1, upper: 1 });
+  });
 });
 
 describe('SummaryService.computeSummary — R6 summarization taskMetrics', () => {

@@ -15,6 +15,7 @@ import { gitRouter } from './routes/git';
 import { presetsRouter } from './routes/presets';
 import { judgesRouter } from './routes/judges';
 import { modelSelectionRouter } from './routes/modelSelection';
+import { insightsRouter } from './routes/insights';
 import { TemplateService } from './services/TemplateService';
 import { PurposeTemplateService } from './services/PurposeTemplateService';
 import { TestSuiteService } from './services/TestSuiteService';
@@ -51,6 +52,7 @@ export function buildApp(options: { appBasePath?: string } = {}): { router: Rout
   router.use('/api/eval/presets', presetsRouter);
   router.use('/api/eval/judges', judgesRouter);
   router.use('/api/eval/model-selection', modelSelectionRouter);
+  router.use('/api/eval/insights', insightsRouter);
 
   router.get('/api/eval/openapi.json', (_req, res) => {
     try {

@@ -438,6 +438,16 @@ export interface ExactLabelConfig {
 export interface LabelOverlapConfig {
   vocabulary: string[];
   minimumCaseF1: number;
+  /**
+   * Whether off-vocabulary/extra predicted tags count against the gate.
+   * Default `true` preserves the original Jaccard-based (precision+recall)
+   * behavior. Set `false` when a downstream consumer already filters unknown
+   * tags itself (e.g. MemoryApi's tagging template), so a missing expected
+   * tag still costs the gate but an extra one doesn't — the gate becomes
+   * recall-weighted. `unknownTagRate` is still computed and reported either
+   * way; this only controls whether it can fail the gate.
+   */
+  penalizeExtraTags?: boolean;
 }
 
 /** R6 (summarization): deterministic guards + rubric grading template. */
@@ -521,7 +531,12 @@ export interface TaggingTaskMetrics {
   duplicateTagRate: number;
   formatComplianceRate: number;
   perLabel: Record<string, PerClassMetric>;
-  /** A7: bootstrap 95% CI over per-case Jaccard, backing jaccardMean's gate verdict. */
+  /**
+   * A7: bootstrap 95% CI backing the gate verdict — over per-case Jaccard
+   * when `penalizeExtraTags` is true (the default), or per-case recall when
+   * false (LabelOverlapConfig.penalizeExtraTags). `jaccardMean` above is
+   * always the Jaccard statistic regardless of which metric gates.
+   */
   jaccardCI?: ConfidenceInterval;
   gate: GateResult;
 }

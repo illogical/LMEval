@@ -12,6 +12,7 @@
     "type": "label-overlap",
     "config": {
       "minimumCaseF1": 0.5,
+      "penalizeExtraTags": false,
       "vocabulary": [
         "Work", "Project", "Learning", "Family", "Inspiration", "Resource", "Workflow", "Checklist", "Draft", "Plan", "Customize", "Summary", "Prompt", "Appointment", "Favorite",
         "To Do", "Review", "Read Later", "Watch Later", "Follow Up", "Research", "Update", "Test", "Improve", "Tip", "Shortcut", "Reminder", "Action Required", "Notes", "Comparison", "Avoid",
