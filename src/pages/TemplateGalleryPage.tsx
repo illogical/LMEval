@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Tags, FileText, ScrollText, FilePlus, ArrowLeft } from 'lucide-react';
+import { Tags, FileText, ScrollText, FilePlus, ArrowLeft, BarChart2 } from 'lucide-react';
 import { listPurposeTemplates } from '../api/eval';
 import { applyPurposeTemplateToStorage } from '../contexts/purposeTemplateStorage';
 import type { EvalPurposeTemplate, PurposeCategory } from '../types/eval';
@@ -49,6 +49,18 @@ export function TemplateGalleryPage() {
 
         {!loading && (
           <div className="tg-grid">
+            <div
+              className="tg-card tg-card--guided"
+              onClick={() => navigate('/campaigns/new')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && navigate('/campaigns/new')}
+            >
+              <BarChart2 size={22} />
+              <div className="tg-card-name">Guided Model Selection</div>
+              <div className="tg-card-desc">Refine a prompt, compare candidate models, and confirm a defensible recommendation</div>
+              <div className="tg-card-badge">Multi-phase</div>
+            </div>
             {[...builtIns, ...custom].map(template => {
               const Icon = CATEGORY_ICON[template.purposeCategory];
               return (

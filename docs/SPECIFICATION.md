@@ -72,6 +72,10 @@ The canonical type definitions live in `src/types/eval.ts` (re-exported for back
   Validation composes the ordinary evaluation validator, model discovery, suite provenance, judge state,
   and per-phase call estimates. Campaign tasks and phases execute sequentially. A phase with any execution
   failures cannot produce a winner; its partial evidence remains linked from campaign feedback.
+- An ordinary `EvaluationConfig` may carry `campaignId` with `campaignRole: 'supplemental'`. This is
+  contextual evidence only: it is linked from campaign feedback but is never treated as a protocol
+  phase and never contributes to a recommendation. `POST /model-selection/drafts/from-evaluation`
+  creates a validated campaign draft from a compatible evaluation draft and records that relationship.
 
 ## 4. Execution Engine: Promptfoo
 
@@ -110,6 +114,13 @@ a draft, and `/campaigns/:id` provides review, explicit warning acknowledgement 
 progress/cancellation, retained Run/Results links, and gate-first recommendations with tie groups and
 quality-versus-p95-latency evidence. The judge selector on Prepare and the campaign builder share the
 persisted qualification status/control component.
+
+The Prepare step adds one optional **Campaign context** choice without changing the five-step Wizard:
+standalone evaluation (default), create a Guided Model Selection draft from the prepared evaluation, or
+associate the evaluation as supplemental evidence with an existing campaign. Guided Model Selection is
+the higher-level prompt-sweep → model-sweep → confirmation protocol; it is not a fourth comparison mode
+and not the shortcut for a quick model comparison. Associated evaluations retain their normal Wizard
+Run, Results, and Summary pages with a visible link back to campaign context.
 
 ### 5.1 Entry flow & Evaluation Mode
 

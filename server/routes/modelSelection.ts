@@ -3,7 +3,7 @@ import { join } from 'path';
 import { readJson, RECOMMENDATIONS_DIR } from '../services/FileService';
 import { ModelSelectionService } from '../services/ModelSelectionService';
 import { LatencyBudgetService, type LatencyBudgets } from '../services/LatencyBudgetService';
-import type { ModelRecommendation } from '../../src/types/eval';
+import type { CampaignDraftFromEvaluationInput, ModelRecommendation } from '../../src/types/eval';
 import { CampaignValidationService } from '../services/CampaignValidationService';
 import { CampaignFeedbackService } from '../services/CampaignFeedbackService';
 import type { Response } from 'express';
@@ -24,6 +24,9 @@ modelSelectionRouter.post('/validate', async (req, res) => {
 });
 modelSelectionRouter.post('/drafts', async (req, res) => {
   try { res.status(201).json(await ModelSelectionService.createDraft(req.body)); } catch (e) { failure(res, e); }
+});
+modelSelectionRouter.post('/drafts/from-evaluation', async (req, res) => {
+  try { res.status(201).json(await ModelSelectionService.createDraftFromEvaluation(req.body as CampaignDraftFromEvaluationInput)); } catch (e) { failure(res, e); }
 });
 modelSelectionRouter.patch('/:id', async (req, res) => {
   try { res.json(await ModelSelectionService.patchDraft(req.params.id, req.body)); } catch (e) { failure(res, e); }

@@ -9,6 +9,7 @@ import { ModelSelectionService } from '../services/ModelSelectionService';
 import { PromptService } from '../services/PromptService';
 import { LmapiClient } from '../services/LmapiClient';
 import { modelSelectionRouter } from './modelSelection';
+import { EvaluationService } from '../services/EvaluationService';
 
 let dataRoot: string;
 let server: Server;
@@ -73,6 +74,33 @@ describe('campaign draft lifecycle routes', () => {
     expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter(result => result.status === 'rejected')).toHaveLength(1);
     expect(ModelSelectionService.getCampaign(campaign.id)?.status).toBe('pending');
+  });
+
+  it('creates a campaign draft from an evaluation and lists the source as supplemental evidence', async () => {
+    const prompt = PromptService.create({ name: 'Seed prompt', content: 'Classify this memory' });
+    const alternate = PromptService.create({ name: 'Alternate seed prompt', content: 'Choose the best category' });
+    const source = await EvaluationService.create({
+      name: 'Seed evaluation', promptIds: [prompt.id, alternate.id], promptVersions: [{ promptId: prompt.id, version: 1 }, { promptId: alternate.id, version: 1 }],
+      modelIds: ['local::incumbent', 'local::candidate'], comparisonMode: 'matrix', purposeTemplateId: 'classification',
+      testSuiteId: 'memory-classification-v1', benchmarkMode: 'calibration', runsPerCell: 3,
+    }, 'draft');
+    const response = await fetch(`${baseUrl}/drafts/from-evaluation`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        evalId: source.evaluation.id,
+        incumbentModelId: 'local::incumbent',
+        candidateSlate: [{ modelId: 'local::incumbent', lmapiServer: 'local' }, { modelId: 'local::candidate', lmapiServer: 'local' }],
+      }),
+    });
+    expect(response.status).toBe(201);
+    const campaign = await response.json();
+    expect(campaign).toMatchObject({ status: 'draft', tasks: ['classification'] });
+    expect(EvaluationService.get(source.evaluation.id)).toMatchObject({ campaignId: campaign.id, campaignRole: 'supplemental' });
+
+    const feedback = await fetch(`${baseUrl}/${campaign.id}/feedback`).then(result => result.json());
+    expect(feedback.supplementalEvaluations).toEqual([
+      expect.objectContaining({ evaluationId: source.evaluation.id, status: 'draft', browserPath: `/eval/config/${source.evaluation.id}` }),
+    ]);
+    expect(feedback.phases).toEqual([]);
   });
 });
 

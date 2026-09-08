@@ -23,12 +23,14 @@ export function CampaignsPage() {
 }
 
 const empty: ModelSelectionCampaignInput = { tasks: ['classification'], incumbentModelId: '', candidateSlate: [], promptPinsByTask: {}, testSuiteIdByTask: {} };
+const builderSteps = ['Purpose', 'Models', 'Inputs', 'Judge', 'Review'] as const;
 export function CampaignBuilderPage() {
   const [search] = useSearchParams(); const editId = search.get('edit'); const source = editId ?? search.get('clone');
   const navigate = useNavigate();
   const [input, setInput] = useState<ModelSelectionCampaignInput>(empty);
   const [models, setModels] = useState<string[]>([]); const [prompts, setPrompts] = useState<PromptManifest[]>([]); const [suites, setSuites] = useState<TestSuite[]>([]);
   const [error, setError] = useState(''); const [validation, setValidation] = useState<CampaignValidationResult>(); const [busy, setBusy] = useState(false); const [loaded, setLoaded] = useState(false);
+  const [step, setStep] = useState(0);
   useEffect(() => {
     let alive = true;
     Promise.all([listModels(), listPrompts(), listTestSuites(), listPurposeTemplates(), source ? getCampaign(source) : Promise.resolve(null)]).then(([m, p, s, purposes, campaign]) => {
@@ -44,23 +46,31 @@ export function CampaignBuilderPage() {
   }, [source, editId]);
   function field<K extends keyof ModelSelectionCampaignInput>(key: K, value: ModelSelectionCampaignInput[K]) { setInput(prev => ({ ...prev, [key]: value })); }
   const options = <><option value="">Choose model</option>{models.map(m => <option key={m}>{m}</option>)}</>;
+  function canContinue() {
+    if (step === 0) return input.tasks.length > 0;
+    if (step === 1) return !!input.incumbentModelId && new Set(input.candidateSlate.map(candidate => candidate.modelId)).size >= 2;
+    if (step === 2) return input.tasks.every(task => !!input.testSuiteIdByTask[task] && (input.promptPinsByTask[task]?.length ?? 0) > 0);
+    if (step === 3) return !input.tasks.includes('summarization') || !!input.judgeModelId;
+    return true;
+  }
   async function save() {
     setBusy(true); setError('');
     try { const c = await saveCampaign(input, editId ?? undefined); navigate(`/campaigns/${c.id}`); }
     catch (e) { setError(message(e)); setValidation((e as Error & { validation?: CampaignValidationResult }).validation); }
     finally { setBusy(false); }
   }
-  return <Frame><h1>{editId ? 'Edit campaign draft' : 'New campaign'}</h1><p>Save a reproducible draft first. Three repetitions per case measure output variability; they do not add independent memories.</p>
+  return <Frame><h1>{editId ? 'Edit guided selection' : 'Guided model selection'}</h1><p>Refine a prompt, compare candidate models, and confirm the recommendation. Save and review the reproducible draft before starting.</p>
     {error && <p role="alert">{error}</p>}{validation?.issues.map((i, n) => <p role={i.severity === 'error' ? 'alert' : undefined} key={n}>{i.message}</p>)}
     {!loaded ? <p>Loading configuration…</p> : <form onSubmit={e => { e.preventDefault(); void save(); }}>
-      <label>Incumbent model<select required value={input.incumbentModelId} onChange={e => field('incumbentModelId', e.target.value)}>{options}</select></label>
+      <ol className="campaign-steps" aria-label="Guided selection setup steps">{builderSteps.map((label, index) => <li key={label} className={index === step ? 'active' : index < step ? 'complete' : ''}><button type="button" onClick={() => index <= step && setStep(index)} disabled={index > step}><span>{index < step ? '✓' : index + 1}</span>{label}</button></li>)}</ol>
+      {step === 1 && <><label>Incumbent model<select required value={input.incumbentModelId} onChange={e => field('incumbentModelId', e.target.value)}>{options}</select></label>
       <fieldset><legend>Candidate slate (at least two unique models)</legend>{input.candidateSlate.map((candidate, index) => <div className="candidate-row" key={index}>
         <label>Candidate {index + 1}<select required value={candidate.modelId} onChange={e => field('candidateSlate', input.candidateSlate.map((c, n) => n === index ? { ...c, modelId: e.target.value, lmapiServer: e.target.value.split('::')[0] } : c))}>{options}</select></label>
         {(['parameterSize', 'quantization', 'contextLength'] as const).map(key => <label key={key}>{key}<input type={key === 'contextLength' ? 'number' : 'text'} min={1} value={candidate[key] ?? ''} onChange={e => field('candidateSlate', input.candidateSlate.map((c, n) => n === index ? { ...c, [key]: key === 'contextLength' ? (e.target.value ? Number(e.target.value) : undefined) : e.target.value } : c))} /></label>)}
         <button type="button" onClick={() => field('candidateSlate', input.candidateSlate.filter((_, n) => n !== index))}>Remove candidate {index + 1}</button>
-      </div>)}<button type="button" onClick={() => field('candidateSlate', [...input.candidateSlate, { modelId: '', lmapiServer: '' }])}>Add candidate</button></fieldset>
-      <fieldset><legend>Tasks</legend>{tasks.map(task => <label className="inline" key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={e => field('tasks', e.target.checked ? [...input.tasks, task] : input.tasks.filter(t => t !== task))} />{task}</label>)}</fieldset>
-      {input.tasks.map(task => <fieldset key={task}><legend>{task}: ordered prompt versions and benchmark</legend>
+      </div>)}<button type="button" onClick={() => field('candidateSlate', [...input.candidateSlate, { modelId: '', lmapiServer: '' }])}>Add candidate</button></fieldset></>}
+      {step === 0 && <fieldset><legend>Tasks</legend>{tasks.map(task => <label className="inline" key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={e => field('tasks', e.target.checked ? [...input.tasks, task] : input.tasks.filter(t => t !== task))} />{task}</label>)}</fieldset>}
+      {step === 2 && input.tasks.map(task => <fieldset key={task}><legend>{task}: ordered prompt versions and benchmark</legend>
         <label>Suite for {task}<select required value={input.testSuiteIdByTask[task] ?? ''} onChange={e => field('testSuiteIdByTask', { ...input.testSuiteIdByTask, [task]: e.target.value })}><option value="">Choose suite</option>{suites.filter(s => s.purposeCategory === task).map(s => <option key={s.id} value={s.id}>{s.name} · {s.provenance?.reviewStatus ?? 'Review unknown'}</option>)}</select></label>
         {(input.promptPinsByTask[task] ?? []).map((pin, index) => <div className="candidate-row" key={index}>
           <label>{task} prompt {index + 1}<select required value={pin.promptId} onChange={e => field('promptPinsByTask', { ...input.promptPinsByTask, [task]: input.promptPinsByTask[task].map((p, n) => n === index ? { promptId: e.target.value, version: prompts.find(x => x.id === e.target.value)?.versions.at(-1)?.version ?? 0 } : p) })}><option value="">Choose prompt</option>{prompts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
@@ -68,9 +78,9 @@ export function CampaignBuilderPage() {
           <button type="button" onClick={() => field('promptPinsByTask', { ...input.promptPinsByTask, [task]: input.promptPinsByTask[task].filter((_, n) => n !== index) })}>Remove prompt {index + 1}</button>
         </div>)}<button type="button" onClick={() => field('promptPinsByTask', { ...input.promptPinsByTask, [task]: [...(input.promptPinsByTask[task] ?? []), { promptId: '', version: 0 }] })}>Add {task} prompt</button>
       </fieldset>)}
-      {input.tasks.includes('summarization') && <fieldset><legend>Summarization judge</legend><label>Judge model<select required value={input.judgeModelId ?? ''} onChange={e => field('judgeModelId', e.target.value)}>{options}</select></label>{input.judgeModelId && <JudgeQualificationStatus modelId={input.judgeModelId} />}</fieldset>}
-      <label>Declared total VRAM (GB, optional)<input type="number" min={1} value={input.totalVramBudgetGb ?? ''} onChange={e => field('totalVramBudgetGb', e.target.value ? Number(e.target.value) : undefined)} /></label><p>Declared metadata only. LMEval cannot measure model residency or determine whether this budget is exceeded.</p>
-      <button disabled={busy || input.tasks.length === 0} type="submit">{busy ? 'Saving…' : 'Save draft'}</button>
+      {step === 3 && <>{input.tasks.includes('summarization') && <fieldset><legend>Summarization judge</legend><label>Judge model<select required value={input.judgeModelId ?? ''} onChange={e => field('judgeModelId', e.target.value)}>{options}</select></label>{input.judgeModelId && <JudgeQualificationStatus modelId={input.judgeModelId} />}</fieldset>}<label>Declared total VRAM (GB, optional)<input type="number" min={1} value={input.totalVramBudgetGb ?? ''} onChange={e => field('totalVramBudgetGb', e.target.value ? Number(e.target.value) : undefined)} /></label><p>Declared metadata only. LMEval cannot measure model residency or determine whether this budget is exceeded.</p></>}
+      {step === 4 && <section className="campaign-review"><h2>Review the guided selection draft</h2><p><strong>Incumbent:</strong> {input.incumbentModelId}</p><p><strong>Candidates:</strong> {input.candidateSlate.map(candidate => candidate.modelId).join(', ')}</p>{input.tasks.map(task => <p key={task}><strong>{task}:</strong> {(input.promptPinsByTask[task] ?? []).length} prompt version(s) · {input.testSuiteIdByTask[task]}</p>)}<p>Saving creates a reviewable draft. Nothing runs until warnings are acknowledged and Start is pressed on the review page.</p><button disabled={busy} type="submit">{busy ? 'Saving…' : 'Save draft for review'}</button></section>}
+      <div className="campaign-builder-actions">{step > 0 && <button type="button" onClick={() => setStep(value => value - 1)}>Back</button>}{step < builderSteps.length - 1 && <button className="campaign-primary" type="button" disabled={!canContinue()} onClick={() => setStep(value => value + 1)}>Continue</button>}</div>
     </form>}
   </Frame>;
 }
@@ -127,6 +137,7 @@ export function CampaignDetailPage() {
         <button disabled={busy || !v?.valid || v.issues.some(i => i.requiresAcknowledgement && !codes.includes(i.code))} onClick={() => void act(false)}>Start campaign</button></>}
       {['pending', 'running'].includes(c.status) && <><p>Work is sequential. Completed calls are execution progress, not assertion passes. Avoid overlapping heavy judge workloads.</p>{feedback?.activeEvaluation && <p role="status">{c.activeWork?.task} · {c.activeWork?.phase}: {feedback.activeEvaluation.progress.completed} successful / {feedback.activeEvaluation.progress.total} total · {feedback.activeEvaluation.progress.failed} execution failures · last update {feedback.activeEvaluation.progress.updatedAt}</p>}{confirmCancel ? <p>Cancel this campaign after preserving its current evidence? <button disabled={busy} onClick={() => void act(true)}>Confirm cancellation</button><button onClick={() => setConfirmCancel(false)}>Keep running</button></p> : <button disabled={busy} onClick={() => setConfirmCancel(true)}>Cancel campaign</button>}</>}
       <ol>{feedback?.phases.map(p => <li key={p.evaluationId}>{p.task} · {p.phase} · {p.status} · <a href={p.browserPath}>{['pending', 'running'].includes(p.status) ? 'Run' : 'Results'}</a></li>)}</ol>
+      {(feedback?.supplementalEvaluations?.length ?? 0) > 0 && <section className="campaign-supplemental"><h2>Supplemental evaluations</h2><p>These runs provide context only. They are not campaign phases and never affect the recommendation.</p><ul>{feedback!.supplementalEvaluations.map(evaluation => <li key={evaluation.evaluationId}><a href={evaluation.browserPath}>{evaluation.name}</a><span>{evaluation.status} · {new Date(evaluation.createdAt).toLocaleString()}</span></li>)}</ul></section>}
       {Object.values(c.recommendations).map(r => <Recommendation key={r.task} recommendation={r} />)}
       {c.status === 'completed' && c.bestSingleModel && <article><h2>Best single model: {c.bestSingleModel.modelId}</h2>{Object.entries(c.bestSingleModel.qualityDelta).map(([t, d]) => <p key={t}>{t} quality delta: {d.toFixed(3)}</p>)}<p>This is a quality compromise, not a deployment recommendation. {c.crossServerFlag && 'Selections span servers; hardware and workload costs have not been measured.'}</p></article>}
       {!['draft', 'pending', 'running'].includes(c.status) && <Link to={`/campaigns/new?clone=${c.id}`}>Clone configuration to retry in a new draft</Link>}

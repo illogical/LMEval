@@ -4,6 +4,7 @@ import { SummaryOverview } from '../components/summary/SummaryOverview';
 import { GateMetricsPanel } from '../components/summary/GateMetricsPanel';
 import { PerModelAnalysis } from '../components/summary/PerModelAnalysis';
 import { ImprovementSuggestions } from '../components/summary/ImprovementSuggestions';
+import { CampaignContextBadge } from '../components/common/CampaignContextBadge';
 import {
   getEvaluation, getEvaluationSummary, getEvaluationTestCases, getHealth,
   getSummaryAnalysis, generateSummaryAnalysis, addPromptVersion, listPromptVersions,
@@ -123,6 +124,8 @@ export function SummaryPage() {
           benchmarkMode: config.benchmarkMode,
           sessionId: config.sessionId,
           sessionVersion: newSessionVersion ?? config.sessionVersion,
+          campaignId: config.campaignId,
+          campaignRole: config.campaignRole,
         });
         navigate(`/eval/run/${result.id}`);
         return;
@@ -143,6 +146,7 @@ export function SummaryPage() {
   return (
     <div className="summary-page">
       <div className="sp-content">
+        <CampaignContextBadge config={config} />
         <SummaryOverview config={config} summary={summary} analysisOverview={analysis?.overview} />
 
         {summary.taskMetrics && (

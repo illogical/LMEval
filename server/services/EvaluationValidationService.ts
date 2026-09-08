@@ -5,6 +5,8 @@ import { TemplateService } from './TemplateService';
 import { TestSuiteService } from './TestSuiteService';
 import { SessionService } from './SessionService';
 import { JudgeQualificationService } from './JudgeQualificationService';
+import { MODEL_SELECTION_DIR, readJson } from './FileService';
+import { join } from 'path';
 import { z } from 'zod';
 import type {
   EvaluationInput, EvaluationValidationIssue, EvaluationValidationResult, TestCase,
@@ -36,6 +38,8 @@ export const EvaluationInputSchema = z.object({
   sessionVersion: z.number().int().min(1).optional(),
   inference: z.object({ temperature: z.number(), maxTokens: z.number(), seed: z.number().optional() }).optional(),
   benchmarkMode: z.enum(['calibration', 'promotion-check']).optional(),
+  campaignId: z.string().min(1).optional(),
+  campaignRole: z.literal('supplemental').optional(),
 }).passthrough();
 
 export function validateEvaluationInputShape(input: unknown): EvaluationValidationResult | null {
@@ -138,6 +142,16 @@ export const EvaluationValidationService = {
       errors.push(issue('SESSION_VERSION_NOT_FOUND', 'sessionVersion', `Session version not found: ${input.sessionVersion}`));
     }
     if (input.sessionVersion != null && !input.sessionId) errors.push(issue('SESSION_ID_REQUIRED', 'sessionId', 'sessionId is required with sessionVersion.'));
+
+    if (input.campaignRole && !input.campaignId) {
+      errors.push(issue('CAMPAIGN_ID_REQUIRED', 'campaignId', 'campaignId is required with campaignRole.'));
+    }
+    if (input.campaignId && input.campaignRole !== 'supplemental') {
+      errors.push(issue('CAMPAIGN_ROLE_REQUIRED', 'campaignRole', 'Campaign-linked Wizard evaluations must use the supplemental evidence role.'));
+    }
+    if (input.campaignId && !readJson(join(MODEL_SELECTION_DIR, input.campaignId, 'campaign.json'))) {
+      errors.push(issue('CAMPAIGN_NOT_FOUND', 'campaignId', `Campaign not found: ${input.campaignId}`));
+    }
 
     if (input.enablePairwise) errors.push(issue('PAIRWISE_UNSUPPORTED', 'enablePairwise', 'Pairwise execution is disabled in the installed Promptfoo integration.'));
 

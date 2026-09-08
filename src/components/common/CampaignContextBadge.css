@@ -1,0 +1,25 @@
+.campaign-context-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 9px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: rgba(79, 193, 255, 0.08);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.campaign-context-badge span {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.campaign-context-badge a { color: var(--accent); }
+
+@media (max-width: 560px) {
+  .campaign-context-badge { align-items: flex-start; flex-direction: column; }
+}

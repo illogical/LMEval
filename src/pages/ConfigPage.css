@@ -185,3 +185,16 @@
 .cp-warnings .cp-issue-list li::marker {
   color: var(--heatmap-mid);
 }
+
+.cp-help { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.cp-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.cp-choice {
+  display: flex; flex-direction: column; gap: 5px; min-height: 92px; padding: 12px;
+  text-align: left; color: var(--text); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+}
+.cp-choice span { color: var(--muted); font-size: 12px; line-height: 1.35; }
+.cp-choice-active { border-color: var(--accent); background: rgba(79, 193, 255, 0.08); }
+.cp-field { display: flex; flex-direction: column; gap: 7px; font-size: 13px; }
+.cp-field select { padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); }
+@media (max-width: 720px) { .cp-choice-grid { grid-template-columns: 1fr; } }

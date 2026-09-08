@@ -36,7 +36,7 @@ describe('SessionHubPage', () => {
 
   it('renders the campaign entry point', () => {
     render(<MemoryRouter><SessionHubPage /></MemoryRouter>);
-    expect(screen.getByText('Model Selection Campaign')).toBeInTheDocument();
+    expect(screen.getByText('Guided Model Selection')).toBeInTheDocument();
   });
 
   it('renders feature cards', async () => {

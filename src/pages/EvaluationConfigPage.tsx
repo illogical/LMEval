@@ -5,6 +5,7 @@ import {
   patchEvaluationDraft, startEvaluationDraft,
 } from '../api/eval';
 import type { EvaluationConfig, EvaluationFeedback, EvaluationInput } from '../types/eval';
+import { CampaignContextBadge } from '../components/common/CampaignContextBadge';
 
 function editableInput(config: EvaluationConfig): EvaluationInput {
   return {
@@ -25,6 +26,8 @@ function editableInput(config: EvaluationConfig): EvaluationInput {
     sessionVersion: config.sessionVersion,
     inference: config.inference,
     benchmarkMode: config.benchmarkMode,
+    campaignId: config.campaignId,
+    campaignRole: config.campaignRole,
   };
 }
 
@@ -106,6 +109,7 @@ export function EvaluationConfigPage() {
   return (
     <div className="config-page">
       <h1>{config.name}</h1>
+      <CampaignContextBadge config={config} />
       <p>Status: <strong>{config.status}</strong> · estimated completion calls: {callCount}</p>
       {unsupportedMatrix && <p role="alert">This draft contains more than two prompts. It is fully reviewable here, but must be edited through the API so hidden prompts cannot be lost.</p>}
       {feedback.validation.errors.map(item => <p role="alert" key={item.code}>{item.code}: {item.message}</p>)}

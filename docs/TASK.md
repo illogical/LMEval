@@ -474,6 +474,23 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 **B6 — Step icons (Wizard Task 1 remainder)**
 - [ ] Optional step icons in the breadcrumb: pencil / sliders / play / bar chart / sparkle
 
+**B7 — Campaign/Wizard UX integration and campaign redesign**
+- [x] **Complete 2026-09-07.** Campaigns are a guided model-selection protocol, not a fourth evaluation mode or a quick model
+  test. Before implementation, complete a gap analysis of Wizard and campaign inputs, draft
+  lifecycles, Run/Results/Summary states, routes, and reusable components. Prefer a minimal Wizard
+  Campaign context (standalone / create guided-selection draft / associate supplemental evidence with
+  an existing campaign) while retaining campaign-owned sequential phases and recommendation evidence.
+  Rebuild the campaign surface with the Wizard's staged, gate-first interaction language; correct
+  clipped legends, weak hierarchy, native controls, empty/error states, responsiveness, and
+  accessibility. Preserve all current campaign safety guarantees; supplemental evaluations must never
+  be counted as protocol phases or affect a recommendation. Plan:
+  [`plans/2026-09-07-campaign-wizard-integration-ux-revisit-plan.md`](plans/2026-09-07-campaign-wizard-integration-ux-revisit-plan.md).
+  Implemented the optional Prepare-step context, validated evaluation-to-draft handoff, supplemental
+  evidence links/badges, staged campaign builder, clearer discovery language, responsive unclipped
+  section treatment, and API/spec/README reconciliation. Verification: 325 unit/integration tests,
+  clean lint, standalone and hosted production builds, valid OpenAPI JSON, and all 3 campaign Playwright
+  flows (draft review, completed evidence, judge qualification).
+
 ---
 
 ### Track C — Automated refinement loop (Phase 8)

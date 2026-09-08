@@ -32,6 +32,9 @@ export interface EvalWizardState {
   isDirty: boolean;
   purposeTemplateId: string | null;
   purposeTemplateName: string | null;
+  campaignMode: 'standalone' | 'create' | 'associate';
+  campaignId: string | null;
+  campaignIncumbentModelId: string | null;
 }
 
 export const defaultPromptSlot = (): PromptSlot => ({
@@ -61,6 +64,9 @@ export const initialState: EvalWizardState = {
   isDirty: false,
   purposeTemplateId: null,
   purposeTemplateName: null,
+  campaignMode: 'standalone',
+  campaignId: null,
+  campaignIncumbentModelId: null,
 };
 
 export const STORAGE_KEY = 'lmeval:wizard:state';

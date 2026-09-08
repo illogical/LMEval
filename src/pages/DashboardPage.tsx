@@ -13,6 +13,7 @@ import { getEvaluation, getEvaluationResults, cancelEvaluation } from '../api/ev
 import type { EvalMatrixCell, EvaluationConfig } from '../types/eval';
 import type { ModelCellInfo } from '../components/dashboard/ModelStatusRow';
 import type { CellFailure } from '../components/dashboard/ErrorPanel';
+import { CampaignContextBadge } from '../components/common/CampaignContextBadge';
 import './DashboardPage.css';
 
 export function DashboardPage() {
@@ -234,6 +235,7 @@ export function DashboardPage() {
 
   return (
     <div className="dashboard-page">
+      {evalConfig && <CampaignContextBadge config={evalConfig} />}
       {/* Header row */}
       <div className="dp-header">
         <div className="dp-header-left">

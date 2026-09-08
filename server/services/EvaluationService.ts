@@ -48,6 +48,8 @@ export function normalizeEvaluationInput(input: EvaluationInput): EvaluationInpu
     sessionVersion: input.sessionVersion,
     inference: input.inference ? { ...input.inference } : undefined,
     benchmarkMode: input.benchmarkMode,
+    campaignId: input.campaignId,
+    campaignRole: input.campaignRole,
   };
 }
 

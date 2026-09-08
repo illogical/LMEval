@@ -6,7 +6,7 @@ import {
 import { EvaluationService } from './EvaluationService';
 import { CampaignValidationService, campaignPhaseInput } from './CampaignValidationService';
 import { PromptService } from './PromptService';
-import type { ModelSelectionCampaignInput, CampaignPhase } from '../../src/types/eval';
+import type { ModelSelectionCampaignInput, CampaignPhase, CampaignDraftFromEvaluationInput } from '../../src/types/eval';
 import { ExecutionService } from './ExecutionService';
 import { computeClassificationMetrics, computeTaggingMetrics, computeSummarizationMetrics } from './SummaryService';
 import { PurposeTemplateService } from './PurposeTemplateService';
@@ -153,6 +153,35 @@ async function runEvaluation(campaign: ModelSelectionCampaign, task: Task, phase
 }
 const starting = new Set<string>();
 export const ModelSelectionService = {
+  async createDraftFromEvaluation(request: CampaignDraftFromEvaluationInput): Promise<ModelSelectionCampaign> {
+    const evaluation = EvaluationService.get(request.evalId);
+    if (!evaluation) throw Object.assign(new Error('Evaluation not found'), { status: 404 });
+    const purpose = evaluation.purposeTemplateId ? PurposeTemplateService.get(evaluation.purposeTemplateId) : null;
+    const task = purpose?.purposeCategory;
+    if (!task || !['classification', 'tagging', 'summarization'].includes(task)) {
+      throw Object.assign(new Error('Guided model selection requires a classification, tagging, or summarization purpose template'), { status: 400 });
+    }
+    if (!evaluation.testSuiteId) {
+      throw Object.assign(new Error('Guided model selection requires a saved benchmark suite'), { status: 400 });
+    }
+    const pins = evaluation.promptVersions ?? evaluation.promptIds.map(promptId => ({
+      promptId, version: PromptService.get(promptId)?.versions.at(-1)?.version ?? 0,
+    }));
+    const input: ModelSelectionCampaignInput = {
+      tasks: [task as Task],
+      incumbentModelId: request.incumbentModelId,
+      candidateSlate: request.candidateSlate,
+      promptPinsByTask: { [task]: pins },
+      testSuiteIdByTask: { [task]: evaluation.testSuiteId },
+      judgeModelId: task === 'summarization' ? evaluation.judgeModelId : undefined,
+      totalVramBudgetGb: request.totalVramBudgetGb,
+    };
+    const campaign = await this.createDraft(input);
+    if (evaluation.status === 'draft') {
+      await EvaluationService.patchDraft(evaluation.id, { campaignId: campaign.id, campaignRole: 'supplemental' });
+    }
+    return campaign;
+  },
   async createDraft(input: ModelSelectionCampaignInput): Promise<ModelSelectionCampaign> {
     const validation = await CampaignValidationService.validate(input);
     if (!validation.valid) throw Object.assign(new Error('Campaign configuration is invalid'), { status: 400, validation });

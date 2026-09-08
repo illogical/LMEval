@@ -25,7 +25,7 @@ export function SessionHubPage() {
           <p className="hub-subtitle">Evaluate and compare language model prompts at scale</p>
           <div className="hub-actions">
             <button className="hub-cta hub-cta-secondary" onClick={() => navigate('/campaigns')}>
-              <BarChart2 size={16} /> Model Selection Campaign
+              <BarChart2 size={16} /> Guided Model Selection
             </button>
             <button className="hub-cta hub-cta-primary" onClick={() => navigate('/eval/templates')}>
               <Plus size={16} />

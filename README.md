@@ -839,6 +839,7 @@ promotion actions are separate operations and require explicit intent.
 | `POST /api/eval/model-selection` | Backward-compatible create-and-start campaign |
 | `POST /api/eval/model-selection/validate` | Validate pins, models, suites, judge state, and call estimates without saving |
 | `POST /api/eval/model-selection/drafts` | Save a validated campaign draft |
+| `POST /api/eval/model-selection/drafts/from-evaluation` | Seed a validated campaign draft from a compatible evaluation draft and link it as supplemental evidence |
 | `PATCH /api/eval/model-selection/:id` | Replace editable draft fields; started evidence is immutable |
 | `POST /api/eval/model-selection/:id/run` | Revalidate, acknowledge current required warnings, and start exactly once |
 | `GET /api/eval/model-selection/:id/feedback` | Poll lifecycle, active cell progress, phase links, and validation |
@@ -852,6 +853,11 @@ and any warning acknowledgements. Campaign phases run sequentially to avoid hidd
 Completed calls and execution failures are shown separately; a phase with incomplete execution stops
 without producing a winner. Recommendations preserve CI-aware gates, statistical tie groups, every
 confirmation attempt, and the distinction between advisory evidence and a promotable pass.
+
+In the Evaluation Wizard's Prepare step, **Campaign context** is optional. Keep the run standalone,
+create a Guided Model Selection draft (prompt refinement, then model comparison, then confirmation),
+or associate the evaluation with an existing campaign as supplemental evidence. Supplemental runs are
+shown in campaign history for context but are never counted as campaign phases or recommendation input.
 
 ### Insights (`/api/eval/insights`) — cross-run dashboard
 

@@ -9,6 +9,7 @@ import { EvaluationService } from '../EvaluationService';
 import { EvaluationFeedbackService } from '../EvaluationFeedbackService';
 import { ExecutionService } from '../ExecutionService';
 import type { EvaluationInput } from '../../../src/types/eval';
+import { ModelSelectionService } from '../ModelSelectionService';
 
 let dataRoot: string;
 
@@ -85,5 +86,21 @@ describe('EvaluationService', () => {
       appBasePath: '/lmeval/',
       browserPaths: { config: `/lmeval/eval/config/${created.evaluation.id}` },
     });
+  });
+
+  it('persists only explicit supplemental campaign associations', async () => {
+    const campaign = ModelSelectionService.createCampaign({
+      tasks: ['classification'], incumbentModelId: 'local::model-a',
+      candidateSlate: [{ modelId: 'local::model-a', lmapiServer: 'local' }],
+      promptIdsByTask: { classification: ['placeholder'] },
+      testSuiteIdByTask: { classification: 'memory-classification-v1' },
+    });
+    const created = await EvaluationService.create(input({ campaignId: campaign.id, campaignRole: 'supplemental' }), 'draft');
+    expect(created.evaluation).toMatchObject({ campaignId: campaign.id, campaignRole: 'supplemental' });
+
+    const invalid = await EvaluationService.validate(input({ campaignId: campaign.id }));
+    expect(invalid.validation.errors.map(error => error.code)).toContain('CAMPAIGN_ROLE_REQUIRED');
+    const missing = await EvaluationService.validate(input({ campaignId: 'campaign-missing', campaignRole: 'supplemental' }));
+    expect(missing.validation.errors.map(error => error.code)).toContain('CAMPAIGN_NOT_FOUND');
   });
 });

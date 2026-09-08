@@ -169,6 +169,9 @@ export interface EvaluationConfig {
   transportProvenance?: TransportProvenance;
   benchmarkMode?: 'calibration' | 'promotion-check';
   benchmarkProvenance?: BenchmarkRunProvenance;
+  /** Optional parent workflow. Associated Wizard runs are context only, never campaign phase evidence. */
+  campaignId?: string;
+  campaignRole?: 'supplemental';
 }
 
 /** Caller-controlled evaluation fields. Server-derived lifecycle and provenance fields are excluded. */
@@ -190,6 +193,8 @@ export interface EvaluationInput {
   sessionVersion?: number;
   inference?: InferenceParams;
   benchmarkMode?: 'calibration' | 'promotion-check';
+  campaignId?: string;
+  campaignRole?: 'supplemental';
 }
 
 export interface EvaluationValidationIssue {
@@ -629,6 +634,20 @@ export interface CampaignFeedback {
   campaign: ModelSelectionCampaign; validation: CampaignValidationResult;
   activeEvaluation?: EvaluationFeedback; browserPath: string;
   phases: Array<{ task: string; phase: CampaignPhase; evaluationId: string; status: EvalStatus; browserPath: string }>;
+  supplementalEvaluations: SupplementalEvaluationLink[];
+}
+export interface SupplementalEvaluationLink {
+  evaluationId: string;
+  name: string;
+  status: EvalStatus;
+  createdAt: string;
+  browserPath: string;
+}
+export interface CampaignDraftFromEvaluationInput {
+  evalId: string;
+  incumbentModelId: string;
+  candidateSlate: ModelCandidateMeta[];
+  totalVramBudgetGb?: number;
 }
 
 // --- A9: two-phase model selection ----------------------------------------

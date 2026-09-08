@@ -8,6 +8,7 @@ import { TrendView } from '../components/results/TrendView';
 import { VerdictHeader } from '../components/results/VerdictHeader';
 import { FailureDrawer } from '../components/results/FailureDrawer';
 import { ResultsSkeleton } from '../components/results/ResultsSkeleton';
+import { CampaignContextBadge } from '../components/common/CampaignContextBadge';
 import {
   getEvaluation, getEvaluationResults, getEvaluationSummary, getEvaluationTestCases,
   getEvaluationHistory, getEvaluationRegression, listBaselines, exportEvaluation, saveBaseline,
@@ -52,7 +53,7 @@ export function ResultsPage() {
 
   useEffect(() => {
     if (!evalId) return;
-    setLoading(true);
+    queueMicrotask(() => setLoading(true));
     Promise.all([
       getEvaluation(evalId),
       getEvaluationResults(evalId),
@@ -151,6 +152,7 @@ export function ResultsPage() {
 
   return (
     <div className="results-page">
+      {config && <CampaignContextBadge config={config} />}
       {sessionRuns.length > 1 && (
         <div className="rp-run-selector" role="tablist" aria-label="Evaluation runs">
           {sessionRuns

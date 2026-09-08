@@ -8,8 +8,9 @@ import { ExecutionPreview } from '../components/config/ExecutionPreview';
 import { PresetSelector } from '../components/config/PresetSelector';
 import { useEvalWizard } from '../contexts/EvalWizardContext';
 import { useEvalHeaderAction } from '../contexts/EvalHeaderActionContext';
-import { createEvaluation, createPrompt, createPurposeTemplate, getPurposeTemplate, getTemplate, getTestSuite, listEvaluations, validateEvaluation } from '../api/eval';
-import type { EvalPurposeTemplate, EvaluationValidationResult, TestSuite } from '../types/eval';
+import { createEvaluation, createEvaluationDraft, createPrompt, createPurposeTemplate, getPurposeTemplate, getTemplate, getTestSuite, listEvaluations, validateEvaluation } from '../api/eval';
+import { createCampaignFromEvaluation, listCampaigns } from '../api/campaigns';
+import type { EvalPurposeTemplate, EvaluationInput, EvaluationValidationResult, ModelSelectionCampaign, TestSuite } from '../types/eval';
 import './ConfigPage.css';
 
 export function ConfigPage() {
@@ -29,6 +30,11 @@ export function ConfigPage() {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [templateSaved, setTemplateSaved] = useState(false);
   const [serverValidation, setServerValidation] = useState<EvaluationValidationResult | null>(null);
+  const [campaigns, setCampaigns] = useState<ModelSelectionCampaign[]>([]);
+
+  useEffect(() => {
+    listCampaigns().then(setCampaigns).catch(() => setCampaigns([]));
+  }, []);
 
   useEffect(() => {
     if (!state.purposeTemplateId) { setJudgeRequired(false); setPurposeTemplate(null); return; }
@@ -163,6 +169,17 @@ export function ConfigPage() {
     if (!warnings.includes(validationWarning.message)) warnings.push(validationWarning.message);
   }
 
+  if (state.campaignMode === 'associate' && !state.campaignId) {
+    blockers.push('Choose the campaign this evaluation should support.');
+  }
+  if (state.campaignMode === 'create') {
+    if (!state.purposeTemplateId || purposeTemplate?.purposeCategory === 'custom') blockers.push('Guided model selection requires a classification, tagging, or summarization purpose.');
+    if (!state.testSuiteId) blockers.push('Guided model selection requires a saved benchmark suite.');
+    if (promptCount < 2) blockers.push('Guided model selection requires at least 2 prompt versions to refine before comparing models.');
+    if (modelCount < 2) blockers.push('Guided model selection requires at least 2 candidate models.');
+    if (!state.campaignIncumbentModelId) blockers.push('Choose the incumbent model for guided selection.');
+  }
+
   const runDisabled = running || blockers.length > 0;
 
   const handleRun = useCallback(async () => {
@@ -195,7 +212,7 @@ export function ConfigPage() {
 
       const modelIds = state.selectedModels.map(m => `${m.serverName}::${m.modelName}`);
 
-      const result = await createEvaluation({
+      const evaluationInput: EvaluationInput = {
         name: `Eval ${new Date().toLocaleString()}`,
         promptIds,
         promptVersions: [state.promptA, state.promptB]
@@ -212,7 +229,25 @@ export function ConfigPage() {
         judgeModelId: state.judgeModelId ?? undefined,
         enablePairwise: state.enablePairwise,
         runsPerCell: state.runsPerCell,
-      });
+        campaignId: state.campaignMode === 'associate' ? state.campaignId ?? undefined : undefined,
+        campaignRole: state.campaignMode === 'associate' ? 'supplemental' : undefined,
+      };
+
+      if (state.campaignMode === 'create') {
+        const draft = await createEvaluationDraft(evaluationInput);
+        const campaign = await createCampaignFromEvaluation({
+          evalId: draft.evaluation.id,
+          incumbentModelId: state.campaignIncumbentModelId!,
+          candidateSlate: state.selectedModels.map(model => ({
+            modelId: `${model.serverName}::${model.modelName}`,
+            lmapiServer: model.serverName,
+          })),
+        });
+        navigate(`/campaigns/${campaign.id}`);
+        return;
+      }
+
+      const result = await createEvaluation(evaluationInput);
 
       dispatch({ type: 'START_EVAL', payload: { evalId: result.id } });
       navigate(`/eval/run/${result.id}`);
@@ -236,11 +271,11 @@ export function ConfigPage() {
         aria-describedby={blockerTooltip ? 'cp-blockers' : undefined}
       >
         <Play size={15} />
-        {savingPrompts ? 'Saving prompts…' : running ? 'Starting…' : 'Run Evaluation'}
+        {savingPrompts ? 'Saving prompts…' : running ? 'Starting…' : state.campaignMode === 'create' ? 'Create Guided Selection' : 'Run Evaluation'}
       </button>
     );
     return () => setHeaderAction(null);
-  }, [running, savingPrompts, runDisabled, blockerTooltip, handleRun, setHeaderAction]);
+  }, [running, savingPrompts, runDisabled, blockerTooltip, handleRun, setHeaderAction, state.campaignMode]);
 
   return (
     <div className="config-page">
@@ -291,6 +326,40 @@ export function ConfigPage() {
               runsPerCell={state.runsPerCell}
               onRunsPerCellChange={n => dispatch({ type: 'SET_CONFIG', payload: { runsPerCell: n } })}
             />
+          </div>
+
+          <div className="cp-card cp-campaign-context">
+            <h3 className="cp-section-title">Campaign context</h3>
+            <p className="cp-help">A campaign coordinates several controlled evaluations. A linked Wizard run is supplemental context and never changes the campaign recommendation.</p>
+            <div className="cp-choice-grid" role="radiogroup" aria-label="Campaign context">
+              {([
+                ['standalone', 'Standalone', 'Run this evaluation normally.'],
+                ['create', 'Create guided selection', 'Use this setup to create a campaign draft.'],
+                ['associate', 'Support an existing campaign', 'Link this run as supplemental evidence.'],
+              ] as const).map(([value, label, description]) => (
+                <button key={value} type="button" role="radio" aria-checked={state.campaignMode === value}
+                  className={`cp-choice${state.campaignMode === value ? ' cp-choice-active' : ''}`}
+                  onClick={() => dispatch({ type: 'SET_CONFIG', payload: { campaignMode: value, campaignId: value === 'associate' ? state.campaignId : null } })}>
+                  <strong>{label}</strong><span>{description}</span>
+                </button>
+              ))}
+            </div>
+            {state.campaignMode === 'associate' && (
+              <label className="cp-field">Campaign
+                <select value={state.campaignId ?? ''} onChange={event => dispatch({ type: 'SET_CONFIG', payload: { campaignId: event.target.value || null } })}>
+                  <option value="">Choose a campaign…</option>
+                  {campaigns.map(campaign => <option key={campaign.id} value={campaign.id}>{campaign.tasks.join(' + ')} · {campaign.status} · {campaign.id}</option>)}
+                </select>
+              </label>
+            )}
+            {state.campaignMode === 'create' && (
+              <label className="cp-field">Incumbent model
+                <select value={state.campaignIncumbentModelId ?? ''} onChange={event => dispatch({ type: 'SET_CONFIG', payload: { campaignIncumbentModelId: event.target.value || null } })}>
+                  <option value="">Choose from the selected models…</option>
+                  {state.selectedModels.map(model => { const id = `${model.serverName}::${model.modelName}`; return <option key={id} value={id}>{model.modelName} · {model.serverName}</option>; })}
+                </select>
+              </label>
+            )}
           </div>
 
           <div className="cp-card">

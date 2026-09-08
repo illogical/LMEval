@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import {
-  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import {
   listInsightActivities, getInsightsLeaderboard, getInsightsTrend, getInsightsDiagnostics, getInsightsOperational,
@@ -35,6 +35,20 @@ function colorFor(modelId: string, allModelIds: string[]): string {
 
 function fmtDate(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString() : '—';
+}
+
+/** Number of distinct run dates in a set of points — the signal used to decide between a single-run bar chart and a multi-run trend chart. */
+function uniqueDateCount<T>(points: T[], dateOf: (p: T) => string | null): number {
+  return new Set(points.map(p => dateOf(p) ?? '')).size;
+}
+
+/** Counts verdict changes between consecutive runs, in chronological order. */
+function countFlips(verdicts: string[]): number {
+  let flips = 0;
+  for (let i = 1; i < verdicts.length; i++) {
+    if (verdicts[i] !== verdicts[i - 1]) flips++;
+  }
+  return flips;
 }
 
 /** Pivots a flat list of per-(model, run) points into one row per date, with `${modelId}::band` = [lower, upper] for a Recharts range-Area and `${modelId}::value` for the point line. */
@@ -118,15 +132,22 @@ export function InsightsPage() {
 
   const modelIds = useMemo(() => Array.from(new Set(trend.map(t => t.modelId))), [trend]);
   const trendData = useMemo(() => pivotTrend(trend), [trend]);
+  const trendRunCount = useMemo(() => uniqueDateCount(trend, t => t.completedAt), [trend]);
   const diagnosticMetricNames = useMemo(
     () => Array.from(new Set(diagnostics.map(d => d.metricName))).sort(),
     [diagnostics]
   );
+  const diagnosticsForMetric = useMemo(
+    () => diagnostics.filter(d => d.metricName === diagnosticMetric),
+    [diagnostics, diagnosticMetric]
+  );
+  const diagnosticRunCount = useMemo(() => uniqueDateCount(diagnosticsForMetric, d => d.completedAt), [diagnosticsForMetric]);
   const diagnosticData = useMemo(
     () => pivotDiagnostics(diagnostics, diagnosticMetric),
     [diagnostics, diagnosticMetric]
   );
   const operationalData = useMemo(() => pivotOperational(operational, operationalField), [operational, operationalField]);
+  const operationalRunCount = useMemo(() => uniqueDateCount(operational, o => o.completedAt), [operational]);
   const operationalSeries = useMemo(
     () => Array.from(new Set(operational.map(p => `${p.modelId} (${p.serverName ?? 'unknown server'})`))),
     [operational]
@@ -145,6 +166,16 @@ export function InsightsPage() {
     }
     return byModel;
   }, [trend]);
+  const gateStabilityRows = useMemo(() => {
+    return [...gateHistoryByModel.entries()]
+      .map(([modelId, byDate]) => {
+        const points = gateHistoryDates.map(d => byDate.get(d)).filter((p): p is TrendPoint => !!p);
+        const flips = countFlips(points.map(p => p.gateVerdict));
+        const latest = points[points.length - 1];
+        return { modelId, byDate, runs: points.length, flips, latest };
+      })
+      .sort((a, b) => b.flips - a.flips || (a.latest?.gateVerdict === 'fail' ? -1 : 1));
+  }, [gateHistoryByModel, gateHistoryDates]);
 
   if (loading) return <div className="insights-page insights-loading">Loading run history…</div>;
 
@@ -232,13 +263,48 @@ export function InsightsPage() {
 
           {/* 2 & 3. Metric trend + confidence-interval band */}
           <section className="ip-section">
-            <h2 className="ip-section-title">Metric trend, with 95% confidence interval</h2>
+            <h2 className="ip-section-title">
+              {trendRunCount < 2 ? 'Metric — latest run per model' : 'Metric trend, with 95% confidence interval'}
+            </h2>
             <p className="ip-section-note">
-              The shaded band is the bootstrap 95% CI behind the point estimate — a run whose band
-              straddles the gate threshold is "inconclusive," not a genuine pass or fail.
+              {trendRunCount < 2
+                ? 'Bars are colored by gate verdict. Run a second evaluation to see this as a trend with confidence bands over time.'
+                : 'The shaded band is the bootstrap 95% CI behind the point estimate — a run whose band '
+                  + 'straddles the gate threshold is "inconclusive," not a genuine pass or fail.'}
             </p>
-            {trendData.length < 2 ? (
-              <p className="ip-empty-inline">Need at least two runs to plot a trend.</p>
+            {trend.length === 0 ? (
+              <p className="ip-empty-inline">No runs indexed yet for this activity.</p>
+            ) : trendRunCount < 2 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={trend.map(t => ({
+                    modelId: t.modelId,
+                    model: modelShortName(t.modelId),
+                    value: t.primaryMetricValue,
+                    ciLower: t.ciLower,
+                    ciUpper: t.ciUpper,
+                    verdict: t.gateVerdict,
+                  }))}
+                  margin={{ top: 8, right: 20, left: 0, bottom: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="model" tick={{ fontSize: 11, fill: 'var(--muted)' }} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--muted)' }} />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={(value, _name, item) => {
+                      const payload = item.payload as { ciLower: number; ciUpper: number; verdict: string };
+                      const v = typeof value === 'number' ? value.toFixed(3) : String(value ?? '—');
+                      return [`${v} (CI ${payload.ciLower.toFixed(3)}–${payload.ciUpper.toFixed(3)})`, payload.verdict];
+                    }}
+                  />
+                  <Bar dataKey="value">
+                    {trend.map(t => (
+                      <Cell key={t.modelId} fill={VERDICT_COLOR[t.gateVerdict] ?? 'var(--muted)'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             ) : (
               <ResponsiveContainer width="100%" height={320}>
                 <AreaChart data={trendData} margin={{ top: 8, right: 20, left: 0, bottom: 8 }}>
@@ -280,19 +346,28 @@ export function InsightsPage() {
           {/* 4. Gate-verdict history strip */}
           <section className="ip-section">
             <h2 className="ip-section-title">Gate verdict stability</h2>
-            <p className="ip-section-note">Is this model's gate status stable across runs, or does it flip?</p>
+            <p className="ip-section-note">
+              Is this model's gate status stable across runs, or does it flip? Sorted least-stable first.
+            </p>
             <div className="ip-table-wrap">
               <table className="ip-table ip-gate-strip">
                 <thead>
                   <tr>
                     <th>Model</th>
+                    <th>Runs</th>
+                    <th>Flips</th>
                     {gateHistoryDates.map(d => <th key={d}>{fmtDate(d)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
-                  {[...gateHistoryByModel.entries()].map(([modelId, byDate]) => (
+                  {gateStabilityRows.map(({ modelId, byDate, runs, flips, latest }) => (
                     <tr key={modelId}>
-                      <td>{modelShortName(modelId)}</td>
+                      <td>
+                        <div>{modelShortName(modelId)}</div>
+                        {latest && <div className="ip-gate-model-value">{latest.primaryMetricValue.toFixed(3)}</div>}
+                      </td>
+                      <td>{runs}</td>
+                      <td>{flips}</td>
                       {gateHistoryDates.map(d => {
                         const point = byDate.get(d);
                         return (
@@ -325,11 +400,31 @@ export function InsightsPage() {
               )}
             </div>
             <p className="ip-section-note">
-              This is where a finding like a high unknown-tag rate becomes a standing trend instead of a
-              one-off number read out of a single run's summary.
+              {diagnosticRunCount < 2
+                ? 'Latest run per model. This becomes a trend line once a second evaluation is indexed — a '
+                  + "finding like a high unknown-tag rate turns into a standing trend instead of a one-off number."
+                : "This is where a finding like a high unknown-tag rate becomes a standing trend instead of a "
+                  + "one-off number read out of a single run's summary."}
             </p>
             {diagnosticData.length === 0 ? (
               <p className="ip-empty-inline">No diagnostic metrics indexed yet for this activity.</p>
+            ) : diagnosticRunCount < 2 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={diagnosticsForMetric.map(d => ({ modelId: d.modelId, model: modelShortName(d.modelId), value: d.metricValue }))}
+                  margin={{ top: 8, right: 20, left: 0, bottom: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="model" tick={{ fontSize: 11, fill: 'var(--muted)' }} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--muted)' }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="value">
+                    {diagnosticsForMetric.map(d => (
+                      <Cell key={d.modelId} fill={colorFor(d.modelId, modelIds)} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={diagnosticData} margin={{ top: 8, right: 20, left: 0, bottom: 8 }}>
@@ -371,6 +466,27 @@ export function InsightsPage() {
             </p>
             {operationalData.length === 0 ? (
               <p className="ip-empty-inline">No operational data indexed yet for this activity.</p>
+            ) : operationalRunCount < 2 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={operational.map(o => ({
+                    key: `${o.modelId}::${o.serverName ?? 'unknown'}`,
+                    series: `${modelShortName(o.modelId)} (${o.serverName ?? 'unknown server'})`,
+                    value: o[operationalField],
+                  }))}
+                  margin={{ top: 8, right: 20, left: 0, bottom: 24 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="series" tick={{ fontSize: 10, fill: 'var(--muted)' }} interval={0} angle={-15} textAnchor="end" height={50} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--muted)' }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="value">
+                    {operational.map((o, i) => (
+                      <Cell key={`${o.modelId}::${o.serverName ?? 'unknown'}`} fill={SERIES_COLORS[i % SERIES_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={operationalData} margin={{ top: 8, right: 20, left: 0, bottom: 8 }}>
