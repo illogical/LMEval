@@ -130,6 +130,8 @@ async function runEvaluation(campaign: ModelSelectionCampaign, task: Task, phase
   const pin = promptId ? input.promptPinsByTask[task]?.find(p => p.promptId === promptId) : undefined;
   if (promptId && !pin) throw new Error('Winning prompt pin is missing');
   const { evaluation } = await EvaluationService.create(campaignPhaseInput(input, task, phase, pin, modelId), 'pending');
+  evaluation.campaignContext = { campaignId: campaign.id, role: 'protocol-phase', task, phase };
+  writeJson(join(EVALUATIONS_DIR, evaluation.id, 'config.json'), evaluation);
   if (ModelSelectionService.getCampaign(campaign.id)?.status === 'cancelled') {
     evaluation.status = 'cancelled'; writeJson(join(EVALUATIONS_DIR, evaluation.id, 'config.json'), evaluation);
     throw new Error('Campaign cancelled');

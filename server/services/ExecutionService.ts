@@ -2,17 +2,20 @@ import { join } from 'path';
 import { evaluate } from 'promptfoo';
 import type { EvaluateResult } from 'promptfoo';
 import {
-  readJson, writeJson, generateId, EVALUATIONS_DIR,
+  readJson, writeJson, writeJsonAtomic, generateId, EVALUATIONS_DIR,
 } from './FileService';
 import { PromptfooAdapter, type PromptContentEntry } from './PromptfooAdapter';
 import { SummaryService } from './SummaryService';
 import { PromptService } from './PromptService';
 import { TestSuiteService } from './TestSuiteService';
 import { recordEvaluation } from './InsightsIndexService';
+import { EvaluationAttemptService } from './EvaluationAttemptService';
+import { DurableExecutionService } from './DurableExecutionService';
 import type {
   EvaluationConfig, EvalMatrixCell, EvaluationSummary, TestCase,
   EvalTemplate, PairwiseRanking, EvalStreamEvent, AssertionStrategy, EvalPurposeTemplate,
   PurposeCategory,
+  EvaluationAttempt, CancellationResult, ResumeEvaluationResponse,
 } from '../../src/types/eval';
 
 // Promptfoo distinguishes an assertion miss (the model ran successfully) from
@@ -141,7 +144,7 @@ function computeCompositeScore(assertionResults: ReturnType<typeof toAssertionRe
 export const ExecutionService = {
   /** In-flight eval ids — lets the hosted adapter's getActiveWork() honor HomeBase's shutdown grace window. */
   getActiveEvalIds(): string[] {
-    return [...activeControllers.keys()];
+    return [...new Set([...activeControllers.keys(), ...DurableExecutionService.activeIds()])];
   },
 
   /** Resolves an EvaluationConfig's test cases (suite / inline / single userMessage), shared by run() and the /:id/testcases route. */
@@ -231,20 +234,23 @@ export const ExecutionService = {
     template: EvalTemplate | null,
     purposeStrategy: AssertionStrategy | null,
     controller: AbortController,
-    startMs: number
+    startMs: number,
+    runtime?: { promptContents?: PromptContentEntry[]; onObserved?: () => void }
   ): Promise<EvalMatrixCell[]> {
-    const promptContents: PromptContentEntry[] = [];
-    for (const promptId of config.promptIds) {
-      const prompt = PromptService.get(promptId);
-      if (!prompt) continue;
-      const version = config.promptVersions?.find(pin => pin.promptId === promptId)?.version
-        ?? prompt.versions.at(-1)?.version ?? 1;
-      const content = PromptService.getVersionContent(promptId, version) ?? '';
-      promptContents.push({ promptId, content, tools: prompt.tools });
+    const promptContents: PromptContentEntry[] = runtime?.promptContents ?? [];
+    if (!runtime?.promptContents) {
+      for (const promptId of config.promptIds) {
+        const prompt = PromptService.get(promptId);
+        if (!prompt) continue;
+        const version = config.promptVersions?.find(pin => pin.promptId === promptId)?.version
+          ?? prompt.versions.at(-1)?.version ?? 1;
+        const content = PromptService.getVersionContent(promptId, version) ?? '';
+        promptContents.push({ promptId, content, tools: prompt.tools });
+      }
     }
 
     const { testSuite, promptOrder, testCaseOrder } = PromptfooAdapter.buildTestSuite({
-      evalId, config, promptContents, testCases, template, purposeStrategy,
+      evalId, config, promptContents, testCases, template, purposeStrategy, signal: controller.signal,
     });
 
     let completedSoFar = 0;
@@ -256,6 +262,10 @@ export const ExecutionService = {
       abortSignal: controller.signal,
       progressCallback: () => {
         completedSoFar++;
+        if (runtime?.onObserved) {
+          runtime.onObserved();
+          return;
+        }
         writeJson(join(EVALUATIONS_DIR, evalId, 'progress.json'), {
           total: totalSteps,
           completed: Math.min(completedSoFar, totalSteps),
@@ -444,8 +454,8 @@ export const ExecutionService = {
   ): Promise<EvaluationSummary> {
     const summary = SummaryService.computeSummary(evalId, cells, pairwiseRankings, options);
     const evalDir = join(EVALUATIONS_DIR, evalId);
-    writeJson(join(evalDir, 'results.json'), cells);
-    writeJson(join(evalDir, 'summary.json'), summary);
+    writeJsonAtomic(join(evalDir, 'results.json'), cells);
+    writeJsonAtomic(join(evalDir, 'summary.json'), summary);
     if (options?.evaluationConfig) {
       try {
         recordEvaluation(evalId, options.evaluationConfig, summary, { concurrency: CONCURRENCY_LIMIT });
@@ -459,19 +469,41 @@ export const ExecutionService = {
     return summary;
   },
 
-  cancel(evalId: string): boolean {
+  cancel(evalId: string): CancellationResult | null {
+    const durable = DurableExecutionService.cancel(evalId);
+    if (durable) return durable;
     cancelledEvals.add(evalId);
     const controller = activeControllers.get(evalId);
-    if (!controller) return false;
+    if (!controller) return null;
     controller.abort();
     activeControllers.delete(evalId);
-    return true;
+    return { state: 'cancellation-requested', evaluationId: evalId, controllerOwned: true, durablyCommitted: 0, remaining: 0 };
+  },
+
+  start(evalId: string, options?: { cellFilter?: CellFilterTriple[] }): Promise<EvaluationAttempt> {
+    return DurableExecutionService.start(evalId, options?.cellFilter);
+  },
+
+  resume(evalId: string, appBasePath = '/'): Promise<ResumeEvaluationResponse> {
+    return DurableExecutionService.resume(evalId, appBasePath);
+  },
+
+  reconcileOnStartup(): string[] {
+    return EvaluationAttemptService.reconcileOnStartup();
+  },
+
+  dispose(): Promise<void> {
+    return DurableExecutionService.dispose();
   },
 
   async run(
     evalId: string,
     options?: { cellFilter?: CellFilterTriple[] }
   ): Promise<void> {
+    if (typeof DurableExecutionService.run === 'function') {
+      return DurableExecutionService.run(evalId, options?.cellFilter);
+    }
+    /* istanbul ignore next -- unreachable compatibility fallback */
     const evalDir = join(EVALUATIONS_DIR, evalId);
     const config = readJson<EvaluationConfig>(join(evalDir, 'config.json'));
     if (!config) {

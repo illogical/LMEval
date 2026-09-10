@@ -60,13 +60,39 @@ The canonical type definitions live in `src/types/eval.ts` (re-exported for back
 - `EvalPreset` — a *different* concept from both of the above: a reusable evaluation *configuration* (model selection + template + test suite + judge settings), not tied to any specific prompt. Distinct from `EvalPurposeTemplate`, which also seeds prompt content and starter test cases and is meant as the entry point to a brand-new evaluation rather than a config to reapply to an existing one.
 
 ### Results
-- `EvalMatrixCell` — one (prompt × model × test case × run) execution: request/response, token counts, latency, `serverName`, retry attempts, and a metrics block. `assertionResults: Array<{ type: string; pass: boolean; score?: number; reason?: string; metric?: string }>` mirrors Promptfoo's own `GradingResult` shape directly and is implemented (the legacy fixed-shape `deterministicMetrics` field still exists alongside it for pre-migration data, unused by new runs) — see §4.
+- `EvalMatrixCell` — one (prompt × model × test case × run) execution: request/response, token counts, latency, `serverName`, retry attempts, and a metrics block. Schema-v1 cells additionally retain their immutable `cellKey` and the `attemptId` that committed them. `assertionResults: Array<{ type: string; pass: boolean; score?: number; reason?: string; metric?: string }>` mirrors Promptfoo's own `GradingResult` shape directly (the legacy fixed-shape `deterministicMetrics` field remains readable for pre-migration data) — see §4.
 - `EvaluationSummary` — aggregated `modelSummaries`/`promptSummaries` (composite score, latency, success rate, rank), optional `pairwiseRankings`, optional `regression` (delta vs. a saved baseline, classified improved/regressed/unchanged; each `MetricRegression` also carries `onCaseMovementPct?` — one case's worth of movement in points, added 2026-09-04 for A7, so a regression-slice threshold reads in cases rather than a bare percentage). `taskMetrics?: TaskMetrics` (added 2026-09-04, R4-R7; extended 2026-09-04 for A7/A8) is a discriminated union keyed by `taskType`: `ClassificationTaskMetrics` (accuracy, macro-F1, per-class precision/recall/F1, invalid-label rate, format-compliance rate, confusion matrix, run-to-run agreement, `accuracyCI?`, `mcNemar?` vs. a supplied baseline), `TaggingTaskMetrics` (micro/macro P-R-F1, Jaccard mean, exact-set match rate, unknown/duplicate-tag rates, format compliance, `jaccardCI?`, plus `gateMetric` identifying whether that compatibility interval represents Jaccard or recall), `SummarizationTaskMetrics` (deterministic-check rates, median-of-3-judge-pass rubric scores per R6 weights, critical-unsupported-claim rate, self-judge-guard flag, `weightedCI?`, `judgeQualified?`). Each variant carries its own `gate: GateResult` — `{ pass: boolean; failures: string[]; verdict: 'pass' | 'fail' | 'inconclusive' | 'advisory'; caseCount: number; neededCases? }` (A7/A8, 2026-09-04): `pass`/`fail` mean the confidence interval clears or misses the threshold outright; `inconclusive` means the CI straddles it — never a false pass — with `neededCases` estimating how many more cases would resolve it; `advisory` (summarization only) means the judge model is self-judging or is not qualified against a calibration set (A8), so the result is informative but not promotable regardless of score. Classification and tagging never populate a rubric-style composite — only summarization's `medianRubric.weighted` is a composite, by design (R7). Computed in `SummaryService.computeSummary()` only when the run used a built-in purpose template (`purposeCategory` + a matching `assertionStrategy` are both required); absent otherwise.
 - `JudgeQualification` (A8, added 2026-09-04) — `{ judgeModelId, calibrationSetHash, qualifiedAt, spearman, faithfulnessWithin1Pct, meanInflation, selfConsistencyMAD, qualified }`. Computed by `server/services/JudgeQualificationService.ts` via `POST /api/eval/judges/:modelId/qualify` against a calibration set of human-scored summaries (3 self-consistency passes per case, t=0). Thresholds: Spearman ≥ 0.6 vs. human overall, Faithfulness within 1 point on ≥80% of cases, mean inflation within 0.5, per-dimension self-consistency MAD ≤ 0.5. Persisted to `data/evals/judge-qualifications/{judgeModelId}.json`; read back by `ExecutionService.run()` and threaded into `SummarizationTaskMetrics.judgeQualified`. The calibration set itself (`data/evals/calibration/summarization-v0.json`, 22 hand-scored cases) is a **temporary in-repo fixture**, LMEval-authored and distinct from the reviewed `memory-summarization-v1` benchmark suite (Track A5).
 - `JudgeQualificationRun` makes qualification an observable file-backed job (`pending`, `running`,
   `completed`, `failed`, `cancelled`, or `interrupted`) with parsed-call progress. The complete calibration
   content is SHA-256 hashed for freshness. Browser clients poll the consolidated status and can cancel or
   retry; restart recovery marks unfinished work interrupted and never replays costly calls.
+- **Durable evaluation recovery (schema-v1)** — before a new evaluation sends a provider call it writes
+  `execution-inputs.json` (the immutable prompt/test/assertion/inference/judge snapshot),
+  `work-plan.json` (ordered exact cell identities and hashes), `run-state.json`, and an owned
+  `attempts/<attempt-id>.json`. Every fully graded result is atomically committed as
+  `cell-results/<cell-id>.json`; aggregate `results.json` and `summary.json` are written only after
+  every planned checkpoint validates. `progress.json` and feedback derive durable counts from these
+  checkpoints, never from Promptfoo callback counts. `EvalStatus` includes `interrupted`.
+  Startup reconciliation marks a stale owned schema-v1 run interrupted without invoking LMApi.
+  `POST /evaluations/:id/resume` is explicit, retains the same evaluation ID, creates a new attempt,
+  validates the snapshot/plan/checkpoints and current server-qualified catalog routes, then executes
+  only unfinished cells (or finalizes without provider calls when all cells are committed). Older
+  aggregate-only runs are `legacy-unrecoverable` with `LEGACY_NO_CHECKPOINTS`; no completed identity
+  is fabricated from their counters. Partial checkpoint sets never enter Insights or promotion inputs.
+  A successful `202` response is `{ evaluationId, attemptId, resumedFromAttemptId?, mode:
+  'execute-remaining' | 'finalization-only', counts: { total, reused, remaining, inFlightLimit },
+  preflight: { compatible, checks }, browserPaths }`. Preflight `checks[].code` (all enforced, not
+  merely declared) is one of: `ACTIVE_OWNER`, `ALREADY_COMPLETE`, `LEGACY_NO_CHECKPOINTS`,
+  `EXECUTION_INPUT_MISMATCH`, `PLAN_HASH_MISMATCH`, `CHECKPOINT_CORRUPT`,
+  `CHECKPOINT_SCHEMA_UNSUPPORTED`, `PROMPTFOO_SCHEMA_UNSUPPORTED`, `MODEL_ROUTE_UNAVAILABLE`,
+  `MODEL_CATALOG_UNAVAILABLE`, `MODEL_ARTIFACT_MISMATCH` (or the informational
+  `MODEL_ARTIFACT_IDENTITY_UNAVAILABLE` when no artifact digest exists to compare — LMApi does not
+  currently expose one, so this is always the informational case today), `JUDGE_POLICY_MISMATCH`
+  (the evaluation record's current judge selection no longer matches its immutable snapshot),
+  `JUDGE_QUALIFICATION_STALE` (only checked when the snapshotted policy is `qualified-required`; an
+  `advisory-allowed` run is never retroactively strengthened), `CAMPAIGN_MANAGED_RUN`, and
+  `NO_UNFINISHED_WORK`.
 - `ModelSelectionCampaign` supports a server-backed `draft` before its immutable run. It stores exact
   prompt/version pins, warning acknowledgements, active phase work, and every confirmation attempt.
   Validation composes the ordinary evaluation validator, model discovery, suite provenance, judge state,
@@ -85,7 +111,13 @@ LMEval's evaluation runs are executed by [Promptfoo](https://www.promptfoo.dev/)
 - Promptfoo's Node API `evaluate(testSuite, { progressCallback })` fires once per (prompt × provider × test case) cell during a live run, which is what LMEval's WebSocket event stream is built on. Two integration details to get right: `evalStep.provider.id` is a *method*, not a resolved string, and the `metrics` argument passed to `progressCallback` is the cumulative run total, not the current cell's own result — per-cell pass/fail only appears in the final resolved `results` array.
 - Multi-label assertions (e.g. tagging: does the output's tag set sufficiently overlap an expected set?) have no built-in Promptfoo assertion type, but a small custom `javascript` assertion handles it cleanly and composes with everything else Promptfoo provides (results table, `promptfoo view`, export) for free.
 
-`server/services/ExecutionService.ts` owns the translation: an `EvaluationConfig` plus resolved prompt content and test cases becomes a Promptfoo `TestSuite` (prompts array, providers array built from `modelIds` via LMApi's OpenAI-compatible endpoint at `apiBaseUrl`, a `tests` array with per-case `assert` blocks). `evaluate()`'s results are mapped back into the existing `EvalMatrixCell[]`/`EvaluationSummary` shapes so the WebSocket event contract, `SummaryService`, `ReportService`, and the Results UI (§6) are unaffected by the engine underneath them.
+`DurableExecutionService` owns scheduling from the immutable work plan while `ExecutionService` and
+`PromptfooAdapter` retain the Promptfoo translation and result mapping. V1 invokes `evaluate()` once
+per exact logical work item (one pinned prompt, provider, test case, and repetition), with an
+LMEval-owned worker pool enforcing `EVAL_CONCURRENCY`; this avoids accidental Cartesian work and bounds
+hard-stop replay to uncommitted in-flight items. Candidate, judge grading, and judge qualification all
+parse `server::model` through the same resolver and call LMApi's server-pinned completion route.
+Promptfoo continues to grade assertions; LMEval does not reintroduce a parallel grading engine.
 
 This replaces two former internal engines:
 - **`MetricsService`'s hand-rolled checks** (keyword matching, JSON Schema validation via `ajv`, tool-call matching) → Promptfoo assertion types (`icontains`, `equals`, `contains-json`, `javascript`, `llm-rubric`, etc.).

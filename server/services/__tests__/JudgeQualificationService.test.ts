@@ -30,10 +30,11 @@ afterEach(() => {
 
 describe('JudgeQualificationService', () => {
   it('persists progress, preserves threshold failure as a completed result, and detects content changes', async () => {
-    vi.spyOn(LmapiClient, 'chatCompletion').mockResolvedValue({ choices: [{ message: { role: 'assistant', content: '{"faithfulness":3,"salientCoverage":3,"retrievalUtility":3,"concision":3,"overall":3}' } }] } as never);
+    const routed = vi.spyOn(LmapiClient, 'chatCompletionOnServer').mockResolvedValue({ choices: [{ message: { role: 'assistant', content: '{"faithfulness":3,"salientCoverage":3,"retrievalUtility":3,"concision":3,"overall":3}' } }] } as never);
     let completed = 0;
     const result = await JudgeQualificationService.qualify('local::judge', 'summarization-v0', { cancelled: () => false, progress: () => completed++ });
     expect(completed).toBe(60);
+    expect(routed).toHaveBeenCalledWith(expect.objectContaining({ model: 'judge', temperature: 0 }), 'local');
     expect(result.qualified).toBe(false);
     expect(JudgeQualificationService.status('local::judge')).toMatchObject({ state: 'unqualified', current: true });
 

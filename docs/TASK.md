@@ -72,7 +72,7 @@ and the cross-project review in [`plans/2026-09-04-ingestion-eval-alignment-revi
 | 6 | Frontend results + analysis | ✅ complete |
 | 6.5 | Run dashboard fixes + redesign | ✅ complete |
 | 7 | Prepare & Results refinement | ✅ complete 2026-09-05 (B1/B2), browser walkthrough owed — see Track B/E |
-| 8 | Automated refinement loop | ⛔ not started |
+| 8 | Agent-guided prompt learning | ⛔ planned; classification-first C1-C3 next |
 | 9 | Wizard Step 5: AI summary | ✅ complete 2026-09-05 (B3), browser walkthrough owed — see Track B/E |
 | 10 | Promptfoo engine migration | ⚠️ complete except pairwise + live verification |
 | 11 | Evaluation mode strip | ✅ complete except Full-Matrix N-slot UI |
@@ -493,30 +493,53 @@ Phase 7 items closed against the working tree, all covered by tests (`npx vitest
 
 ---
 
-### Track C — Automated refinement loop (Phase 8)
+### Track C — Agent-guided prompt learning (Phase 8)
 
-> ⚠️ **Constraint, enforced in code and not merely in prose:** the loop may read and optimize against
-> the **calibration split only**. Exposing the regression split to an automated optimizer converts the
-> promotion gate into a training objective and destroys the only unbiased estimate in the system.
-> Its output is a candidate for human review — never a cross-repository write into MemoryApi.
+> Next-iteration plan: [`plans/2026-09-08-1636-feat-classification-prompt-learning-loop-plan.md`](plans/2026-09-08-1636-feat-classification-prompt-learning-loop-plan.md)
+>
+> The learning workflow may read and optimize against the **calibration split only**. Exposing the
+> regression split to an optimizer converts the promotion gate into a training objective and destroys
+> the unbiased estimate. Its output remains advisory and human-reviewed; it never writes to MemoryApi.
+>
+> **Durability/recovery prerequisite:** ✅ core implementation complete 2026-09-08, gaps closed 2026-09-08 —
+> [`plans/2026-09-08-evaluation-failure-recovery-and-resume.md`](plans/2026-09-08-evaluation-failure-recovery-and-resume.md)
+> has atomic schema-v1 inputs/plans/checkpoints, attempt ownership/reconciliation, exact-item execution,
+> same-ID Resume, checkpoint-derived feedback, server-qualified judge routing, and recovery UI. Resume
+> preflight now enforces all documented reason codes, including judge-policy/qualification drift and the
+> checkpoint/Promptfoo schema-version gates that were previously defined but unreachable. The resume
+> confirmation is an accessible in-panel dialog (not `window.confirm`), reason codes render as
+> human-readable text, and WS-derived progress can no longer regress behind a previously observed value.
+> Unit, route, and component checks passed, including new coverage for finalization-only, blocked/corrupt,
+> and honest-cancel Playwright scenarios. Restart/bounded-replay behavior is proven at the service level
+> (kill and reconstruct `EvaluationAttemptService`, then `reconcileOnStartup()` + `resume()` against a
+> real checkpoint) — a full OS-process-kill Playwright test is not implemented and remains a follow-up.
+> No live model calls were made. G7 and the classification portion of G8 remain required before any live
+> acceptance. A stale or incomplete run is execution evidence, not prompt-quality evidence.
 
-**C1 — Environment**
-- [ ] `REFINEMENT_MODEL` in `.example.env`; suggestions endpoint returns 400 when unset
-- [ ] Expose it in `GET /api/eval/health` so the frontend can gate the button
+**C1 — Deterministic classification failure-pattern API — next priority 1**
+- [ ] Derive stable recurring patterns for one explicit model from completed classification cells: valid-label confusion, empty output, wrapper text, case/punctuation drift, unknown output, truncation, instability, and `caseTags` slices
+- [ ] Expose `GET /evaluations/:id/failure-analysis?modelId=<server::model>` with eligibility, bounded representative cells, counts/rates, prompt and benchmark provenance, and calibration-only filtering
+- [ ] Keep execution failures separate and preserve exact-label scoring: diagnostics may interpret raw output but never repair or rescore it
 
-**C2 — Human-in-the-loop (8a)**
-- [ ] `ImprovementSuggestion` / `RefinementLoopConfig` types in `src/types/session.ts`
-- [ ] `RefinementService.ts`: `buildImprovementPrompt()`, `parseSuggestions()` (4-step fallback, same pattern as `JudgeService`), `applySuggestion()`
-- [ ] Routes: `POST /sessions/:id/suggest-improvements`, `POST /sessions/:id/apply-suggestion`, `GET /sessions/:id/suggestions`
-- [ ] Frontend suggestion cards with rationale, estimated impact, Show diff / Apply / Reject
+**C2 — One agent-authored refinement experiment — next priority 2**
+- [ ] Add a persisted refinement-experiment lifecycle accepting one hypothesis, cited pattern IDs, one complete candidate prompt, and one explicit target `server::model`
+- [ ] Create a distinct derived prompt, pin incumbent and candidate, preserve the source task/transport/inference shape, force at least three classification runs per cell, and start exactly one calibration-only prompt comparison
+- [ ] Validate all inputs before model work; expose the exact provider-call estimate and warnings before the workflow skill requests authority to start
 
-**C3 — Automated loop (8b, deferred)**
-- [ ] `POST /sessions/:id/refine-loop` with stop conditions (target delta, max iterations, 3 consecutive no-improvement, no parseable suggestions, user cancel); `refine:*` WebSocket events; cancel endpoint
-- [ ] Auto-commit successful iterations / auto-revert regressions **within LMEval's own data directory only**
-- [ ] Loop progress UI: iteration counter, current action, live score trajectory, Cancel
+**C3 — Tiered outcome and durable learning record — next priority 3**
+- [ ] Compare prompts by paired case/repetition results, classification metrics, CIs, McNemar, confusion movement, format/invalid-label guardrails, and per-class correct-case movement
+- [ ] Persist `improved` / `promising` / `unchanged` / `regressed` with explicit reasons; pending-human-review benchmarks force advisory status and incomplete runs produce no quality outcome
+- [ ] Extend `.agents/skills/lmeval-evaluation-workflow/`, OpenAPI, README, typed clients, and the specification with the classification diagnosis → one hypothesis → disclosed call estimate → one run → interpretation path
 
-**C4 — Eval definition improvement (8c, lowest priority)**
-- [ ] `buildEvalImprovementPrompt()` / `parseEvalSuggestions()` — propose new test cases, adjusted weights, refined criteria
+**Already available, not a dependency of C1-C3**
+- [x] `REFINEMENT_MODEL` configuration, health exposure, cached `summary-analysis`, suggestion cards, prompt-version apply, and Apply & Re-run shipped with B3. The new agent path is caller-authored and does not invoke a second refinement model
+
+**Deferred after the classification vertical slice**
+- [ ] Extend failure patterns and experiments to tagging, including missing/extra/unknown/duplicate tags, group-level recall, and recurring per-tag signals
+- [ ] Brainstorm tiered ground truth for classification/tagging (`Expected` or `Must`, `Acceptable`, `Avoid`) and its effects on scoring, imports, confidence intervals, and benchmark review
+- [ ] Automated multi-iteration loops, automatic promotion/git behavior, and loop UI
+- [ ] Evaluation-definition suggestions such as new cases, expected-answer changes, weights, thresholds, or criteria; the classification-first agent workflow remains prompt-only
+- [ ] Summarization prompt learning and finding-level judge feedback
 
 ---
 

@@ -54,9 +54,10 @@ Whether you're tightening instructions, adjusting tone, restructuring context, o
 - **Deterministic metric checks** — keyword matching, forbidden phrase detection, JSON Schema validation, tool call matching (via `ajv`)
 - **Parallel execution with concurrency control** — semaphore-limited parallel dispatch (configurable via `EVAL_CONCURRENCY`)
 - **Retry resilience** — automatic retry on 429/502/503/504 and network errors (configurable via `LMAPI_RETRY_COUNT`, `LMAPI_RETRY_DELAY_MS`)
-- **Abort/cancel** — stop a running evaluation at any time via `DELETE /api/eval/evaluations/:id`
+- **Durable interruption recovery** — every fully graded logical cell is checkpointed; after a service restart, an explicit same-ID Resume reuses those exact cells and runs only unfinished work
+- **Abort/cancel** — request cancellation without deleting checkpoints via `POST /api/eval/evaluations/:id/cancel`
 - **Session linking** — link evaluation runs to sessions for history tracking
-- **Re-run support** — retry failed evaluations via `POST /api/eval/evaluations/:id/retry`
+- **Retry / full-rerun support** — create a new evaluation from failed cells or the full selected matrix via `POST /api/eval/evaluations/:id/retry`
 - **WebSocket events** — real-time `cell:started`, `cell:completed`, `eval:progress`, `eval:completed` events
 
 ### Git Integration for Prompt Versioning (Phase 2.5)
@@ -208,6 +209,29 @@ Navigate to `/` and click **"New Evaluation"** to start the 5-step wizard:
 2. **Configure** (`/eval/config`) — choose an eval template (or auto-generate one from your prompt), add test cases (quick single-message or full suite), configure the judge model and pairwise comparison, preview the evaluation matrix, and optionally save/load a preset
 3. **Run** (`/eval/run/:id`) — watch the evaluation run live: elapsed timer, overall progress, per-model cards with latency/tokens stats, and a scrolling live feed of completed cells you can click to preview
 4. **Results** (`/eval/results/:id`) — explore five tabs: Scoreboard (heatmap + leaderboards), Compare (side-by-side diff), Detail (full cell drill-down), Metrics (Recharts bar charts), Timeline (score history); export as HTML or Markdown; save as baseline for regression tracking
+
+### Recovering an interrupted evaluation
+
+New evaluations persist an immutable execution snapshot, exact work plan, attempt records, and one
+atomic checkpoint per fully graded cell. If the service stops, the next startup marks an unfinished
+owned attempt **interrupted** without sending any model calls. The Run dashboard then reports durable
+completed/remaining counts and offers recovery where it is safe.
+
+| Action | Endpoint | Effect | Typical responses |
+| --- | --- | --- | --- |
+| **Resume** | `POST /api/eval/evaluations/:id/resume` | Same evaluation ID, new attempt, reuses valid checkpoints, runs only unfinished cells (or finalizes with zero model calls if none remain) | `202` accepted; `404 EVALUATION_NOT_FOUND`; `409 EVALUATION_ALREADY_RUNNING`; `409 RESUME_INCOMPATIBLE` (all failed preflight checks); `409 EVALUATION_NOT_RESUMABLE` |
+| **Retry failed cells** | `POST /api/eval/evaluations/:id/retry` (`{ failedCellsOnly: true }` or `{ cellIds }`) | New evaluation derived from selected terminal result cells | `202` with the new `evalId` |
+| **Full rerun** | `POST /api/eval/evaluations/:id/retry` (no selection) | New evaluation for the whole selected matrix | `202` with the new `evalId` |
+| **Cancel** | `POST /api/eval/evaluations/:id/cancel` | Preserves committed checkpoints for a later explicit Resume | `202` `cancellation-requested` (live controller aborted) or `reconciled-interrupted` (stale owner, honestly reports no live call was aborted); `409 EVALUATION_NOT_ACTIVE` if already terminal |
+| **Delete** | `DELETE /api/eval/evaluations/:id` | Destructive: removes the evaluation directory and all checkpoints | `200`; `409 EVALUATION_ACTIVE_DELETE_FORBIDDEN` while `pending`/`running` |
+
+Resume never rewrites prompts, test cases, models, judge routing, or inference settings — it only
+reuses what was already durably committed under the original immutable snapshot. Retry and Full
+rerun always create a **new** evaluation ID; only Resume continues the original one.
+
+Older runs with only an aggregate `progress.json` count are deliberately not resumable:
+`LEGACY_NO_CHECKPOINTS` means that count remains diagnostic evidence and a Full rerun is required.
+Campaign protocol phases are likewise managed by their campaign workflow rather than ordinary Resume.
 
 ### Run History & Insights (cross-run dashboard)
 
@@ -795,9 +819,10 @@ promotion actions are separate operations and require explicit intent.
 | `PATCH /api/eval/evaluations/:id` | Edit a draft; started evaluations are immutable |
 | `POST /api/eval/evaluations/:id/run` | Validate and start a draft exactly once |
 | `GET /api/eval/evaluations/:id/feedback` | Poll status, progress, readiness, failures, verdict, and browser paths |
-| `POST /api/eval/evaluations/:id/cancel` | Cancel an in-flight evaluation without deleting it |
+| `POST /api/eval/evaluations/:id/resume` | Resume unfinished checkpointed cells in the same evaluation after compatibility preflight |
+| `POST /api/eval/evaluations/:id/cancel` | Request cancellation without deleting checkpoints; preserves committed work for Resume |
 | `DELETE /api/eval/evaluations/:id` | Permanently delete an evaluation and its artifacts |
-| `POST /api/eval/evaluations/:id/retry` | Re-run failed evaluation |
+| `POST /api/eval/evaluations/:id/retry` | Create a new retry of selected/failed cells, or a new full rerun |
 | `GET /api/eval/evaluations/:id/testcases` | Get the resolved cases actually run |
 | `GET /api/eval/evaluations/:id/history` | Get related evaluation history |
 | `GET /api/eval/evaluations/:id/regression?baselineSlug=...` | Compare with a saved baseline |

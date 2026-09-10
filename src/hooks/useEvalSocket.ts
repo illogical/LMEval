@@ -14,6 +14,9 @@ export function useEvalSocket(evalId: string | null): EvalSocketState {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const reconnectDelayRef = useRef(1000);
   const unmountedRef = useRef(false);
+  // Reconnects or duplicate deliveries can replay an older eval:progress event;
+  // WS progress is a hint and must never report less durable work than already observed.
+  const maxObservedCompletedRef = useRef(0);
 
   const [state, setState] = useState<EvalSocketState>({
     progress: 0,
@@ -59,7 +62,9 @@ export function useEvalSocket(evalId: string | null): EvalSocketState {
             if (event.type === 'eval:progress') {
               const d = event.data as { completedCells?: number; totalCells?: number };
               if (d.totalCells && d.totalCells > 0) {
-                progress = Math.round(((d.completedCells ?? 0) / d.totalCells) * 100);
+                const observed = Math.max(maxObservedCompletedRef.current, d.completedCells ?? 0);
+                maxObservedCompletedRef.current = observed;
+                progress = Math.round((observed / d.totalCells) * 100);
               }
             } else if (event.type === 'eval:completed') {
               progress = 100;
@@ -94,6 +99,7 @@ export function useEvalSocket(evalId: string | null): EvalSocketState {
   useEffect(() => {
     unmountedRef.current = false;
     // Reset state when evalId changes
+    maxObservedCompletedRef.current = 0;
     setState({ progress: 0, events: [], status: 'idle', isCompleted: false, error: null });
     clearTimeout(reconnectTimerRef.current);
     wsRef.current?.close();

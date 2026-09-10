@@ -2,6 +2,8 @@ import { join } from 'path';
 import { createHash } from 'crypto';
 import { readJson, writeJson, ensureDir, listDir, generateId, DATA_DIR, JUDGE_QUALIFICATIONS_DIR, CALIBRATION_DIR } from './FileService';
 import { LmapiClient } from './LmapiClient';
+import { parseServerQualifiedModel } from './ServerQualifiedModelService';
+import { sha256 } from './CanonicalHashService';
 import type { JudgeQualification, JudgeQualificationRun, JudgeQualificationStatus } from '../../src/types/eval';
 
 const DIMENSIONS = ['faithfulness', 'salientCoverage', 'retrievalUtility', 'concision', 'overall'] as const;
@@ -167,6 +169,7 @@ export const JudgeQualificationService = {
   },
 
   async qualify(judgeModelId: string, calibrationSetId = 'summarization-v0', hooks?: { cancelled: () => boolean; progress: () => void }): Promise<JudgeQualification> {
+    const route = parseServerQualifiedModel(judgeModelId);
     const set = loadCalibrationSet(calibrationSetId);
     if (set.cases.length < 20) {
       throw new Error(`Calibration set ${calibrationSetId} has ${set.cases.length} cases, fewer than the required 20`);
@@ -180,13 +183,13 @@ export const JudgeQualificationService = {
       const runs: Record<Dimension, number[]> = { faithfulness: [], salientCoverage: [], retrievalUtility: [], concision: [], overall: [] };
       for (let pass = 0; pass < QUALIFY_PASSES; pass++) {
         if (hooks?.cancelled()) throw new Error('Qualification cancelled');
-        const response = await LmapiClient.chatCompletion({
-          model: judgeModelId,
+        const response = await LmapiClient.chatCompletionOnServer({
+          model: route.modelName,
           messages: [{ role: 'user', content: buildQualificationPrompt(c) }],
           stream: false,
           groupId: `judge-qualify-${judgeModelId}`,
           temperature: 0,
-        });
+        }, route.serverName);
         const scores = parseJudgeScores(response.choices[0]?.message.content ?? '');
         if (DIMENSIONS.some(dim => scores[dim] == null)) throw new Error('Judge returned incomplete or invalid qualification scores');
         hooks?.progress();
@@ -238,6 +241,8 @@ export const JudgeQualificationService = {
       meanInflation,
       selfConsistencyMAD,
       qualified,
+      route,
+      settingsSha256: sha256({ calibrationSetHash: hashCalibrationSet(set), temperature: 0, passes: QUALIFY_PASSES }),
     };
 
     ensureDir(JUDGE_QUALIFICATIONS_DIR);

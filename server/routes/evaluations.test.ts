@@ -30,7 +30,7 @@ beforeEach(() => {
   dataRoot = mkdtempSync(join(tmpdir(), 'lmeval-evaluation-route-'));
   configurePaths({ dataRoot, repoRoot: process.cwd() });
   vi.spyOn(LmapiClient, 'getServers').mockResolvedValue([{ config: { name: 'local' }, isOnline: true, models: ['model-a'] } as never]);
-  vi.spyOn(ExecutionService, 'run').mockResolvedValue();
+  vi.spyOn(ExecutionService, 'start').mockResolvedValue({ attemptId: 'attempt-test' } as never);
 });
 
 afterEach(() => {
@@ -54,7 +54,7 @@ describe('agent-drivable evaluation routes', () => {
     const created = await create.json();
     expect(created.evaluation.status).toBe('draft');
     expect(created.browserPaths.config).toContain('/lmeval/eval/config/');
-    expect(ExecutionService.run).not.toHaveBeenCalled();
+    expect(ExecutionService.start).not.toHaveBeenCalled();
 
     const patch = await fetch(`${baseUrl}/${created.evaluation.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Updated draft' }) });
     expect(patch.status).toBe(200);
@@ -62,10 +62,10 @@ describe('agent-drivable evaluation routes', () => {
 
     const start = await fetch(`${baseUrl}/${created.evaluation.id}/run`, { method: 'POST' });
     expect(start.status).toBe(202);
-    expect(ExecutionService.run).toHaveBeenCalledTimes(1);
+    expect(ExecutionService.start).toHaveBeenCalledTimes(1);
     const again = await fetch(`${baseUrl}/${created.evaluation.id}/run`, { method: 'POST' });
     expect(again.status).toBe(409);
-    expect(ExecutionService.run).toHaveBeenCalledTimes(1);
+    expect(ExecutionService.start).toHaveBeenCalledTimes(1);
   });
 
   it('keeps legacy create-and-start flat and persists inference', async () => {
@@ -75,7 +75,7 @@ describe('agent-drivable evaluation routes', () => {
     expect(created.id).toMatch(/^eval-/);
     expect(created.evaluation).toBeUndefined();
     expect(created.inference).toEqual({ temperature: 0.3, maxTokens: 1000 });
-    expect(ExecutionService.run).toHaveBeenCalledTimes(1);
+    expect(ExecutionService.start).toHaveBeenCalledTimes(1);
   });
 
   it('reserves a draft while asynchronous start validation is in flight', async () => {
@@ -96,7 +96,7 @@ describe('agent-drivable evaluation routes', () => {
     const responses = await Promise.all([first, second]);
 
     expect(responses.map(response => response.status).sort()).toEqual([202, 409]);
-    expect(ExecutionService.run).toHaveBeenCalledTimes(1);
+    expect(ExecutionService.start).toHaveBeenCalledTimes(1);
   });
 
   it('returns machine-readable validation and feedback states', async () => {
@@ -116,5 +116,18 @@ describe('agent-drivable evaluation routes', () => {
     const response = await fetch(`${baseUrl}/validate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body()) });
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ code: 'MODEL_CATALOG_UNAVAILABLE' });
+  });
+
+  it('rejects legacy resume and protects active evaluations from destructive delete', async () => {
+    const legacy = await fetch(`${baseUrl}/drafts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body()) });
+    const created = await legacy.json();
+    const start = await fetch(`${baseUrl}/${created.evaluation.id}/run`, { method: 'POST' });
+    expect(start.status).toBe(202);
+    const remove = await fetch(`${baseUrl}/${created.evaluation.id}`, { method: 'DELETE' });
+    expect(remove.status).toBe(409);
+
+    const resume = await fetch(`${baseUrl}/${created.evaluation.id}/resume`, { method: 'POST' });
+    expect(resume.status).toBe(409);
+    expect(await resume.json()).toMatchObject({ code: 'EVALUATION_NOT_RESUMABLE', reasonCode: 'LEGACY_NO_CHECKPOINTS' });
   });
 });

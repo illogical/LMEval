@@ -23,7 +23,7 @@ export function configureEvaluationRoutes(options: { appBasePath: string }) {
 }
 
 function sendEvaluationError(res: import('express').Response, error: unknown) {
-  const err = error as Error & { code?: string; validation?: unknown };
+  const err = error as Error & { code?: string; validation?: unknown; status?: number; checks?: unknown; reasonCode?: string };
   if (error instanceof ModelCatalogUnavailableError) {
     return void res.status(503).json({ error: err.message, code: 'MODEL_CATALOG_UNAVAILABLE' });
   }
@@ -31,6 +31,7 @@ function sendEvaluationError(res: import('express').Response, error: unknown) {
   if (err.code === 'EVALUATION_NOT_DRAFT' || err.code === 'EVALUATION_ALREADY_STARTED') {
     return void res.status(409).json({ error: err.message, code: err.code });
   }
+  if (err.status === 409) return void res.status(409).json({ error: err.message, code: err.code, reasonCode: err.reasonCode, checks: err.checks });
   if (err.validation) return void res.status(400).json({ error: err.message, code: 'EVALUATION_VALIDATION_FAILED', validation: err.validation });
   return void res.status(400).json({ error: err.message, code: err.code ?? 'EVALUATION_REQUEST_FAILED' });
 }
@@ -208,7 +209,7 @@ evaluationsRouter.post('/drafts', async (req, res) => {
 evaluationsRouter.post('/', async (req, res) => {
   try {
     const created = await EvaluationService.create(req.body as EvaluationInput, 'pending');
-    ExecutionService.run(created.evaluation.id).catch(err => console.error(`[ExecutionService] run(${created.evaluation.id}) failed:`, err));
+    await ExecutionService.start(created.evaluation.id);
     res.status(202).json({ ...created.evaluation, evalRunId: created.evalRunId });
   } catch (error) {
     sendEvaluationError(res, error);
@@ -227,7 +228,7 @@ evaluationsRouter.patch('/:id', async (req, res) => {
 evaluationsRouter.post('/:id/run', async (req, res) => {
   try {
     const started = await EvaluationService.startDraft(req.params.id);
-    ExecutionService.run(started.evaluation.id).catch(err => console.error(`[ExecutionService] run(${started.evaluation.id}) failed:`, err));
+    await ExecutionService.start(started.evaluation.id);
     res.status(202).json({ ...started, browserPaths: browserPaths(started.evaluation.id, appBasePath) });
   } catch (error) {
     sendEvaluationError(res, error);
@@ -240,12 +241,22 @@ evaluationsRouter.get('/:id/feedback', async (req, res) => {
   res.json(feedback);
 });
 
+evaluationsRouter.post('/:id/resume', async (req, res) => {
+  try {
+    res.status(202).json(await ExecutionService.resume(req.params.id, appBasePath));
+  } catch (error) {
+    sendEvaluationError(res, error);
+  }
+});
+
 evaluationsRouter.delete('/:id', (req, res) => {
   const { id } = req.params;
   const evalDir = join(EVALUATIONS_DIR, id);
   const config = readJson<EvaluationConfig>(join(evalDir, 'config.json'));
   if (!config) return void res.status(404).json({ error: 'Evaluation not found' });
-  ExecutionService.cancel(id);
+  if (config.status === 'pending' || config.status === 'running') {
+    return void res.status(409).json({ error: 'Cancel an active evaluation before deleting it', code: 'EVALUATION_ACTIVE_DELETE_FORBIDDEN' });
+  }
   deleteDir(evalDir);
   res.json({ success: true });
 });
@@ -255,11 +266,12 @@ evaluationsRouter.post('/:id/cancel', (req, res) => {
   const evalDir = join(EVALUATIONS_DIR, id);
   const config = readJson<EvaluationConfig>(join(evalDir, 'config.json'));
   if (!config) return void res.status(404).json({ error: 'Evaluation not found' });
-  const cancelled = ExecutionService.cancel(id);
-  res.json({ success: true, cancelled });
+  const cancellation = ExecutionService.cancel(id);
+  if (!cancellation) return void res.status(409).json({ error: 'Evaluation is not active', code: 'EVALUATION_NOT_ACTIVE' });
+  res.status(202).json(cancellation);
 });
 
-evaluationsRouter.post('/:id/retry', (req, res) => {
+evaluationsRouter.post('/:id/retry', async (req, res) => {
   const { id } = req.params;
   const body = (req.body ?? {}) as {
     failedCellsOnly?: boolean;
@@ -319,9 +331,7 @@ evaluationsRouter.post('/:id/retry', (req, res) => {
     evalRunId = run?.id;
   }
 
-  ExecutionService.run(newEvalId, cellFilter ? { cellFilter } : undefined).catch(err => {
-    console.error(`[ExecutionService] retry run(${newEvalId}) failed:`, err);
-  });
+  await ExecutionService.start(newEvalId, cellFilter ? { cellFilter } : undefined);
 
   res.status(202).json({ evalId: newEvalId, evalRunId, retriedCells: cellFilter?.length });
 });

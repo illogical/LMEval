@@ -1,4 +1,4 @@
-import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset, EvalPurposeTemplate, EvaluationHistoryEntry, BaselineSummary, RegressionResult, EvaluationInput, EvaluationValidationResult, EvaluationBrowserPaths, EvaluationFeedback } from '../types/eval';
+import type { PromptManifest, PromptVersionMeta, EvalTemplate, TestSuite, TestCase, EvaluationConfig, EvalMatrixCell, EvaluationSummary, EvalPreset, EvalPurposeTemplate, EvaluationHistoryEntry, BaselineSummary, RegressionResult, EvaluationInput, EvaluationValidationResult, EvaluationBrowserPaths, EvaluationFeedback, ResumeEvaluationResponse, CancellationResult } from '../types/eval';
 import type { ParseResult } from '../utils/testCaseIO';
 import type { SessionManifest, SessionSlot, EvalRun, SummaryAnalysis } from '../types/session';
 
@@ -137,6 +137,9 @@ export async function startEvaluationDraft(id: string): Promise<{ evaluation: Ev
 export async function getEvaluationFeedback(id: string): Promise<EvaluationFeedback> {
   return apiFetch(`/evaluations/${id}/feedback`);
 }
+export async function resumeEvaluation(id: string): Promise<ResumeEvaluationResponse> {
+  return apiFetch(`/evaluations/${id}/resume`, { method: 'POST' });
+}
 export async function getEvaluationResults(id: string): Promise<EvalMatrixCell[]> {
   return apiFetch(`/evaluations/${id}/results`);
 }
@@ -214,8 +217,8 @@ export async function deletePrompt(id: string): Promise<void> {
 export async function deleteEvaluation(id: string): Promise<void> {
   await apiFetch(`/evaluations/${id}`, { method: 'DELETE' });
 }
-export async function cancelEvaluation(id: string): Promise<void> {
-  await apiFetch(`/evaluations/${id}/cancel`, { method: 'POST' });
+export async function cancelEvaluation(id: string): Promise<CancellationResult> {
+  return apiFetch(`/evaluations/${id}/cancel`, { method: 'POST' });
 }
 export async function deleteSession(id: string): Promise<void> {
   await apiFetch(`/sessions/${id}`, { method: 'DELETE' });

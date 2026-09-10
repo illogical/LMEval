@@ -10,7 +10,7 @@ const DEFAULT_TIMEOUT = 120_000; // 2 minutes
 const RETRY_COUNT = Math.max(0, parseInt(process.env.LMAPI_RETRY_COUNT ?? '3', 10) || 3);
 const RETRY_DELAY_MS = Math.max(100, parseInt(process.env.LMAPI_RETRY_DELAY_MS ?? '2000', 10) || 2000);
 
-class LmapiError extends Error {
+export class LmapiError extends Error {
   constructor(
     message: string,
     public readonly statusCode: number,
@@ -21,8 +21,15 @@ class LmapiError extends Error {
   }
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+    }, { once: true });
+  });
 }
 
 function isRetryable(err: unknown): boolean {
@@ -40,7 +47,8 @@ async function withRetry<T>(
   retries = RETRY_COUNT,
   delayMs = RETRY_DELAY_MS,
   context = 'LMApi call',
-  onRetry?: (attemptNumber: number, err: Error) => void
+  onRetry?: (attemptNumber: number, err: Error) => void,
+  signal?: AbortSignal
 ): Promise<T> {
   let lastError: Error = new Error('Unknown error');
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -53,7 +61,7 @@ async function withRetry<T>(
         const wait = delayMs * (attempt + 1);
         console.warn(`[retry] ${context}: attempt ${attempt + 1} failed (${(err as Error).message}), retrying in ${wait}ms`);
         onRetry?.(attempt + 1, err as Error);
-        await sleep(wait);
+        await sleep(wait, signal);
       }
     }
   }
@@ -67,10 +75,13 @@ async function fetchWithTimeout(
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const parentSignal = options.signal;
+  const signal = parentSignal ? AbortSignal.any([controller.signal, parentSignal]) : controller.signal;
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(url, { ...options, signal });
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
+      if (parentSignal?.aborted) throw err;
       throw new LmapiError(`Request to ${url} timed out after ${timeoutMs}ms`, 504, true);
     }
     throw err;
@@ -95,7 +106,8 @@ export const LmapiClient = {
 
   async chatCompletion(
     req: LmapiChatCompletionRequest,
-    onRetry?: (attemptNumber: number, err: Error) => void
+    onRetry?: (attemptNumber: number, err: Error) => void,
+    signal?: AbortSignal
   ): Promise<LmapiChatCompletionResponse> {
     return withRetry(
       async () => {
@@ -105,6 +117,7 @@ export const LmapiClient = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(req),
+            signal,
           }
         );
         if (!res.ok) {
@@ -116,14 +129,16 @@ export const LmapiClient = {
       RETRY_COUNT,
       RETRY_DELAY_MS,
       `chatCompletion(${req.model})`,
-      onRetry
+      onRetry,
+      signal
     );
   },
 
   async chatCompletionOnServer(
     req: LmapiChatCompletionRequest,
     serverName: string,
-    onRetry?: (attemptNumber: number, err: Error) => void
+    onRetry?: (attemptNumber: number, err: Error) => void,
+    signal?: AbortSignal
   ): Promise<LmapiChatCompletionResponse> {
     return withRetry(
       async () => {
@@ -133,6 +148,7 @@ export const LmapiClient = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...req, serverName }),
+            signal,
           }
         );
         if (!res.ok) {
@@ -144,7 +160,8 @@ export const LmapiClient = {
       RETRY_COUNT,
       RETRY_DELAY_MS,
       `chatCompletionOnServer(${req.model}@${serverName})`,
-      onRetry
+      onRetry,
+      signal
     );
   },
 };

@@ -3,6 +3,7 @@ import type { Assertion, ApiProvider } from 'promptfoo';
 import { LmapiClient } from './LmapiClient';
 import { config as serverConfig } from '../config';
 import { checkSummaryDeterministics } from './summarizationChecks';
+import { parseServerQualifiedModel } from './ServerQualifiedModelService';
 import type {
   EvaluationConfig, TestCase, EvalTemplate, ToolDefinition, AssertionStrategy, InferenceParams,
 } from '../../src/types/eval';
@@ -16,10 +17,8 @@ const ajv = new Ajv({ allErrors: true });
  * promptfoo's ProviderResponse has no dedicated fields for them (see
  * mapEvaluateResultToCell in ExecutionService, which reads this metadata back).
  */
-export function buildLmapiProvider(modelId: string, evalId: string, inference?: InferenceParams): ApiProvider {
-  const separatorIdx = modelId.indexOf('::');
-  const serverName = separatorIdx !== -1 ? modelId.slice(0, separatorIdx) : undefined;
-  const modelName = separatorIdx !== -1 ? modelId.slice(separatorIdx + 2) : modelId;
+export function buildLmapiProvider(modelId: string, evalId: string, inference?: InferenceParams, signal?: AbortSignal): ApiProvider {
+  const { serverName, modelName } = parseServerQualifiedModel(modelId);
 
   return {
     id: () => modelId,
@@ -45,9 +44,7 @@ export function buildLmapiProvider(modelId: string, evalId: string, inference?: 
         }),
       };
       try {
-        const response = serverName
-          ? await LmapiClient.chatCompletionOnServer(chatReq, serverName, onRetry)
-          : await LmapiClient.chatCompletion(chatReq, onRetry);
+        const response = await LmapiClient.chatCompletionOnServer(chatReq, serverName, onRetry, signal);
         const choice = response.choices[0];
         return {
           output: choice?.message.content ?? '',
@@ -80,14 +77,15 @@ export function buildLmapiProvider(modelId: string, evalId: string, inference?: 
  * promptfoo owns the rubric prompt template and JSON-parsing of the grading response,
  * so this must NOT wrap it in our own system/user split.
  */
-export function buildJudgeProvider(judgeModelId: string, evalId: string): ApiProvider {
+export function buildJudgeProvider(judgeModelId: string, evalId: string, signal?: AbortSignal): ApiProvider {
+  const { serverName, modelName } = parseServerQualifiedModel(judgeModelId);
   return {
     id: () => `judge:${judgeModelId}`,
     label: judgeModelId,
     async callApi(prompt: string) {
       try {
-        const response = await LmapiClient.chatCompletion({
-          model: judgeModelId,
+        const response = await LmapiClient.chatCompletionOnServer({
+          model: modelName,
           messages: [{ role: 'user', content: prompt }],
           stream: false,
           groupId: `judge-${evalId}`,
@@ -95,7 +93,7 @@ export function buildJudgeProvider(judgeModelId: string, evalId: string): ApiPro
           // reproducible as the backend allows, independent of the run's own
           // sampling temperature.
           temperature: 0,
-        });
+        }, serverName, undefined, signal);
         return { output: response.choices[0]?.message.content ?? '' };
       } catch (err) {
         return { error: (err as Error).message };
@@ -374,11 +372,12 @@ export const PromptfooAdapter = {
     testCases: TestCase[];
     template: EvalTemplate | null;
     purposeStrategy: AssertionStrategy | null;
+    signal?: AbortSignal;
   }): BuildTestSuiteResult {
-    const { evalId, config, promptContents, testCases, template, purposeStrategy } = params;
+    const { evalId, config, promptContents, testCases, template, purposeStrategy, signal } = params;
 
-    const providers = config.modelIds.map(modelId => buildLmapiProvider(modelId, evalId, config.resolvedInference));
-    const judgeProvider = config.judgeModelId ? buildJudgeProvider(config.judgeModelId, evalId) : null;
+    const providers = config.modelIds.map(modelId => buildLmapiProvider(modelId, evalId, config.resolvedInference, signal));
+    const judgeProvider = config.judgeModelId ? buildJudgeProvider(config.judgeModelId, evalId, signal) : null;
     const overlapThreshold =
       purposeStrategy?.type === 'label-overlap' ? purposeStrategy.config.minimumCaseF1 : 0.5;
 

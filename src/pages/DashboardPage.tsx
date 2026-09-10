@@ -8,9 +8,10 @@ import { PromptRunCard } from '../components/dashboard/PromptRunCard';
 import { ErrorPanel } from '../components/dashboard/ErrorPanel';
 import { WsStatusDot } from '../components/dashboard/WsStatusDot';
 import { ConnectionLostBanner } from '../components/dashboard/ConnectionLostBanner';
+import { RecoveryPanel } from '../components/dashboard/RecoveryPanel';
 import { useEvalSocket } from '../hooks/useEvalSocket';
-import { getEvaluation, getEvaluationResults, cancelEvaluation } from '../api/eval';
-import type { EvalMatrixCell, EvaluationConfig } from '../types/eval';
+import { getEvaluation, getEvaluationFeedback, getEvaluationResults, cancelEvaluation, resumeEvaluation, retryEvaluationCells } from '../api/eval';
+import type { EvalMatrixCell, EvaluationConfig, EvaluationFeedback } from '../types/eval';
 import type { ModelCellInfo } from '../components/dashboard/ModelStatusRow';
 import type { CellFailure } from '../components/dashboard/ErrorPanel';
 import { CampaignContextBadge } from '../components/common/CampaignContextBadge';
@@ -28,6 +29,9 @@ export function DashboardPage() {
   const [retrying, setRetrying] = useState(false);
   const [refreshingStatus, setRefreshingStatus] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [feedback, setFeedback] = useState<EvaluationFeedback | null>(null);
+  const [resuming, setResuming] = useState(false);
+  const [rerunning, setRerunning] = useState(false);
 
   // Map from "promptId::modelId" → ModelCellInfo for tracking status per cell
   const [cellStatusMap, setCellStatusMap] = useState<Map<string, ModelCellInfo>>(new Map());
@@ -37,11 +41,12 @@ export function DashboardPage() {
   // without depending on the WebSocket being connected.
   const refreshStatus = useCallback(async () => {
     if (!evalId) return;
-    const cfg = await getEvaluation(evalId);
+    const [cfg, durable] = await Promise.all([getEvaluation(evalId), getEvaluationFeedback(evalId)]);
     setEvalConfig(cfg);
+    setFeedback(durable);
+    setIsCompleted(cfg.status === 'completed' && durable.readiness.results);
 
-    if (cfg.status === 'completed' || cfg.status === 'failed' || cfg.status === 'cancelled') {
-      setIsCompleted(cfg.status === 'completed');
+    if (durable.readiness.results) {
       const r = await getEvaluationResults(evalId).catch(() => null);
       if (r) {
         const cells = Array.isArray(r) ? r : (r as { cells?: EvalMatrixCell[] }).cells ?? [];
@@ -72,6 +77,12 @@ export function DashboardPage() {
   useEffect(() => {
     refreshStatus().catch(() => {});
   }, [refreshStatus]);
+
+  useEffect(() => {
+    if (!feedback || !['pending', 'running'].includes(feedback.status)) return;
+    const timer = window.setInterval(() => { refreshStatus().catch(() => {}); }, 3000);
+    return () => window.clearInterval(timer);
+  }, [feedback, refreshStatus]);
 
   const handleRefreshStatus = useCallback(async () => {
     setRefreshingStatus(true);
@@ -231,6 +242,24 @@ export function DashboardPage() {
     }
   }, [evalId, navigate]);
 
+  const handleResume = useCallback(async () => {
+    // RecoveryPanel owns the confirmation step (reused/remaining/replay counts);
+    // by the time this fires the operator has already confirmed.
+    if (!evalId || !feedback?.recovery) return;
+    setResuming(true);
+    try { await resumeEvaluation(evalId); await refreshStatus(); }
+    finally { setResuming(false); }
+  }, [evalId, feedback, refreshStatus]);
+
+  const handleFullRerun = useCallback(async () => {
+    if (!evalId) return;
+    setRerunning(true);
+    try {
+      const created = await retryEvaluationCells(evalId, {});
+      navigate(`/eval/run/${created.evalId}`);
+    } finally { setRerunning(false); }
+  }, [evalId, navigate]);
+
   const promptIds = evalConfig?.promptIds ?? [];
 
   return (
@@ -239,7 +268,7 @@ export function DashboardPage() {
       {/* Header row */}
       <div className="dp-header">
         <div className="dp-header-left">
-          <h2 className="dp-title">{isCompleted ? 'Evaluation Complete' : 'Evaluation Running'}</h2>
+          <h2 className="dp-title">{isCompleted ? 'Evaluation Complete' : feedback?.status === 'interrupted' ? 'Evaluation Interrupted' : feedback?.status === 'failed' ? 'Evaluation Failed' : feedback?.status === 'cancelled' ? 'Evaluation Cancelled' : 'Evaluation Running'}</h2>
           <ElapsedTimer
             startTime={evalConfig?.startedAt ? new Date(evalConfig.startedAt).getTime() : Date.now()}
             stopped={isCompleted}
@@ -247,7 +276,7 @@ export function DashboardPage() {
           <WsStatusDot status={wsStatus} />
         </div>
         <div className="dp-header-right">
-          {isCompleted && (
+          {isCompleted && feedback?.readiness.results && (
             <button className="dp-results-btn" onClick={() => navigate(`/eval/results/${evalId}`)}>
               View Results <ArrowRight size={16} />
             </button>
@@ -267,6 +296,16 @@ export function DashboardPage() {
 
       {/* Eval summary */}
       {evalId && <EvalSummaryBar evalId={evalId} />}
+
+      {feedback && (
+        <RecoveryPanel
+          feedback={feedback}
+          onResume={handleResume}
+          onFullRerun={handleFullRerun}
+          resuming={resuming}
+          rerunning={rerunning}
+        />
+      )}
 
       {/* Two-column prompt run cards */}
       <div className="dp-prompt-grid">

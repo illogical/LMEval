@@ -18,7 +18,7 @@ vi.mock('../LmapiClient', () => ({
 describe('buildLmapiProvider — inference parameter threading', () => {
   it('omits temperature/max_tokens/seed from the request when no inference is given', async () => {
     chatCompletionMock.mockClear();
-    const provider = buildLmapiProvider('model-a', 'eval-1');
+    const provider = buildLmapiProvider('local::model-a', 'eval-1');
     await provider.callApi('system prompt', { vars: { userMessage: 'hi' } } as never);
     const sentReq = chatCompletionMock.mock.calls[0][0] as Record<string, unknown>;
     expect(sentReq).not.toHaveProperty('temperature');
@@ -28,7 +28,7 @@ describe('buildLmapiProvider — inference parameter threading', () => {
 
   it('sends temperature and max_tokens when inference is provided', async () => {
     chatCompletionMock.mockClear();
-    const provider = buildLmapiProvider('model-a', 'eval-1', { temperature: 0.3, maxTokens: 1000 });
+    const provider = buildLmapiProvider('local::model-a', 'eval-1', { temperature: 0.3, maxTokens: 1000 });
     await provider.callApi('system prompt', { vars: { userMessage: 'hi' } } as never);
     const sentReq = chatCompletionMock.mock.calls[0][0] as Record<string, unknown>;
     expect(sentReq.temperature).toBe(0.3);
@@ -44,7 +44,7 @@ describe('buildLmapiProvider — inference parameter threading', () => {
 
   it('sends seed when provided, alongside temperature/max_tokens', async () => {
     chatCompletionMock.mockClear();
-    const provider = buildLmapiProvider('model-a', 'eval-1', { temperature: 0.3, maxTokens: 1000, seed: 42 });
+    const provider = buildLmapiProvider('local::model-a', 'eval-1', { temperature: 0.3, maxTokens: 1000, seed: 42 });
     await provider.callApi('system prompt', { vars: { userMessage: 'hi' } } as never);
     const sentReq = chatCompletionMock.mock.calls[0][0] as Record<string, unknown>;
     expect(sentReq.seed).toBe(42);
@@ -53,7 +53,7 @@ describe('buildLmapiProvider — inference parameter threading', () => {
 
 function baseConfig(): EvaluationConfig {
   return {
-    id: 'eval-1', name: 'test', promptIds: ['p1'], modelIds: ['m1'],
+    id: 'eval-1', name: 'test', promptIds: ['p1'], modelIds: ['local::m1'],
     status: 'pending', createdAt: '', updatedAt: '',
   };
 }

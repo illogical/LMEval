@@ -7,6 +7,19 @@
   gap: 16px;
 }
 
+.recovery-panel { margin: 1rem 0; padding: 1rem; border: 1px solid var(--color-warning, #b78b35); border-radius: 8px; background: color-mix(in srgb, var(--color-warning, #b78b35) 10%, transparent); }
+.recovery-panel__heading, .recovery-panel__actions { display: flex; align-items: center; gap: .65rem; }
+.recovery-panel__heading h3 { margin: 0; }
+.recovery-panel__actions { margin: .75rem 0; }
+.recovery-panel__actions button { display: inline-flex; align-items: center; gap: .4rem; }
+.recovery-panel__reason { margin: .4rem 0; }
+.recovery-panel__confirm {
+  margin-top: .75rem; padding: .85rem 1rem; border-radius: 6px;
+  border: 1px solid var(--color-warning, #b78b35); background: var(--color-surface, #fff);
+}
+.recovery-panel__confirm h4 { margin: 0 0 .4rem; }
+.recovery-panel__confirm-actions { display: flex; gap: .5rem; margin-top: .6rem; }
+
 /* ── Header ──────────────────────────────────────────────── */
 .dp-header {
   display: flex;

@@ -1,4 +1,7 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, rmSync } from 'fs';
+import {
+  readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, rmSync,
+  openSync, writeSync, fsyncSync, closeSync, renameSync,
+} from 'fs';
 import { join, dirname } from 'path';
 
 export function ensureDir(dirPath: string): void {
@@ -16,6 +19,50 @@ export function readJson<T>(filePath: string): T | null {
 export function writeJson(filePath: string, data: unknown): void {
   ensureDir(dirname(filePath));
   writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+/**
+ * Recovery artifacts use a same-directory temporary file so rename is a
+ * filesystem-local replacement. The destination is never unlinked first:
+ * readers see either the previous complete JSON document or the new one.
+ */
+export function writeJsonAtomic(filePath: string, data: unknown): void {
+  ensureDir(dirname(filePath));
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(tempPath, 'wx');
+    const content = `${JSON.stringify(data, null, 2)}\n`;
+    writeSync(descriptor, content, undefined, 'utf-8');
+    fsyncSync(descriptor);
+    closeSync(descriptor);
+    descriptor = undefined;
+    renameSync(tempPath, filePath);
+    // Opening/fsyncing directories is not portable on Windows. The file
+    // itself is flushed before the atomic same-directory rename.
+  } catch (error) {
+    if (descriptor != null) {
+      try { closeSync(descriptor); } catch { /* best effort */ }
+    }
+    if (existsSync(tempPath)) {
+      try { unlinkSync(tempPath); } catch { /* known temp only */ }
+    }
+    throw error;
+  }
+}
+
+export type JsonReadResult<T> =
+  | { state: 'missing' }
+  | { state: 'valid'; value: T }
+  | { state: 'corrupt'; error: string };
+
+export function readJsonSafe<T>(filePath: string): JsonReadResult<T> {
+  if (!existsSync(filePath)) return { state: 'missing' };
+  try {
+    return { state: 'valid', value: JSON.parse(readFileSync(filePath, 'utf-8')) as T };
+  } catch (error) {
+    return { state: 'corrupt', error: (error as Error).message };
+  }
 }
 
 export function readText(filePath: string): string | null {

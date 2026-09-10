@@ -1,4 +1,4 @@
-export type EvalStatus = 'draft' | 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type EvalStatus = 'draft' | 'pending' | 'running' | 'interrupted' | 'completed' | 'failed' | 'cancelled';
 
 export interface JudgePerspective {
   id: string;
@@ -172,6 +172,8 @@ export interface EvaluationConfig {
   /** Optional parent workflow. Associated Wizard runs are context only, never campaign phase evidence. */
   campaignId?: string;
   campaignRole?: 'supplemental';
+  /** Internal ownership for campaign protocol phases; ordinary clients should not set this. */
+  campaignContext?: { campaignId: string; role: 'protocol-phase'; task: CampaignTask; phase: CampaignPhase };
 }
 
 /** Caller-controlled evaluation fields. Server-derived lifecycle and provenance fields are excluded. */
@@ -213,7 +215,178 @@ export interface EvaluationProgress {
   total: number;
   completed: number;
   failed: number;
+  observedCompleted?: number;
+  durablyCommitted?: number;
+  remaining?: number;
+  attemptId?: string;
+  sequence?: number;
   updatedAt: string;
+}
+
+export interface ServerQualifiedModelRef {
+  canonicalId: string;
+  serverName: string;
+  modelName: string;
+  artifactDigest?: string;
+}
+
+export type RecoveryReasonCode =
+  | 'ACTIVE_OWNER' | 'ALREADY_COMPLETE' | 'LEGACY_NO_CHECKPOINTS'
+  | 'EXECUTION_INPUT_MISMATCH' | 'PLAN_HASH_MISMATCH' | 'CHECKPOINT_CORRUPT'
+  | 'CHECKPOINT_SCHEMA_UNSUPPORTED' | 'PROMPTFOO_SCHEMA_UNSUPPORTED'
+  | 'MODEL_ROUTE_UNAVAILABLE' | 'MODEL_CATALOG_UNAVAILABLE' | 'MODEL_ARTIFACT_MISMATCH'
+  | 'JUDGE_POLICY_MISMATCH' | 'JUDGE_QUALIFICATION_STALE'
+  | 'CAMPAIGN_MANAGED_RUN' | 'NO_UNFINISHED_WORK';
+
+export interface EvaluationRecoveryCheck {
+  code: RecoveryReasonCode | 'MODEL_ARTIFACT_IDENTITY_UNAVAILABLE';
+  compatible: boolean;
+  message: string;
+  informational?: boolean;
+}
+
+export type RecoveryState = 'not-needed' | 'eligible' | 'finalization-only' | 'blocked' | 'legacy-unrecoverable';
+export interface EvaluationRecovery {
+  state: RecoveryState;
+  reasonCode?: RecoveryReasonCode;
+  details?: EvaluationRecoveryCheck[];
+  reusedCells: number;
+  remainingCells: number;
+  lastAttemptId?: string;
+  requiresModelCalls: boolean;
+}
+
+export interface EvaluationExecutionInputs {
+  schemaVersion: 1;
+  evalId: string;
+  prompts: Array<{ promptId: string; version: number; content: string; contentSha256: string; tools?: ToolDefinition[] }>;
+  testCases: TestCase[];
+  testCasesSha256: string;
+  candidates: ServerQualifiedModelRef[];
+  runsPerCell: number;
+  template: EvalTemplate | null;
+  purposeCategory?: PurposeCategory;
+  assertionStrategy: AssertionStrategy | null;
+  resolvedInference?: ResolvedInferenceParams;
+  benchmarkProvenance?: BenchmarkRunProvenance;
+  transportProvenance?: TransportProvenance;
+  comparisonMode?: EvalComparisonMode;
+  judge?: {
+    model: ServerQualifiedModelRef;
+    policy: 'qualified-required' | 'advisory-allowed';
+    qualificationSnapshot?: JudgeQualification;
+    gradingTemperature: 0;
+  };
+  promptfoo: { packageVersion: string; resultSchemaVersion: 1 };
+  createdAt: string;
+}
+
+export interface EvaluationWorkItem {
+  ordinal: number;
+  cellId: string;
+  cellKey: string;
+  promptId: string;
+  promptVersion: number;
+  promptContentSha256: string;
+  model: ServerQualifiedModelRef;
+  testCaseId: string;
+  testCaseSha256: string;
+  repetition: number;
+  assertionPlanSha256: string;
+  plannedJudgeCalls: number;
+}
+
+export interface EvaluationWorkPlan {
+  schemaVersion: 1;
+  evalId: string;
+  executionInputSha256: string;
+  planSha256: string;
+  items: EvaluationWorkItem[];
+  totals: { cells: number; candidateCalls: number; judgeCalls: number };
+  createdAt: string;
+}
+
+export interface CellResultCheckpoint {
+  schemaVersion: 1;
+  evalId: string;
+  planSha256: string;
+  cellId: string;
+  cellKey: string;
+  attemptId: string;
+  committedAt: string;
+  cell: EvalMatrixCell;
+}
+
+export type EvaluationAttemptStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
+export interface EvaluationAttempt {
+  schemaVersion: 1;
+  attemptId: string;
+  evalId: string;
+  ordinal: number;
+  resumedFromAttemptId?: string;
+  status: EvaluationAttemptStatus;
+  owner: { instanceId: string; pid?: number; token: string };
+  startedAt: string;
+  heartbeatAt: string;
+  leaseExpiresAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  counts: { planned: number; reused: number; committedByAttempt: number; terminalFailed: number; remaining: number };
+  terminalFailureId?: string;
+}
+
+export interface EvaluationRunState {
+  schemaVersion: 1;
+  evalId: string;
+  planSha256: string;
+  currentAttemptId?: string;
+  lastAttemptId?: string;
+  nextAttemptOrdinal: number;
+  recovery: EvaluationRecovery;
+  updatedAt: string;
+}
+
+export interface EvaluationFailure {
+  schemaVersion: 1;
+  failureId: string;
+  evaluationId: string;
+  attemptId?: string;
+  timestamp: string;
+  stage: 'preflight' | 'model-resolution' | 'candidate-provider' | 'judge-provider' | 'promptfoo' | 'assertion' | 'checkpoint' | 'aggregation' | 'indexing' | 'cancellation' | 'recovery';
+  scope: 'run' | 'cell';
+  cellId?: string;
+  code: string;
+  message: string;
+  errorClass?: string;
+  retriable: boolean;
+  retryOrdinal?: number;
+  model?: { canonicalId: string; serverName?: string; modelName?: string; role: 'candidate' | 'judge' };
+  httpStatus?: number;
+  lmapiCode?: string;
+  timedOut?: boolean;
+  cancelled?: boolean;
+  finishReason?: string;
+  responseMetadata?: { contentPresent: boolean; contentLength: number; reasoningPresent: boolean; reasoningLength: number; structuredOutputParsed?: boolean };
+  causalFailureId?: string;
+}
+
+export interface ResumeEvaluationResponse {
+  evaluationId: string;
+  attemptId: string;
+  resumedFromAttemptId?: string;
+  mode: 'execute-remaining' | 'finalization-only';
+  counts: { total: number; reused: number; remaining: number; inFlightLimit: number };
+  preflight: { compatible: boolean; checks: EvaluationRecoveryCheck[] };
+  browserPaths: EvaluationBrowserPaths;
+}
+
+export interface CancellationResult {
+  state: 'cancellation-requested' | 'reconciled-interrupted';
+  evaluationId: string;
+  attemptId?: string;
+  controllerOwned: boolean;
+  durablyCommitted: number;
+  remaining: number;
 }
 
 export interface EvaluationBrowserPaths {
@@ -241,6 +414,8 @@ export interface EvaluationFeedback {
   verdict: EvaluationFeedbackVerdict | null;
   appBasePath: string;
   browserPaths: EvaluationBrowserPaths;
+  attempt?: { currentAttemptId?: string; attemptCount: number; status?: EvaluationAttemptStatus };
+  recovery?: EvaluationRecovery;
 }
 
 export interface BenchmarkRunProvenance {
@@ -318,6 +493,8 @@ export interface EvalMatrixCell {
     timestamp: string;
   }>;
   errorType?: string;
+  attemptId?: string;
+  cellKey?: string;
 }
 
 export interface EvalModelSummary {
@@ -602,6 +779,8 @@ export interface JudgeQualification {
   meanInflation: number;
   selfConsistencyMAD: Record<string, number>;
   qualified: boolean;
+  route?: ServerQualifiedModelRef;
+  settingsSha256?: string;
 }
 
 export type JudgeQualificationRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';

@@ -25,6 +25,8 @@ import { GitService } from './services/GitService';
 import { configurePaths, REPO_ROOT } from './services/FileService';
 import { setupWebSocket } from './ws';
 import { config } from './config';
+import { EvaluationAttemptService } from './services/EvaluationAttemptService';
+import { ExecutionService } from './services/ExecutionService';
 
 /**
  * Composition root (docs/plans/2026-08-23-homebase-integration.md §2). Builds
@@ -42,6 +44,8 @@ export function buildApp(options: { appBasePath?: string } = {}): { router: Rout
   const router = Router();
   configureEvaluationRoutes({ appBasePath: options.appBasePath ?? '/' });
   configureCampaignRoutes(options.appBasePath ?? '/');
+  EvaluationAttemptService.initialize();
+  ExecutionService.reconcileOnStartup();
   JudgeQualificationService.interruptRuns();
   ModelSelectionService.interruptCampaigns();
   router.use(express.json());
@@ -105,7 +109,7 @@ export function buildApp(options: { appBasePath?: string } = {}): { router: Rout
     // Nothing owned at this layer needs releasing today — WebSocket
     // teardown is the caller's responsibility via setupWebSocket()'s own
     // returned Disposer (server/ws.ts), not duplicated here.
-    dispose: async () => {},
+    dispose: async () => { await ExecutionService.dispose(); },
   };
 }
 
